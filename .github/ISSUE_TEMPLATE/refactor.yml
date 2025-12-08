@@ -1,0 +1,28 @@
+name: "🛠 Refactor"
+description: "기능 변화 없는 코드 구조 개선"
+title: "[BE/refactor] 이슈 제목 "
+labels: ["refactor"]
+
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: 목적(Objective)
+      description: 왜 리팩토링이 필요한지
+      placeholder: >
+        - 유지보수성 향상
+        - 가독성 개선
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 범위(Scope)
+      placeholder: |
+        - [ ] 구조 개선
+        - [ ] 네이밍 변경
+        - [ ] 중복 제거
+        - [ ] 테스트 코드 보강
+    validations:
+      required: true
