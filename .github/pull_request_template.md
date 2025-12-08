@@ -1,5 +1,5 @@
 # 🔀 Pull Request
-
+<!-- PR 제목 컨벤션 -> [BE/feat] pr 제목 -->
 ## 🏷 PR 타입(Type)
 아래에서 이번 PR의 종류를 선택해주세요.
 
