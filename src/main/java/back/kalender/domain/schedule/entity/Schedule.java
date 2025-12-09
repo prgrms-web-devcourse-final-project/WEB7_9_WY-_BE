@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class ScheduleEntity {
+public class Schedule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long Id;
+    private Long id;
 
     @Column(nullable = false)
     private Long artistId;
