@@ -53,6 +53,7 @@ public class UserController {
                 1L,
                 request.email(),
                 request.nickname(),
+                request.birthDate(),
                 LocalDateTime.now()
         );
 
@@ -78,11 +79,12 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile() {
         UserProfileResponse dummyData = new UserProfileResponse(
-                1L,
                 "user@example.com",
                 "닉네임",
                 "https://s3.amazonaws.com/kalender/profile/user.jpg",
-                4
+                4,
+                25,
+                "MALE"
         );
 
         return ResponseEntity.ok(dummyData);
@@ -121,7 +123,7 @@ public class UserController {
 
     @Operation(
             summary = "내 정보 수정",
-            description = "사용자의 닉네임, 비밀번호, 프로필 이미지를 수정합니다."
+            description = "사용자의 닉네임, 프로필 이미지를 수정합니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -145,11 +147,12 @@ public class UserController {
             @RequestBody UpdateProfileRequest request
     ) {
         UserProfileResponse dummyData = new UserProfileResponse(
-                1L,
                 "user@example.com",
                 request.nickname() != null ? request.nickname() : "새로운 닉네임",
                 request.profileImage() != null ? request.profileImage() : "https://s3.amazonaws.com/kalender/profile/user.jpg",
-                4
+                4,
+                25,
+                "MALE"
         );
 
         return ResponseEntity.ok(dummyData);
