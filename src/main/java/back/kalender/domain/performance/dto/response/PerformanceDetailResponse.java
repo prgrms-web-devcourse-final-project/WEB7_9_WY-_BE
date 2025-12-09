@@ -1,5 +1,9 @@
 package back.kalender.domain.performance.dto.response;
 
+import back.kalender.domain.artist.entity.Artist;
+import back.kalender.domain.performance.entity.Performance;
+import back.kalender.domain.performance.entity.PerformanceHall;
+import back.kalender.domain.performance.entity.PriceGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
@@ -26,7 +30,14 @@ public record PerformanceDetailResponse(
     public record ArtistInfo(
             Long artistId,
             String artistName
-    ) {}
+    ) {
+        public static ArtistInfo from(Artist artist) {
+            return new ArtistInfo(
+                    artist.getId(),
+                    artist.getName()
+            );
+        }
+    }
 
     @Schema(description = "공연장 정보")
     public record PerformanceHallInfo(
@@ -34,12 +45,48 @@ public record PerformanceDetailResponse(
             String name,
             String address,
             String transportationInfo
-    ) {}
+    ) {
+        public static PerformanceHallInfo from(PerformanceHall performanceHall) {
+            return new PerformanceHallInfo(
+                    performanceHall.getId(),
+                    performanceHall.getName(),
+                    performanceHall.getAddress(),
+                    performanceHall.getTransportationInfo()
+            );
+        }
+    }
 
     @Schema(description = "가격 등급 정보")
     public record PriceGradeInfo(
             Long priceGradeId,
             String gradeName,
             Integer price
-    ) {}
+    ) {
+        public static PriceGradeInfo from(PriceGrade priceGrade) {
+            return new PriceGradeInfo(
+                    priceGrade.getId(),
+                    priceGrade.getGradeName(),
+                    priceGrade.getPrice()
+            );
+        }
+    }
+
+    public static PerformanceDetailResponse from(Performance performance, List<PriceGrade> priceGrades) {
+        return new PerformanceDetailResponse(
+                performance.getId(),
+                performance.getTitle(),
+                performance.getPosterImageUrl(),
+                ArtistInfo.from(performance.getArtist()),
+                performance.getStartDate(),
+                performance.getEndDate(),
+                performance.getRunningTime(),
+                PerformanceHallInfo.from(performance.getPerformanceHall()),
+                priceGrades.stream()
+                        .map(PriceGradeInfo::from)
+                        .toList(),
+                performance.getSalesStartTime(),
+                performance.getSalesEndTime(),
+                performance.getBookingNotice()
+        );
+    }
 }
