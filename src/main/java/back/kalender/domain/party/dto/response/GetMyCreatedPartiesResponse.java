@@ -5,9 +5,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 내가 만든 파티 목록 조회 응답 DTO
- */
 @Schema(description = "내가 만든 파티 목록 조회 응답")
 public record GetMyCreatedPartiesResponse(
 
@@ -24,9 +21,6 @@ public record GetMyCreatedPartiesResponse(
         Integer pageNumber
 ) {
 
-    /**
-     * 생성한 파티 항목
-     */
     @Schema(description = "생성한 파티 항목")
     public record CreatedPartyItem(
 
@@ -52,9 +46,6 @@ public record GetMyCreatedPartiesResponse(
             LocalDateTime createdAt
     ) {}
 
-    /**
-     * 이벤트 정보
-     */
     @Schema(description = "이벤트 정보")
     public record EventInfo(
 
@@ -74,9 +65,6 @@ public record GetMyCreatedPartiesResponse(
             String artistName
     ) {}
 
-    /**
-     * 파티 상세 정보
-     */
     @Schema(description = "파티 상세 정보")
     public record PartyDetailInfo(
 
@@ -102,9 +90,6 @@ public record GetMyCreatedPartiesResponse(
             String status
     ) {}
 
-    /**
-     * 신청 통계 정보
-     */
     @Schema(description = "신청 통계 정보")
     public record ApplicationStatistics(
 

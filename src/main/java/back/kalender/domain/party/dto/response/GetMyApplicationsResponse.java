@@ -5,9 +5,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 신청한 파티 목록 조회 응답 DTO
- */
 @Schema(description = "신청한 파티 목록 조회 응답")
 public record GetMyApplicationsResponse(
 
@@ -24,9 +21,6 @@ public record GetMyApplicationsResponse(
         Integer pageNumber
 ) {
 
-    /**
-     * 신청 항목
-     */
     @Schema(description = "신청 항목")
     public record ApplicationItem(
 
@@ -43,9 +37,6 @@ public record GetMyApplicationsResponse(
             Long chatRoomId
     ) {}
 
-    /**
-     * 파티 정보
-     */
     @Schema(description = "파티 정보")
     public record PartyInfo(
 
@@ -62,9 +53,6 @@ public record GetMyApplicationsResponse(
             PartyDetailInfo partyInfo
     ) {}
 
-    /**
-     * 파티장 정보
-     */
     @Schema(description = "파티장 정보")
     public record LeaderInfo(
 
@@ -78,9 +66,6 @@ public record GetMyApplicationsResponse(
             String profileImage
     ) {}
 
-    /**
-     * 이벤트 정보
-     */
     @Schema(description = "이벤트 정보")
     public record EventInfo(
 
@@ -97,9 +82,6 @@ public record GetMyApplicationsResponse(
             LocalDateTime eventDateTime
     ) {}
 
-    /**
-     * 파티 상세 정보
-     */
     @Schema(description = "파티 상세 정보")
     public record PartyDetailInfo(
 
