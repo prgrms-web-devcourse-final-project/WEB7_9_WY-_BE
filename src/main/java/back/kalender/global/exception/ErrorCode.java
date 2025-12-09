@@ -16,11 +16,12 @@ public enum ErrorCode {
     // Artist 2000
     ARTIST_NOT_FOUND("2001",HttpStatus.NOT_FOUND,"아티스트를 찾을 수 없습니다."),
     ALREADY_FOLLOWED("2002",HttpStatus.CONFLICT,"이미 팔로우한 아티스트입니다."),
-    ARTIST_NOT_FOLLOWED("2003", HttpStatus.BAD_REQUEST, "팔로우 상태가 아닙니다.");
+    ARTIST_NOT_FOLLOWED("2003", HttpStatus.BAD_REQUEST, "팔로우 상태가 아닙니다."),
 
     // Party 3000
 
     // Schedule 4000
+    SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다.");
 
     // Performance 5000
 

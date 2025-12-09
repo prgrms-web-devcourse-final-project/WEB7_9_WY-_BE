@@ -8,8 +8,9 @@ import java.util.Optional;
 
 public interface ArtistFollowRepository extends JpaRepository<ArtistFollow,Long> {
 
-    //Optional<ArtistFollow> findByUserIdAndArtistId(Long userId, Long artistId);
+    List<ArtistFollow> findAllByUserId(Long userId);
 
-    //List<ArtistFollow> findAllByUserId(Long userId);
+    boolean existsByUserIdAndArtistId(Long userId, Long artistId);
 
+    void deleteByUserIdAndArtistId(Long userId, Long artistId);
 }
