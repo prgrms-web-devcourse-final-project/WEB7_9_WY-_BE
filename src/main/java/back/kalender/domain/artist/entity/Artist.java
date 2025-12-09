@@ -1,7 +1,6 @@
 package back.kalender.domain.artist.entity;
 
 import back.kalender.global.common.entity.BaseEntity;
-import back.kalender.global.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
