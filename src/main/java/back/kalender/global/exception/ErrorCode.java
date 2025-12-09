@@ -9,7 +9,8 @@ public enum ErrorCode {
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."), // 예시, 삭제가능
 
     // User 1000
-    USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다.");
+    USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
+    DUPLICATE_NICKNAME("1002", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다.");
 
     // Artist 2000
 

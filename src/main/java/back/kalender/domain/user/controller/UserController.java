@@ -5,6 +5,7 @@ import back.kalender.domain.user.dto.request.UserSignupRequest;
 import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
+import back.kalender.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,7 +25,7 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
 public class UserController {
-    // TODO: Service 주입 필요
+    private final UserService userService;
 
     @Operation(
             summary = "회원가입",
@@ -46,7 +47,7 @@ public class UserController {
     public ResponseEntity<UserSignupResponse> signup(
             @RequestBody UserSignupRequest request
     ) {
-        // TODO: userService.signup(request)
+        // TODO: 더미데이터 삭제, 서비스 연결 필요
 
         // 더미 데이터
         UserSignupResponse dummyData = new UserSignupResponse(
@@ -78,16 +79,11 @@ public class UserController {
     })
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile() {
-        UserProfileResponse dummyData = new UserProfileResponse(
-                "user@example.com",
-                "닉네임",
-                "https://s3.amazonaws.com/kalender/profile/user.jpg",
-                4,
-                25,
-                "MALE"
-        );
+        // TODO: @AuthenticationPrincipal로 userId 받아오기
+        Long userId = 1L;
 
-        return ResponseEntity.ok(dummyData);
+        UserProfileResponse response = userService.getMyProfile(userId);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -115,10 +111,11 @@ public class UserController {
     public ResponseEntity<UploadProfileImgResponse> uploadProfileImage(
             @RequestParam("profile_image") MultipartFile profileImage
     ) {
+        // TODO: @AuthenticationPrincipal로 userId 받아오기
+        Long userId = 1L;
 
-        UploadProfileImgResponse dummyData = new UploadProfileImgResponse(
-                "https://s3.amazonaws.com/kalender/profile/abc123-profile.jpg"
-        );        return ResponseEntity.ok(dummyData);
+        UploadProfileImgResponse response = userService.uploadProfileImage(userId, profileImage);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -146,15 +143,10 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> updateMyProfile(
             @RequestBody UpdateProfileRequest request
     ) {
-        UserProfileResponse dummyData = new UserProfileResponse(
-                "user@example.com",
-                request.nickname() != null ? request.nickname() : "새로운 닉네임",
-                request.profileImage() != null ? request.profileImage() : "https://s3.amazonaws.com/kalender/profile/user.jpg",
-                4,
-                25,
-                "MALE"
-        );
+        // TODO: @AuthenticationPrincipal로 userId 받아오기
+        Long userId = 1L;
 
-        return ResponseEntity.ok(dummyData);
+        UserProfileResponse response = userService.updateMyProfile(userId, request);
+        return ResponseEntity.ok(response);
     }
 }
