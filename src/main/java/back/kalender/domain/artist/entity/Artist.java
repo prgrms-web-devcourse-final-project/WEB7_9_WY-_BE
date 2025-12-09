@@ -1,5 +1,7 @@
 package back.kalender.domain.artist.entity;
 
+import back.kalender.global.common.entity.BaseEntity;
+import back.kalender.global.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -10,11 +12,8 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class Artist {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@Table(name = "artists")
+public class Artist extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String name;
