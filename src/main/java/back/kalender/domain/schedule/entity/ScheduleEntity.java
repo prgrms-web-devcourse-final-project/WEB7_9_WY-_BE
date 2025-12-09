@@ -15,10 +15,15 @@ public class ScheduleEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long scheduleId;
+
     private Long artistId;
     private Long performanceId;
     private String title;
-    private String category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ScheduleCategory scheduleCategory;
+
     private String link;
 
     @Column(name = "schedule_time")

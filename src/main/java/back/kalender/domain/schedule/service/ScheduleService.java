@@ -16,12 +16,10 @@ public class ScheduleService {
 //        this.artistRepository = artistRepository;
 //    }
 
-    // 팔로우하는 아티스트들의 월별 일정 가져오기
     public MonthlySchedulesResponse getFollowingSchedules(Long userId, int year, int month) {
         return null;
     }
 
-    // 팔로우하는 아티스트 중 특정 아티스트의 월별 일정 가져오기
     public MonthlySchedulesResponse getArtistSchedules(Long userId, Long artistId, int year, int month) {
         return null;
     }
