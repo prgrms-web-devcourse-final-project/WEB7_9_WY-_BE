@@ -6,15 +6,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-public record ScheduleItem(
+public record MonthlyScheduleItem(
         Long scheduleId,
         Long artistId,
         String artistName,
         String title,
         ScheduleCategory scheduleCategory,
-        Optional<Long> performanceId,
         LocalDateTime scheduleTime,
-        LocalDate date
+        Optional<Long> performanceId,
+        LocalDate date,
 
+        Optional<String> location
 ) {
 }

@@ -2,6 +2,7 @@ package back.kalender.domain.schedule.service;
 
 import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
 import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
+import back.kalender.domain.schedule.dto.response.UpcomingEventsResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -26,6 +27,10 @@ public class ScheduleService {
 
 
     public DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {
+        return null;
+    }
+
+    public UpcomingEventsResponse getUpcomingEvents(Long userId) {
         return null;
     }
 }

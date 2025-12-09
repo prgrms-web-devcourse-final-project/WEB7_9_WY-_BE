@@ -10,7 +10,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "schedule")
+@Table(name = "schedules")
 @Getter
 @NoArgsConstructor
 @Builder
@@ -20,7 +20,7 @@ public class ScheduleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long scheduleId;
+    private Long Id;
 
     @Column(nullable = false)
     private Long artistId;
@@ -38,4 +38,6 @@ public class ScheduleEntity {
 
     @Column(name = "schedule_time")
     private LocalDateTime scheduleTime;
+
+    private String location;
 }

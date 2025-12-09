@@ -2,11 +2,10 @@ package back.kalender.domain.schedule.dto.response;
 
 import back.kalender.domain.schedule.entity.ScheduleCategory;
 
-import javax.swing.text.html.Option;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-public record DailyScheduleItem(
+public record UpcomingEventItem(
         Long scheduleId,
         String artistName,
         String title,
@@ -14,9 +13,7 @@ public record DailyScheduleItem(
         LocalDateTime scheduleTime,
         Optional<Long> performanceId,
         Optional<String> link,
+        Long daysUntilEvent,
         Optional<String> location
-        //TODO: 예외 코드 작성
-        // 다가오는 이벤트 조회 - 전체 아티스트, 개별 아티스트
-
 ) {
 }
