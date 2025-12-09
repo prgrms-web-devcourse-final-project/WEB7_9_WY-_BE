@@ -155,7 +155,7 @@ public class PartyController {
             )
     })
     public ResponseEntity<UpdatePartyResponse> modifyParty(@Valid @RequestBody UpdatePartyRequest request) {
-        return ResponseEntity.ok().body(new UpdatePartyResponse(1,1,"수정 완료"));
+        return ResponseEntity.ok().body(new UpdatePartyResponse(1L, 1L, "수정 완료"));
     }
 
     @DeleteMapping("/{partyId}")

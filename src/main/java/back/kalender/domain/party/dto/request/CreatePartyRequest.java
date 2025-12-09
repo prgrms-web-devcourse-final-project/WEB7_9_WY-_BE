@@ -7,8 +7,6 @@ import back.kalender.domain.party.entity.TransportType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
-import java.time.LocalDateTime;
-
 @Schema(description = "파티 생성 요청")
 public record CreatePartyRequest(
 
@@ -33,11 +31,6 @@ public record CreatePartyRequest(
         @Size(max = 100, message = "출발 위치는 100자 이하여야 합니다")
         @Schema(description = "출발 위치", example = "강남역 3번출구", required = true)
         String departureLocation,
-
-        @NotNull(message = "출발 시간은 필수입니다")
-        @Future(message = "출발 시간은 현재 시간 이후여야 합니다")
-        @Schema(description = "출발 시간", example = "2025-12-15T14:00:00", required = true)
-        LocalDateTime departureTime,
 
         @NotBlank(message = "도착 위치는 필수입니다")
         @Size(max = 100, message = "도착 위치는 100자 이하여야 합니다")

@@ -4,9 +4,10 @@ import back.kalender.domain.party.entity.Gender;
 import back.kalender.domain.party.entity.PreferredAge;
 import back.kalender.domain.party.entity.TransportType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.*;
-
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Schema(description = "파티 수정 요청")
 public record UpdatePartyRequest(
@@ -26,10 +27,6 @@ public record UpdatePartyRequest(
         @Size(max = 100, message = "출발 위치는 100자 이하여야 합니다")
         @Schema(description = "출발 위치", example = "강남역 3번출구")
         String departureLocation,
-
-        @Future(message = "출발 시간은 현재 시간 이후여야 합니다")
-        @Schema(description = "출발 시간", example = "2025-12-15T14:00:00")
-        LocalDateTime departureTime,
 
         @Size(max = 100, message = "도착 위치는 100자 이하여야 합니다")
         @Schema(description = "도착 위치", example = "잠실종합운동장")

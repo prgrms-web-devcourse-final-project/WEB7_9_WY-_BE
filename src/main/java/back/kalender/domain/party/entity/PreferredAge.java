@@ -1,5 +1,8 @@
 package back.kalender.domain.party.entity;
 
+import lombok.Getter;
+
+@Getter
 public enum PreferredAge {
     TEEN("10대"),
     TWENTY("20대"),
