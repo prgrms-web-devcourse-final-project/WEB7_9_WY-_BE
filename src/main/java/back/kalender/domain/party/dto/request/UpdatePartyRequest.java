@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public record UpdatePartyRequest(
 
         @NotNull(message = "파티 ID는 필수입니다")
-        @Schema(description = "파티 ID", example = "1", required = true)
+        @Schema(description = "파티 ID", example = "1")
         Long partyId,
 
         @Size(min = 2, max = 50, message = "파티 이름은 2자 이상 50자 이하여야 합니다")
