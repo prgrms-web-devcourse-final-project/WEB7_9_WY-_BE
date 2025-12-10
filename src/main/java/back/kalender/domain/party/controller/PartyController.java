@@ -55,7 +55,9 @@ public class PartyController {
                             """)))
     })
     @PostMapping
-    public ResponseEntity<CreatePartyResponse> createParty(@Valid @RequestBody CreatePartyRequest request) {
+    public ResponseEntity<CreatePartyResponse> createParty(
+            @Valid @RequestBody CreatePartyRequest request
+    ) {
         Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         CreatePartyResponse response = partyService.createParty(request, currentUserId);
         return ResponseEntity.ok(response);
@@ -123,7 +125,9 @@ public class PartyController {
                             """)))
     })
     @DeleteMapping("/{partyId}")
-    public ResponseEntity<Void> deleteParty(@PathVariable Long partyId) {
+    public ResponseEntity<Void> deleteParty(
+            @PathVariable Long partyId
+    ) {
         Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         partyService.deleteParty(partyId, currentUserId);
         return ResponseEntity.noContent().build();
@@ -199,7 +203,9 @@ public class PartyController {
                             """)))
     })
     @PostMapping("/{partyId}/application/apply")
-    public ResponseEntity<ApplyToPartyResponse> applyToParty(@PathVariable Long partyId) {
+    public ResponseEntity<ApplyToPartyResponse> applyToParty(
+            @PathVariable Long partyId
+    ) {
         Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         ApplyToPartyResponse response = partyService.applyToParty(partyId, currentUserId);
         return ResponseEntity.ok(response);
@@ -370,7 +376,9 @@ public class PartyController {
                             """)))
     })
     @GetMapping("/{partyId}/application/applicants")
-    public ResponseEntity<GetApplicantsResponse> getApplicants(@PathVariable Long partyId) {
+    public ResponseEntity<GetApplicantsResponse> getApplicants(
+            @PathVariable Long partyId
+    ) {
         Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         GetApplicantsResponse response = partyService.getApplicants(partyId, currentUserId);
         return ResponseEntity.ok(response);
@@ -389,7 +397,9 @@ public class PartyController {
                             """)))
     })
     @GetMapping("/{partyId}/members")
-    public ResponseEntity<GetPartyMembersResponse> getPartyMembers(@PathVariable Long partyId) {
+    public ResponseEntity<GetPartyMembersResponse> getPartyMembers(
+            @PathVariable Long partyId
+    ) {
         GetPartyMembersResponse response = partyService.getPartyMembers(partyId);
         return ResponseEntity.ok(response);
     }
