@@ -5,6 +5,11 @@ import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
 import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
 import back.kalender.domain.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +29,58 @@ public class ScheduleController {
             summary = "월별 팔로우 전체 일정 조회",
             description = "팔로우한 모든 아티스트의 특정 월 일정 데이터를 가져와 캘린더에 표시합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "schedules": [
+                                        {
+                                          "id": 101,
+                                          "artistId": 2,
+                                          "artistName": "BTS",
+                                          "title": "콘서트 - BTS",
+                                          "scheduleCategory": "CONCERT",
+                                          "scheduleTime": "2025-11-02T19:00:00",
+                                          "performanceId": 501,
+                                          "date": "2025-11-02",
+                                          "location": "고척 스카이돔"
+                                        },
+                                        {
+                                          "id": 102,
+                                          "artistId": 3,
+                                          "artistName": "NewJeans",
+                                          "title": "팬미팅 - NewJeans",
+                                          "scheduleCategory": "FAN_MEETING",
+                                          "scheduleTime": "2025-11-04T14:00:00",
+                                          "performanceId": null,
+                                          "date": "2025-11-04",
+                                          "location": null
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (날짜 형식 오류 등)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "INVALID_INPUT_VALUE",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "일정 조회 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "4001",
+                                        "status": "404",
+                                        "message": "일정을 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
+    })
     @GetMapping("/following")
     public ResponseEntity<MonthlySchedulesResponse> getFollowingSchedules(
             @RequestParam int year,
@@ -72,10 +129,13 @@ public class ScheduleController {
             description = "팔로우한 아티스트들의 다가오는 일정을 시간순으로 정렬하여 제공합니다."
     )
     @GetMapping("/upcoming")
-    public ResponseEntity<UpcomingEventsResponse> getUpcomingSchedules(){
+    public ResponseEntity<UpcomingEventsResponse> getUpcomingSchedules(
+            @RequestParam(required = false) Optional<Long> artistId,
+            @RequestParam(required = false, defaultValue = "10") int limit
+    ){
         Long userId = 1L; // 임시 userId
 
-        UpcomingEventsResponse response = scheduleService.getUpcomingEvents(userId);
+        UpcomingEventsResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
         return ResponseEntity.ok(response);
     }
 }

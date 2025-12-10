@@ -7,7 +7,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     // Common 0
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."), // 예시, 삭제가능
-
+    INVALID_INPUT_VALUE("002", HttpStatus.BAD_REQUEST, "유효하지 않은 입력 값입니다."),
     // User 1000
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
 
@@ -17,6 +17,7 @@ public enum ErrorCode {
 
     // Schedule 4000
     SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다.");
+
 
     // Performance 5000
 

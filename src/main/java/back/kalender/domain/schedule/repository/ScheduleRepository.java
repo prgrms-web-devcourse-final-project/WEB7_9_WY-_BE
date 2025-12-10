@@ -1,7 +1,36 @@
 package back.kalender.domain.schedule.repository;
 
+import back.kalender.domain.schedule.dto.response.MonthlyScheduleItem;
 import back.kalender.domain.schedule.entity.Schedule;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
+    @Query("""
+        SELECT new back.kalender.domain.schedule.dto.response.MonthlyScheduleItem(
+            s.id,
+            s.artistId,
+            a.name,
+            s.title,
+            s.scheduleCategory,
+            s.scheduleTime,
+            s.performanceId,
+            CAST(s.scheduleTime AS LocalDate),
+            s.location
+        )
+        FROM Schedule s
+        JOIN ArtistTmp a ON s.artistId = a.id
+        WHERE s.artistId IN :artistIds
+        AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
+        ORDER BY s.scheduleTime ASC
+    """)
+    List<MonthlyScheduleItem> findMonthlySchedules(
+            @Param("artistIds") List<Long> artistIds,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
+    );
 }
