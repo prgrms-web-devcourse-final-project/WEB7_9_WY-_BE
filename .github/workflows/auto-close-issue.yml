@@ -24,7 +24,7 @@ jobs:
           echo "ISSUES=$ISSUES" >> $GITHUB_ENV
 
       - name: Close issues
-        uses: peter-evans/close-issue@v4
+        uses: peter-evans/close-issue@v3
         if: env.ISSUES != ''
         with:
           issue-number: ${{ env.ISSUES }}
