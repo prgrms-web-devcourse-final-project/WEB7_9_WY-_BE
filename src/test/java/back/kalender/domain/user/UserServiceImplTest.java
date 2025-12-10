@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -258,7 +259,7 @@ public class UserServiceImplTest {
 
     private void setUserId(User user, Long id) {
         try {
-            java.lang.reflect.Field idField = User.class.getDeclaredField("id");
+            Field idField = user.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(user, id);
         } catch (Exception e) {
