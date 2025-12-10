@@ -34,4 +34,27 @@ public record UpcomingEventItem(
         @Schema(description = "일정 장소 (선택 사항)", example = "코엑스 라이브플라자")
         Optional<String> location
 ) {
+        public UpcomingEventItem(
+                Long scheduleId,
+                String artistName,
+                String title,
+                ScheduleCategory scheduleCategory,
+                LocalDateTime scheduleTime,
+                Long performanceId,
+                String link,
+                Long daysUntilEvent,
+                String location
+        ) {
+                this(
+                        scheduleId,
+                        artistName,
+                        title,
+                        scheduleCategory,
+                        scheduleTime,
+                        Optional.ofNullable(performanceId),
+                        Optional.ofNullable(link),
+                        daysUntilEvent,
+                        Optional.ofNullable(location)
+                );
+        }
 }

@@ -64,7 +64,7 @@ public class ScheduleController {
                     content = @Content(examples = @ExampleObject(value = """
                                     {
                                       "error": {
-                                        "code": "INVALID_INPUT_VALUE",
+                                        "code": "002",
                                         "status": "400",
                                         "message": "유효하지 않은 입력값입니다."
                                       }

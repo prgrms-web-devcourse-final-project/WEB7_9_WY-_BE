@@ -31,4 +31,25 @@ public record DailyScheduleItem(
         @Schema(description = "일정 장소 (선택 사항)", example = "KBS 신관 공개홀")
         Optional<String> location
 ) {
+        public DailyScheduleItem(
+                Long scheduleId,
+                String artistName,
+                String title,
+                ScheduleCategory scheduleCategory,
+                LocalDateTime scheduleTime,
+                Long performanceId,
+                String link,
+                String location
+        ) {
+                this(
+                        scheduleId,
+                        artistName,
+                        title,
+                        scheduleCategory,
+                        scheduleTime,
+                        Optional.ofNullable(performanceId),
+                        Optional.ofNullable(link),
+                        Optional.ofNullable(location)
+                );
+        }
 }

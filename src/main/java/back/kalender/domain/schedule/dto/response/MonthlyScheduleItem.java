@@ -35,4 +35,27 @@ public record MonthlyScheduleItem(
         @Schema(description = "일정 장소 (선택 사항)", example = "고척 스카이돔")
         Optional<String> location
 ) {
+        public MonthlyScheduleItem(
+                Long scheduleId,
+                Long artistId,
+                String artistName,
+                String title,
+                ScheduleCategory scheduleCategory,
+                LocalDateTime scheduleTime,
+                Long performanceId,
+                LocalDate date,
+                String location
+        ) {
+                this(
+                        scheduleId,
+                        artistId,
+                        artistName,
+                        title,
+                        scheduleCategory,
+                        scheduleTime,
+                        Optional.ofNullable(performanceId),
+                        date,
+                        Optional.ofNullable(location)
+                );
+        }
 }
