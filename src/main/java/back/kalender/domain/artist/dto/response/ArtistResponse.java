@@ -1,7 +1,6 @@
 package back.kalender.domain.artist.dto.response;
 
 import back.kalender.domain.artist.entity.Artist;
-import back.kalender.domain.artist.entity.ArtistFollow;
 
 public record ArtistResponse(
         Long artistId,

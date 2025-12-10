@@ -1,5 +1,8 @@
 package back.kalender.domain.party.entity;
 
+import lombok.Getter;
+
+@Getter
 public enum TransportType {
     TAXI("택시"),
     CARPOOL("카풀"),

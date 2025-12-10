@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-public class ScheduleEntity {
+public class Schedule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long scheduleId;
+    private Long id;
 
     @Column(nullable = false)
     private Long artistId;
@@ -35,6 +35,9 @@ public class ScheduleEntity {
     private ScheduleCategory scheduleCategory;
 
     private String link;
+
+    //party를 위헤 임시로 만듬
+    private String location;
 
     @Column(name = "schedule_time")
     private LocalDateTime scheduleTime;

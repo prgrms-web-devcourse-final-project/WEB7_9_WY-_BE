@@ -1,11 +1,11 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.Gender;
+import back.kalender.global.common.Enum.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ApplyToPartyResponse(
         @Schema(description = "신청자 닉네임", example = "이치로")
-        String applicantName,
+        String applicantNickName,
 
         @Schema(description = "신청자 나이", example = "23")
         int applicantAge,

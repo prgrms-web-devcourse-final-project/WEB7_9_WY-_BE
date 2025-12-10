@@ -1,6 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.Gender;
+import back.kalender.global.common.Enum.Gender;
 import back.kalender.domain.party.entity.PartyStatus;
 import back.kalender.domain.party.entity.PartyType;
 import back.kalender.domain.party.entity.TransportType;

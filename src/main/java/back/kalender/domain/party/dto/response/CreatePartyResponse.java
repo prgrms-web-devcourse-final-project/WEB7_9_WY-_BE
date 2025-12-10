@@ -9,7 +9,7 @@ public record CreatePartyResponse(
         @Schema(description = "파티장 ID", example = "1")
         long leaderId,
 
-        @Schema(description = "상태", example = "수정 완료")
+        @Schema(description = "상태", example = "생성 완료")
         String status
 ) {
 }
