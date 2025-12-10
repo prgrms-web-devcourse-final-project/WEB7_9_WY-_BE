@@ -3,10 +3,7 @@ package back.kalender.domain.schedule.service;
 import back.kalender.domain.artist.entity.ArtistFollowTmp;
 import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
 import back.kalender.domain.artist.repository.ArtistRepositoryTmp;
-import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.MonthlyScheduleItem;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.UpcomingEventsResponse;
+import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -15,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
@@ -126,8 +124,64 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
     }
 
+    @Override
     public DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {
-        return null;
+        log.info("[Schedule] [GetDaily] 하루 상세 일정 조회 시작 - userId={}, date={}, specificArtist={}",
+                userId, date, artistId.orElse(null));
+
+        LocalDateTime startOfDay;
+        LocalDateTime endOfDay;
+
+        try {
+            LocalDate targetDate = LocalDate.parse(date);
+            startOfDay = targetDate.atStartOfDay();
+            endOfDay = targetDate.atTime(LocalTime.MAX);
+
+            log.debug("[Schedule] [GetDaily] 조회 시간 범위 계산 - start={}, end={}", startOfDay, endOfDay);
+
+        } catch (DateTimeParseException e) {
+            log.error("[Schedule] [GetDaily] 날짜 파싱 오류 - date={}", date, e);
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        List<Long> targetArtistIds;
+
+        if (artistId.isPresent()) {
+            Long id = artistId.get();
+
+            boolean isFollowing = artistFollowRepository.existsByUserIdAndArtistId(userId, id);
+            if (!isFollowing) {
+                log.warn("[Schedule] [GetDaily] 팔로우 관계 없음 - userId={}, artistId={}", userId, id);
+                throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
+            }
+
+            targetArtistIds = List.of(id);
+            log.debug("[Schedule] [GetDaily] 단일 아티스트 필터링 적용 - artistId={}", id);
+
+        } else {
+            List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+
+            if (follows.isEmpty()) {
+                log.info("[Schedule] [GetDaily] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+                return new DailySchedulesResponse(Collections.emptyList());
+            }
+
+            targetArtistIds = follows.stream()
+                    .map(follow -> follow.getArtist().getId())
+                    .toList();
+
+            log.debug("[Schedule] [GetDaily] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
+        }
+
+        List<DailyScheduleItem> items = scheduleRepository.findDailySchedules(
+                targetArtistIds,
+                startOfDay,
+                endOfDay
+        );
+
+        log.info("[Schedule] [GetDaily] 하루 상세 일정 조회 완료 - count={}", items.size());
+
+        return new DailySchedulesResponse(items);
     }
 
     public UpcomingEventsResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit) {

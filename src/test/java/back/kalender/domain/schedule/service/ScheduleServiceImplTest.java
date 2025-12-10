@@ -3,10 +3,14 @@ package back.kalender.domain.schedule.service;
 import back.kalender.domain.artist.entity.ArtistFollowTmp;
 import back.kalender.domain.artist.entity.ArtistTmp;
 import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
+import back.kalender.domain.schedule.dto.response.DailyScheduleItem;
+import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
 import back.kalender.domain.schedule.dto.response.MonthlyScheduleItem;
 import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,9 +25,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -96,6 +102,20 @@ public class ScheduleServiceImplTest {
     }
 
     @Test
+    @DisplayName("월별 전체 조회 - 실패 (유효하지 않은 월 입력)")
+    void getFollowingSchedules_Fail_InvalidMonth() {
+        Long userId = 1L;
+        int year = 2025;
+        int invalidMonth = 13;
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getFollowingSchedules(userId, year, invalidMonth)
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
+    }
+
+    @Test
     @DisplayName("여러 아티스트 중 특정 아티스트(BTS)만 조회 시, 정확히 해당 ID로만 필터링하여 요청한다.")
     void getArtistSchedules_FilterVerification() {
         Long userId = 1L;
@@ -126,5 +146,144 @@ public class ScheduleServiceImplTest {
         );
 
         verify(artistFollowRepository).existsByUserIdAndArtistId(userId, btsId);
+    }
+
+    @Test
+    @DisplayName("월별 개별 조회 - 실패 (유효하지 않은 월 입력)")
+    void getArtistSchedules_Fail_InvalidMonth() {
+        Long userId = 1L;
+        Long artistId = 1L;
+        int year = 2025;
+        int invalidMonth = 0; // 1~12 범위를 벗어남
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getSchedulesPerArtist(userId, artistId, year, invalidMonth)
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
+    }
+
+    @Test
+    @DisplayName("월별 개별 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
+    void getArtistSchedules_Fail_NotFollowed() {
+        Long userId = 1L;
+        Long notFollowedId = 99L;
+        int year = 2025;
+        int month = 11;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
+                .willReturn(false);
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getSchedulesPerArtist(userId, notFollowedId, year, month)
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
+
+        verify(scheduleRepository, times(0)).findMonthlySchedules(any(), any(), any());
+    }
+    @Test
+    @DisplayName("하루 상세 조회 - 성공 (전체 아티스트)")
+    void getDailySchedules_Success_AllArtists() {
+        Long userId = 1L;
+        String dateStr = "2025-12-15";
+
+        ArtistTmp bts = new ArtistTmp("BTS", "img");
+        ReflectionTestUtils.setField(bts, "id", 1L);
+        ArtistFollowTmp f1 = new ArtistFollowTmp(userId, bts);
+
+        ArtistTmp bp = new ArtistTmp("BP", "img");
+        ReflectionTestUtils.setField(bp, "id", 2L);
+        ArtistFollowTmp f2 = new ArtistFollowTmp(userId, bp);
+
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of(f1, f2));
+
+        List<DailyScheduleItem> dbResult = List.of(
+                createDailyDto(100L, "BTS", "콘서트"),
+                createDailyDto(101L, "BP", "방송")
+        );
+
+        given(scheduleRepository.findDailySchedules(any(), any(), any()))
+                .willReturn(dbResult);
+
+        DailySchedulesResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.empty());
+
+        assertThat(response.dailySchedules()).hasSize(2);
+
+        verify(scheduleRepository).findDailySchedules(
+                eq(List.of(1L, 2L)),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    @DisplayName("하루 상세 조회 - 성공 (특정 아티스트 필터링)")
+    void getDailySchedules_Success_SpecificArtist() {
+        Long userId = 1L;
+        Long targetId = 1L; // BTS
+        String dateStr = "2025-12-15";
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetId))
+                .willReturn(true);
+
+        List<DailyScheduleItem> dbResult = List.of(
+                createDailyDto(100L, "BTS", "콘서트")
+        );
+
+        given(scheduleRepository.findDailySchedules(any(), any(), any()))
+                .willReturn(dbResult);
+
+        DailySchedulesResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(targetId));
+
+        assertThat(response.dailySchedules()).hasSize(1);
+        assertThat(response.dailySchedules().get(0).artistName()).isEqualTo("BTS");
+
+        verify(scheduleRepository).findDailySchedules(
+                eq(List.of(targetId)),
+                any(),
+                any()
+        );
+        verify(artistFollowRepository, times(0)).findAllByUserId(any());
+    }
+
+    @Test
+    @DisplayName("하루 상세 조회 - 실패 (날짜 포맷 오류)")
+    void getDailySchedules_Fail_InvalidDate() {
+        Long userId = 1L;
+        String invalidDate = "2025/12/15";
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getDailySchedules(userId, invalidDate, Optional.empty())
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
+    }
+
+    @Test
+    @DisplayName("하루 상세 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
+    void getDailySchedules_Fail_NotFollowed() {
+        Long userId = 1L;
+        Long notFollowedId = 99L;
+        String dateStr = "2025-12-15";
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
+                .willReturn(false);
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(notFollowedId))
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
+    }
+
+    private DailyScheduleItem createDailyDto(Long id, String artistName, String title) {
+        return new DailyScheduleItem(
+                id, artistName, title,
+                ScheduleCategory.CONCERT,
+                LocalDateTime.now(),
+                null, null, "장소"
+        );
     }
 }

@@ -137,6 +137,66 @@ public class ScheduleController {
             summary = "특정 날짜 상세 일정 조회",
             description = "캘린더에서 특정 날짜를 클릭했을 때, 해당 날짜의 상세 일정 목록을 팝업 형태로 제공합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = DailySchedulesResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "dailySchedules": [
+                                        {
+                                          "scheduleId": 120,
+                                          "artistName": "NewJeans",
+                                          "title": "뮤직뱅크 출연",
+                                          "scheduleCategory": "BROADCAST",
+                                          "scheduleTime": "2025-12-15T17:00:00",
+                                          "performanceId": null,
+                                          "link": null,
+                                          "location": "KBS 신관 공개홀"
+                                        },
+                                        {
+                                          "scheduleId": 121,
+                                          "artistName": "BTS",
+                                          "title": "팬사인회",
+                                          "scheduleCategory": "FAN_SIGN",
+                                          "scheduleTime": "2025-12-15T19:00:00",
+                                          "performanceId": null,
+                                          "link": "https://ticket.example.com/bts",
+                                          "location": "코엑스"
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (날짜 형식 오류)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다. (Date Format: yyyy-MM-dd)"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스케쥴 조회 실패 (유저 정보 없음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "1001",
+                                        "status": "404",
+                                        "message": "유저를 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
+    })
     @GetMapping("/daily")
     public ResponseEntity<DailySchedulesResponse> getDailySchedules(
             @RequestParam String date,
