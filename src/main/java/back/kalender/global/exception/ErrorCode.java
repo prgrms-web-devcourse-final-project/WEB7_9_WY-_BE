@@ -70,9 +70,12 @@ public enum ErrorCode {
     CANNOT_REDUCE_MAX_MEMBERS("3413", HttpStatus.BAD_REQUEST, "현재 인원보다 적게 최대 인원을 설정할 수 없습니다."),
 
     // Schedule 4000
-    SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다.");
+    SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
 
     // Performance 5000
+    PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
+    PERFORMANCE_HALL_NOT_FOUND("5002", HttpStatus.NOT_FOUND, "공연장을 찾을 수 없습니다."),
+    PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다.");
 
     // MyPage 6000
 
