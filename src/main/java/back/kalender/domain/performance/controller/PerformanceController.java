@@ -27,7 +27,7 @@ public class PerformanceController {
 
     @Operation(
             summary = "공연 상세 정보 조회",
-            description = "특정 공연의 상세 정보를 조회합니다."
+            description = "특정 공연의 상세 정보를 조회합니다. 예매 가능한 날짜 목록과 회차 정보를 포함합니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",

@@ -3,6 +3,7 @@ package back.kalender.domain.performance.dto.response;
 import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.performance.entity.Performance;
 import back.kalender.domain.performance.entity.PerformanceHall;
+import back.kalender.domain.performance.entity.PerformanceSchedule;
 import back.kalender.domain.performance.entity.PriceGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -23,7 +24,11 @@ public record PerformanceDetailResponse(
         List<PriceGradeInfo> priceGrades,
         LocalDateTime salesStartTime,
         LocalDateTime salesEndTime,
-        String bookingNotice
+        String bookingNotice,
+        List<LocalDate> availableDates, // 예매 가능한 날짜 목록
+        List<PerformanceScheduleResponse> schedules, // 모든 회차 정보
+        Boolean isBookingOpen, // 예매 오픈 여부
+        Long secondsUntilOpen // 예매 오픈까지 남은 시간 (초) - 24시간 이내일 때만 제공
         ) {
 
     @Schema(description = "아티스트 정보")
@@ -71,7 +76,27 @@ public record PerformanceDetailResponse(
         }
     }
 
-    public static PerformanceDetailResponse from(Performance performance, List<PriceGrade> priceGrades) {
+    public static PerformanceDetailResponse from(
+            Performance performance,
+            List<PriceGrade> priceGrades,
+            List<LocalDate> availableDates,
+            List<PerformanceSchedule> schedules
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        boolean isBookingOpen = performance.getSalesStartTime() != null
+                && now.isAfter(performance.getSalesStartTime())
+                && (performance.getSalesEndTime() == null || now.isBefore(performance.getSalesEndTime()));
+
+        Long secondsUntilOpen = null;
+        if (!isBookingOpen && performance.getSalesStartTime() != null) {
+            long seconds = java.time.Duration.between(now, performance.getSalesStartTime()).getSeconds();
+            // 24시간(86400초) 이내일 때만 초단위 시간 제공
+            if (seconds > 0 && seconds <= 86400) {
+                secondsUntilOpen = seconds;
+            }
+            // 24시간 초과시에는 null (프론트에서 날짜로만 표시)
+        }
+
         return new PerformanceDetailResponse(
                 performance.getId(),
                 performance.getTitle(),
@@ -86,7 +111,13 @@ public record PerformanceDetailResponse(
                         .toList(),
                 performance.getSalesStartTime(),
                 performance.getSalesEndTime(),
-                performance.getBookingNotice()
+                performance.getBookingNotice(),
+                availableDates,
+                schedules.stream()
+                        .map(PerformanceScheduleResponse::from)
+                        .toList(),
+                isBookingOpen,
+                secondsUntilOpen
         );
     }
 }
