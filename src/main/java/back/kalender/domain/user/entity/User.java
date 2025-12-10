@@ -1,5 +1,7 @@
 package back.kalender.domain.user.entity;
 
+import back.kalender.global.common.entity.BaseEntity;
+import back.kalender.global.common.Enum.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -14,11 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+public class User extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -32,17 +30,9 @@ public class User {
     @Column(name = "profile_image")
     private String profileImage;
 
-    private String gender;
+    private Gender gender;
 
     private Integer level;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     private LocalDate birthDate;
 

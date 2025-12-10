@@ -26,14 +26,7 @@ public class UserServiceImpl implements UserService{
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        return new UserProfileResponse(
-                user.getEmail(),
-                user.getNickname(),
-                user.getProfileImage(),
-                user.getLevel(),
-                user.getAge(),
-                user.getGender()
-        );
+        return UserProfileResponse.from(user);
     }
 
     /**
@@ -76,14 +69,7 @@ public class UserServiceImpl implements UserService{
             user.updateProfileImage(request.profileImage());
         }
 
-        return new UserProfileResponse(
-                user.getEmail(),
-                user.getNickname(),
-                user.getProfileImage(),
-                user.getLevel(),
-                user.getAge(),
-                user.getGender()
-        );
+        return UserProfileResponse.from(user);
     }
 
     /**

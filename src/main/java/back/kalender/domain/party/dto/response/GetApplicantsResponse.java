@@ -1,7 +1,7 @@
 package back.kalender.domain.party.dto.response;
 
 import back.kalender.domain.party.entity.ApplicationStatus;
-import back.kalender.domain.party.entity.Gender;
+import back.kalender.global.common.Enum.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;

@@ -6,6 +6,7 @@ import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.domain.user.service.UserServiceImpl;
+import back.kalender.global.common.Enum.Gender;
 import back.kalender.global.exception.ServiceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.Optional;
 
@@ -42,7 +44,7 @@ public class UserServiceImplTest {
                 .email("test@example.com")
                 .password("password123")
                 .nickname("테스트유저")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
 
@@ -53,7 +55,7 @@ public class UserServiceImplTest {
         assertThat(response).isNotNull();
         assertThat(response.email()).isEqualTo("test@example.com");
         assertThat(response.nickname()).isEqualTo("테스트유저");
-        assertThat(response.gender()).isEqualTo("F");
+        assertThat(response.gender()).isEqualTo(Gender.FEMALE);
         assertThat(response.age()).isEqualTo(25); // 2025 - 2000 = 25
 
         verify(userRepository, times(1)).findById(userId);
@@ -87,7 +89,7 @@ public class UserServiceImplTest {
                 .email("test@example.com")
                 .password("password123")
                 .nickname("테스트유저")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
 
@@ -131,7 +133,7 @@ public class UserServiceImplTest {
                 .email("test@example.com")
                 .password("password123")
                 .nickname("기존닉네임")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
 
@@ -159,7 +161,7 @@ public class UserServiceImplTest {
                 .password("password123")
                 .nickname("테스트유저")
                 .profileImage("https://old-image-url.com/profile.jpg")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
 
@@ -187,7 +189,7 @@ public class UserServiceImplTest {
                 .password("password123")
                 .nickname("기존닉네임")
                 .profileImage("https://old-image-url.com/profile.jpg")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
 
@@ -214,7 +216,7 @@ public class UserServiceImplTest {
                 .email("test@example.com")
                 .password("password123")
                 .nickname("기존닉네임")
-                .gender("F")
+                .gender(Gender.FEMALE)
                 .birthDate(LocalDate.of(2000, 1, 1))
                 .build();
         setUserId(currentUser, 1L);
@@ -223,7 +225,7 @@ public class UserServiceImplTest {
                 .email("other@example.com")
                 .password("password123")
                 .nickname("중복닉네임")
-                .gender("M")
+                .gender(Gender.MALE)
                 .birthDate(LocalDate.of(1995, 5, 15))
                 .build();
         setUserId(otherUser, 2L);
@@ -257,7 +259,7 @@ public class UserServiceImplTest {
 
     private void setUserId(User user, Long id) {
         try {
-            java.lang.reflect.Field idField = User.class.getDeclaredField("id");
+            Field idField = user.getClass().getSuperclass().getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(user, id);
         } catch (Exception e) {

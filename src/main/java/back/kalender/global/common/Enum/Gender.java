@@ -1,5 +1,8 @@
-package back.kalender.domain.party.entity;
+package back.kalender.global.common.Enum;
 
+import lombok.Getter;
+
+@Getter
 public enum Gender {
     MALE("남성"),
     FEMALE("여성"),

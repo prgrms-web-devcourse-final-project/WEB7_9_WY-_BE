@@ -10,6 +10,6 @@ public record RejectApplicationResponse(
         String partyName,
 
         @Schema(description = "채팅방 ID", example = "1")
-        long chatRoomId
+        Long chatRoomId
 ) {
 }
