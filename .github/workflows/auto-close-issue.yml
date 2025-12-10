@@ -1,0 +1,33 @@
+name: Auto Close Issues on Dev Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - dev
+
+jobs:
+  close-issues:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract issue numbers from PR body
+        id: extract
+        run: |
+          echo "PR Body:"
+          echo "${{ github.event.pull_request.body }}"
+          
+          # extract "#숫자" 패턴만 추출
+          ISSUES=$(echo "${{ github.event.pull_request.body }}" | grep -oE '#[0-9]+' | tr -d '#')
+          
+          echo "ISSUES=$ISSUES" >> $GITHUB_ENV
+
+      - name: Close issues
+        uses: peter-evans/close-issue@v4
+        if: env.ISSUES != ''
+        with:
+          issue-number: ${{ env.ISSUES }}
+          comment: "Automatically closed because the related PR was merged into dev."
+          state: closed
+          token: ${{ secrets.GITHUB_TOKEN }}
