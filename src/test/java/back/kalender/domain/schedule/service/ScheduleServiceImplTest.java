@@ -92,7 +92,6 @@ public class ScheduleServiceImplTest {
                 ScheduleCategory.CONCERT,
                 LocalDateTime.now(),
                 Optional.empty(),
-                LocalDate.now(),
                 Optional.empty()
         );
     }

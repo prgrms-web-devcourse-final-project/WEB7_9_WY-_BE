@@ -41,18 +41,14 @@ public class ScheduleServiceImpl implements ScheduleService {
             throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
-        log.debug("[Schedule] [GetFollowing] 팔로우 아티스트 조회 완료 - count={}", follows.size());
+        List<Long> artistIds = getFollowedArtistIds(userId);
 
-        if (follows.isEmpty()) {
+        if (artistIds.isEmpty()) {
             log.info("[Schedule] [GetFollowing] 팔로우한 아티스트 없음, 빈 리스트 반환 - userId={}", userId);
             return new MonthlySchedulesResponse(Collections.emptyList());
         }
 
-        List<Long> artistIds = follows.stream()
-                .map(follow -> follow.getArtist().getId())
-                .toList();
-        log.debug("[Schedule] [GetFollowing] 대상 아티스트 ID 추출 - artistIds={}", artistIds);
+        log.debug("[Schedule] [GetFollowing] 대상 아티스트 ID 추출 - count={}, ids={}", artistIds.size(), artistIds);
 
         try {
             YearMonth yearMonth = YearMonth.of(year, month);
@@ -160,16 +156,12 @@ public class ScheduleServiceImpl implements ScheduleService {
             log.debug("[Schedule] [GetDaily] 단일 아티스트 필터링 적용 - artistId={}", id);
 
         } else {
-            List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+            targetArtistIds = getFollowedArtistIds(userId);
 
-            if (follows.isEmpty()) {
+            if (targetArtistIds.isEmpty()) {
                 log.info("[Schedule] [GetDaily] 팔로우한 아티스트 없음 - 빈 리스트 반환");
                 return new DailySchedulesResponse(Collections.emptyList());
             }
-
-            targetArtistIds = follows.stream()
-                    .map(follow -> follow.getArtist().getId())
-                    .toList();
 
             log.debug("[Schedule] [GetDaily] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
         }
@@ -208,16 +200,13 @@ public class ScheduleServiceImpl implements ScheduleService {
             log.debug("[Schedule] [GetUpcoming] 단일 아티스트 필터링 적용 - artistId={}", id);
 
         } else {
-            List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+            targetArtistIds = getFollowedArtistIds(userId);
 
-            if (follows.isEmpty()) {
+            if (targetArtistIds.isEmpty()) {
                 log.info("[Schedule] [GetUpcoming] 팔로우한 아티스트 없음 - 빈 리스트 반환");
                 return new UpcomingEventsResponse(Collections.emptyList());
             }
 
-            targetArtistIds = follows.stream()
-                    .map(follow -> follow.getArtist().getId())
-                    .toList();
             log.debug("[Schedule] [GetUpcoming] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
         }
 
@@ -250,5 +239,17 @@ public class ScheduleServiceImpl implements ScheduleService {
         log.info("[Schedule] [GetUpcoming] 다가오는 일정 조회 완료 - count={}", processedItems.size());
 
         return new UpcomingEventsResponse(processedItems);
+    }
+
+    private List<Long> getFollowedArtistIds(Long userId) {
+        List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+
+        if (follows.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return follows.stream()
+                .map(follow -> follow.getArtist().getId())
+                .toList();
     }
 }

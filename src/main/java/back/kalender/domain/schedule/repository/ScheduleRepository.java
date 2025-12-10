@@ -22,7 +22,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.scheduleCategory,
             s.scheduleTime,
             s.performanceId,
-            CAST(s.scheduleTime AS LocalDate),
             s.location
         )
         FROM Schedule s

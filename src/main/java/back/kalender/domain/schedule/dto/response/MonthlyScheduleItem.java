@@ -29,9 +29,6 @@ public record MonthlyScheduleItem(
         @Schema(description = "공연 ID (공연 일정인 경우 포함, 없을 경우 null)", example = "501")
         Optional<Long> performanceId,
 
-        @Schema(description = "일정 날짜 (YYYY-MM-DD)", example = "2025-11-02")
-        LocalDate date,
-
         @Schema(description = "일정 장소 (선택 사항)", example = "고척 스카이돔")
         Optional<String> location
 ) {
@@ -43,7 +40,6 @@ public record MonthlyScheduleItem(
                 ScheduleCategory scheduleCategory,
                 LocalDateTime scheduleTime,
                 Long performanceId,
-                LocalDate date,
                 String location
         ) {
                 this(
@@ -54,7 +50,6 @@ public record MonthlyScheduleItem(
                         scheduleCategory,
                         scheduleTime,
                         Optional.ofNullable(performanceId),
-                        date,
                         Optional.ofNullable(location)
                 );
         }

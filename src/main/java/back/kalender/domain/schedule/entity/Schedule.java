@@ -9,11 +9,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "schedules")
+@Table(
+        name = "schedules",
+        indexes = @Index(name = "idx_schedule_artist_time", columnList = "artistId, scheduleTime")
+)
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Schedule extends BaseEntityTmp {
 
     @Column(nullable = false)
@@ -34,7 +37,4 @@ public class Schedule extends BaseEntityTmp {
     private LocalDateTime scheduleTime;
 
     private String location;
-
-    private LocalDate date;
-    //TODO: scheduleTime, date 차이 명확히 알아두기, 실제 일정 날짜는 3일이고 티켓팅은 1일일 때 데이터 처리 어떻게 할지 고민하기
 }
