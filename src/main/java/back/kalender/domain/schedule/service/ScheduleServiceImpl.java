@@ -9,6 +9,7 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -185,6 +186,69 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     public UpcomingEventsResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit) {
-        return null;
+        log.info("[Schedule] [GetUpcoming] 다가오는 일정 조회 시작 - userId={}, specificArtist={}, limit={}",
+                userId, artistId.orElse(null), limit);
+
+        if (limit <= 0) {
+            log.error("[Schedule] [GetUpcoming] 유효하지 않은 limit 값 - limit={}", limit);
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        List<Long> targetArtistIds;
+
+        if (artistId.isPresent()) {
+            Long id = artistId.get();
+
+            boolean isFollowing = artistFollowRepository.existsByUserIdAndArtistId(userId, id);
+            if (!isFollowing) {
+                log.warn("[Schedule] [GetUpcoming] 팔로우 관계 없음 - userId={}, artistId={}", userId, id);
+                throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
+            }
+            targetArtistIds = List.of(id);
+            log.debug("[Schedule] [GetUpcoming] 단일 아티스트 필터링 적용 - artistId={}", id);
+
+        } else {
+            List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+
+            if (follows.isEmpty()) {
+                log.info("[Schedule] [GetUpcoming] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+                return new UpcomingEventsResponse(Collections.emptyList());
+            }
+
+            targetArtistIds = follows.stream()
+                    .map(follow -> follow.getArtist().getId())
+                    .toList();
+            log.debug("[Schedule] [GetUpcoming] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
+        }
+
+        List<UpcomingEventItem> rawItems = scheduleRepository.findUpcomingEvents(
+                targetArtistIds,
+                LocalDateTime.now(),
+                PageRequest.of(0, limit)
+        );
+
+        LocalDate today = LocalDate.now();
+
+        List<UpcomingEventItem> processedItems = rawItems.stream()
+                .map(item -> {
+                    long dDay = java.time.temporal.ChronoUnit.DAYS.between(today, item.scheduleTime().toLocalDate());
+
+                    return new UpcomingEventItem(
+                            item.scheduleId(),
+                            item.artistName(),
+                            item.title(),
+                            item.scheduleCategory(),
+                            item.scheduleTime(),
+                            item.performanceId().orElse(null),
+                            item.link().orElse(null),
+                            dDay,
+                            item.location().orElse(null)
+                    );
+                })
+                .toList();
+
+        log.info("[Schedule] [GetUpcoming] 다가오는 일정 조회 완료 - count={}", processedItems.size());
+
+        return new UpcomingEventsResponse(processedItems);
     }
 }

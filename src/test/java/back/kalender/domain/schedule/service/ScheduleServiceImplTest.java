@@ -3,10 +3,7 @@ package back.kalender.domain.schedule.service;
 import back.kalender.domain.artist.entity.ArtistFollowTmp;
 import back.kalender.domain.artist.entity.ArtistTmp;
 import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
-import back.kalender.domain.schedule.dto.response.DailyScheduleItem;
-import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.MonthlyScheduleItem;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
+import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -26,8 +23,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -285,5 +281,100 @@ public class ScheduleServiceImplTest {
                 LocalDateTime.now(),
                 null, null, "장소"
         );
+    }
+
+    @Test
+    @DisplayName("다가오는 일정 조회 - 성공 (전체 아티스트 & D-Day 계산 검증)")
+    void getUpcomingEvents_Success_AllArtists() {
+        Long userId = 1L;
+        int limit = 5;
+
+        ArtistTmp bts = new ArtistTmp("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 1L);
+        ArtistFollowTmp f1 = new ArtistFollowTmp(userId, bts);
+
+        given(artistFollowRepository.findAllByUserId(userId)).willReturn(List.of(f1));
+
+        LocalDateTime tomorrow = LocalDateTime.now().plusDays(1);
+
+        List<UpcomingEventItem> dbResult = List.of(
+                new UpcomingEventItem(
+                        100L,
+                        "BTS",
+                        "콘서트",
+                        ScheduleCategory.CONCERT,
+                        tomorrow,
+                        Optional.empty(),
+                        Optional.empty(),
+                        0L,
+                        Optional.empty()
+                )
+        );
+
+        given(scheduleRepository.findUpcomingEvents(any(), any(), any()))
+                .willReturn(dbResult);
+
+        UpcomingEventsResponse response = scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), limit);
+
+        assertThat(response.upcomingEvents()).hasSize(1);
+
+        assertThat(response.upcomingEvents().get(0).daysUntilEvent()).isEqualTo(1L);
+
+        verify(scheduleRepository).findUpcomingEvents(
+                eq(List.of(1L)),
+                any(LocalDateTime.class),
+                refEq(org.springframework.data.domain.PageRequest.of(0, limit))
+        );
+    }
+
+    @Test
+    @DisplayName("다가오는 일정 조회 - 성공 (특정 아티스트 필터링)")
+    void getUpcomingEvents_Success_SpecificArtist() {
+        Long userId = 1L;
+        Long targetId = 1L;
+        int limit = 10;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetId))
+                .willReturn(true);
+
+        given(scheduleRepository.findUpcomingEvents(any(), any(), any()))
+                .willReturn(List.of());
+
+        scheduleServiceImpl.getUpcomingEvents(userId, Optional.of(targetId), limit);
+
+        verify(scheduleRepository).findUpcomingEvents(
+                eq(List.of(targetId)),
+                any(),
+                any()
+        );
+        verify(artistFollowRepository, times(0)).findAllByUserId(any());
+    }
+
+    @Test
+    @DisplayName("다가오는 일정 조회 - 실패 (Limit 값 오류)")
+    void getUpcomingEvents_Fail_InvalidLimit() {
+        Long userId = 1L;
+        int invalidLimit = -1;
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), invalidLimit)
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
+    }
+
+    @Test
+    @DisplayName("다가오는 일정 조회 - 실패 (팔로우하지 않은 아티스트)")
+    void getUpcomingEvents_Fail_NotFollowed() {
+        Long userId = 1L;
+        Long notFollowedId = 99L;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
+                .willReturn(false);
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getUpcomingEvents(userId, Optional.of(notFollowedId), 10)
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
     }
 }

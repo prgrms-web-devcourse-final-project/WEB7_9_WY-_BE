@@ -5,6 +5,7 @@ import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
 import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
 import back.kalender.domain.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -212,9 +213,61 @@ public class ScheduleController {
             summary = "다가오는 일정 조회",
             description = "팔로우한 아티스트들의 다가오는 일정을 시간순으로 정렬하여 제공합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = UpcomingEventsResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "upcomingEvents": [
+                                        {
+                                          "scheduleId": 205,
+                                          "artistName": "aespa",
+                                          "title": "팬사인회",
+                                          "scheduleCategory": "FAN_SIGN",
+                                          "scheduleTime": "2025-12-20T14:00:00",
+                                          "performanceId": null,
+                                          "link": "https://example.com",
+                                          "daysUntilEvent": 5,
+                                          "location": "코엑스"
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (Limit 값 오류)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스케쥴 조회 실패 (유저 정보 없음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "1001",
+                                        "status": "404",
+                                        "message": "유저를 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
+    })
     @GetMapping("/upcoming")
     public ResponseEntity<UpcomingEventsResponse> getUpcomingSchedules(
             @RequestParam(required = false) Optional<Long> artistId,
+            @Parameter(description = "가져올 일정 개수 (기본값 10)", example = "5")
             @RequestParam(required = false, defaultValue = "10") int limit
     ){
         Long userId = 1L; // 임시 userId
