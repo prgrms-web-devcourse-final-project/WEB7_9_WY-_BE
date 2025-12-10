@@ -33,14 +33,6 @@ public class User extends BaseEntity {
 
     private Integer level;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
     private LocalDate birthDate;
 
     public void updateNickname(String nickname) {
