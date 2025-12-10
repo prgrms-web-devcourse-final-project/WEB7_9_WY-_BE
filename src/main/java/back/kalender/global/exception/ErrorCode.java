@@ -12,6 +12,7 @@ public enum ErrorCode {
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
 
     // Artist 2000
+    ARTIST_NOT_FOLLOWED("2001", HttpStatus.FORBIDDEN, "팔로우하지 않은 아티스트입니다."),
 
     // Party 3000
 

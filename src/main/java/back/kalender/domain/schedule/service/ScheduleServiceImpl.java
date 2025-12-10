@@ -34,7 +34,13 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     public MonthlySchedulesResponse getFollowingSchedules(Long userId, int year, int month) {
-        log.info("[Schedule] [GetFollowing] 팔로우 전체 일정 조회 시작 - userId={}, year={}, month={}", userId, year, month);
+        log.info("[Schedule] [GetFollowing] 팔로우 전체 일정 조회 시작 - userId={}, year={}, month={}",
+                userId, year, month);
+
+        if (month < 1 || month > 12) {
+            log.error("[Schedule] [GetFollowing] 유효하지 않은 월 입력 - month={}", month);
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
         List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
         log.debug("[Schedule] [GetFollowing] 팔로우 아티스트 조회 완료 - count={}", follows.size());
@@ -75,8 +81,49 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
     }
 
-    public MonthlySchedulesResponse getArtistSchedules(Long userId, Long artistId, int year, int month) {
-        return null;
+    @Override
+    public MonthlySchedulesResponse getSchedulesPerArtist(Long userId, Long artistId, int year, int month) {
+        log.info("[Schedule] [GetPerArtist] 아티스트별 월별 일정 조회 시작 - userId={}, artistId={}, year={}, month={}",
+                userId, artistId, year, month);
+
+        if (month < 1 || month > 12) {
+            log.error("[Schedule] [GetPerArtist] 유효하지 않은 월 입력 - month={}", month);
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        boolean isFollowing = artistFollowRepository.existsByUserIdAndArtistId(userId, artistId);
+
+        if (!isFollowing) {
+            log.warn("[Schedule] [GetPerArtist] 팔로우 관계 없음 (조회 권한 없음) - userId={}, artistId={}", userId, artistId);
+            throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
+        }
+
+        log.debug("[Schedule] [GetPerArtist] 팔로우 관계 확인 완료 - userId={}, artistId={}", userId, artistId);
+
+        try {
+            YearMonth yearMonth = YearMonth.of(year, month);
+            LocalDateTime startDateTime = yearMonth.atDay(1).atStartOfDay();
+            LocalDateTime endDateTime = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+
+            log.debug("[Schedule] [GetPerArtist] 조회 날짜 범위 계산 - start={}, end={}", startDateTime, endDateTime);
+
+            List<MonthlyScheduleItem> items = scheduleRepository.findMonthlySchedules(
+                    List.of(artistId),
+                    startDateTime,
+                    endDateTime
+            );
+
+            log.info(
+                    "[Schedule] [GetPerArtist] 아티스트별 월별 일정 조회 완료 - userId={}, artistId={}, scheduleCount={}",
+                    userId, artistId, items.size()
+            );
+
+            return new MonthlySchedulesResponse(items);
+
+        } catch (DateTimeParseException e) {
+            log.error("[Schedule] [GetPerArtist] 날짜 파싱 오류 발생 - year={}, month={}", year, month, e);
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
     }
 
     public DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {

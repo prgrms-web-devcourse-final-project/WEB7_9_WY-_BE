@@ -22,7 +22,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ScheduleService 테스트")
@@ -91,5 +93,38 @@ public class ScheduleServiceImplTest {
                 LocalDate.now(),
                 Optional.empty()
         );
+    }
+
+    @Test
+    @DisplayName("여러 아티스트 중 특정 아티스트(BTS)만 조회 시, 정확히 해당 ID로만 필터링하여 요청한다.")
+    void getArtistSchedules_FilterVerification() {
+        Long userId = 1L;
+        Long btsId = 1L;
+        int year = 2025;
+        int month = 11;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, btsId))
+                .willReturn(true);
+
+        List<MonthlyScheduleItem> btsData = List.of(
+                createDto(100L, btsId, "BTS", "콘서트"),
+                createDto(101L, btsId, "BTS", "팬미팅")
+        );
+
+        given(scheduleRepository.findMonthlySchedules(any(), any(), any()))
+                .willReturn(btsData);
+
+        MonthlySchedulesResponse response = scheduleServiceImpl.getSchedulesPerArtist(userId, btsId, year, month);
+
+        assertThat(response.schedules()).hasSize(2);
+        assertThat(response.schedules().get(0).artistName()).isEqualTo("BTS");
+
+        verify(scheduleRepository).findMonthlySchedules(
+                eq(List.of(btsId)),
+                any(),
+                any()
+        );
+
+        verify(artistFollowRepository).existsByUserIdAndArtistId(userId, btsId);
     }
 }

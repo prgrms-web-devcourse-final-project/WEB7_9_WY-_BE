@@ -97,15 +97,39 @@ public class ScheduleController {
             summary = "개별 아티스트 월별 일정 조회",
             description = "특정 아티스트를 필터링하여 해당 아티스트의 월별 일정만 표시합니다."
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesResponse.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """)))
+    })
     @GetMapping("/artist/{artistId}")
-    public ResponseEntity<MonthlySchedulesResponse> getArtistSchedules(
+    public ResponseEntity<MonthlySchedulesResponse> getSchedulesPerArtist(
             @PathVariable Long artistId,
             @RequestParam int year,
             @RequestParam int month
     ) {
         Long userId = 1L; // 임시 userId
 
-        MonthlySchedulesResponse response = scheduleService.getArtistSchedules(userId, artistId, year, month);
+        MonthlySchedulesResponse response = scheduleService.getSchedulesPerArtist(userId, artistId, year, month);
         return ResponseEntity.ok(response);
     }
 

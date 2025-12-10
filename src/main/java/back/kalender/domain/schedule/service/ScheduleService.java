@@ -9,7 +9,7 @@ import java.util.Optional;
 public interface ScheduleService {
     MonthlySchedulesResponse getFollowingSchedules(Long userId, int year, int month);
 
-    MonthlySchedulesResponse getArtistSchedules(Long userId, Long artistId, int year, int month);
+    MonthlySchedulesResponse getSchedulesPerArtist(Long userId, Long artistId, int year, int month);
 
     DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId);
 
