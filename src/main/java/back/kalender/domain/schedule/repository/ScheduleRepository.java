@@ -1,7 +1,7 @@
 package back.kalender.domain.schedule.repository;
 
-import back.kalender.domain.schedule.entity.ScheduleEntity;
+import back.kalender.domain.schedule.entity.Schedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface ScheduleRepository extends JpaRepository<ScheduleEntity, Long> {
+public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
 }
