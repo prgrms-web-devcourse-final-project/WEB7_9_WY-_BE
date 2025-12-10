@@ -49,20 +49,17 @@ public record GetMyCreatedPartiesResponse(
     @Schema(description = "이벤트 정보")
     public record EventInfo(
 
-            @Schema(description = "이벤트 ID", example = "123")
+            @Schema(description = "행사 ID", example = "123")
             Long eventId,
 
-            @Schema(description = "이벤트 제목", example = "BTS WORLD TOUR 2025")
+            @Schema(description = "행사 제목", example = "BTS WORLD TOUR 2025")
             String eventTitle,
 
-            @Schema(description = "이벤트 날짜", example = "2025-12-15")
-            String eventDate,
-
-            @Schema(description = "장소명", example = "잠실종합운동장")
+            @Schema(description = "장소", example = "잠실종합운동장")
             String venueName,
 
-            @Schema(description = "아티스트명", example = "방탄소년단")
-            String artistName
+            @Schema(description = "행사 일시", example = "2025-12-15T19:00:00")
+            LocalDateTime eventDateTime
     ) {}
 
     @Schema(description = "파티 상세 정보")

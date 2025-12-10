@@ -1,5 +1,6 @@
 package back.kalender.domain.party.entity;
 
+import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -17,12 +18,7 @@ import java.time.LocalDateTime;
         })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class PartyApplication {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "application_id")
-    private Long id;
+public class PartyApplication extends BaseEntity {
 
     @Column(name = "party_id", nullable = false)
     private Long partyId;

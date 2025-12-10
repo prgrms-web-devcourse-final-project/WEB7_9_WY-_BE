@@ -1,5 +1,6 @@
 package back.kalender.domain.user.entity;
 
+import back.kalender.global.common.Enum.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,7 +33,7 @@ public class User {
     @Column(name = "profile_image")
     private String profileImage;
 
-    private String gender;
+    private Gender gender;
 
     private Integer level;
 

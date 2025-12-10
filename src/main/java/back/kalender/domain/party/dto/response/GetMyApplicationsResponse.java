@@ -46,7 +46,7 @@ public record GetMyApplicationsResponse(
             @Schema(description = "파티장 정보")
             LeaderInfo leader,
 
-            @Schema(description = "이벤트 정보")
+            @Schema(description = "행사 정보")
             EventInfo event,
 
             @Schema(description = "파티 상세 정보")
@@ -66,19 +66,19 @@ public record GetMyApplicationsResponse(
             String profileImage
     ) {}
 
-    @Schema(description = "이벤트 정보")
+    @Schema(description = "행사 정보")
     public record EventInfo(
 
-            @Schema(description = "이벤트 ID", example = "123")
+            @Schema(description = "행사 ID", example = "123")
             Long eventId,
 
-            @Schema(description = "이벤트 제목", example = "BTS WORLD TOUR 2025")
+            @Schema(description = "행사 제목", example = "BTS WORLD TOUR 2025")
             String eventTitle,
 
             @Schema(description = "장소", example = "잠실종합운동장")
             String venueName,
 
-            @Schema(description = "이벤트 일시", example = "2025-12-15T19:00:00")
+            @Schema(description = "행사 일시", example = "2025-12-15T19:00:00")
             LocalDateTime eventDateTime
     ) {}
 
