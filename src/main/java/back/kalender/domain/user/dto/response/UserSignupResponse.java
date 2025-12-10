@@ -1,5 +1,6 @@
 package back.kalender.domain.user.dto.response;
 
+import back.kalender.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
@@ -12,7 +13,17 @@ public record UserSignupResponse(
         String nickname,
         LocalDate birthDate,
         LocalDateTime createdAt
-) {}
+) {
+    public static UserSignupResponse from(User user) {
+        return new UserSignupResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getBirthDate(),
+                user.getCreatedAt()
+        );
+    }
+}
 
 
 

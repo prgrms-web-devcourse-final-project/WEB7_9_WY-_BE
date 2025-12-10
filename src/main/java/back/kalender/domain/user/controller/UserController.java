@@ -8,6 +8,7 @@ import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -39,8 +40,54 @@ public class UserController {
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "잘못된 요청 (이메일 중복, 유효성 검증 실패 등)",
-                    content = @Content()
+                    description = "잘못된 요청",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "필수 값 누락",
+                                            value = """
+                                                {
+                                                  "error": {
+                                                    "code": "BAD_REQUEST",
+                                                    "status": "400",
+                                                    "message": "잘못된 요청입니다."
+                                                  }
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "이메일 형식 오류",
+                                            value = """
+                                                {
+                                                  "error": {
+                                                    "code": "BAD_REQUEST",
+                                                    "status": "400",
+                                                    "message": "잘못된 요청입니다."
+                                                  }
+                                                }
+                                                """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "중복된 데이터",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "DUPLICATE_NICKNAME",
+                                            "status": "409",
+                                            "message": "이미 사용 중인 닉네임입니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             )
     })
     @PostMapping
@@ -61,6 +108,7 @@ public class UserController {
         return ResponseEntity.ok(dummyData);
     }
 
+
     @Operation(
             summary = "내 정보 조회",
             description = "로그인한 사용자의 정보를 조회합니다."
@@ -74,7 +122,38 @@ public class UserController {
             @ApiResponse(
                     responseCode = "401",
                     description = "인증 실패",
-                    content = @Content()
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "UNAUTHORIZED",
+                                            "status": "401",
+                                            "message": "로그인이 필요합니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "USER_NOT_FOUND",
+                                            "status": "404",
+                                            "message": "유저를 찾을 수 없습니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             )
     })
     @GetMapping("/me")
@@ -99,12 +178,38 @@ public class UserController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 파일",
-                    content = @Content()
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "BAD_REQUEST",
+                                            "status": "400",
+                                            "message": "잘못된 요청입니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "401",
                     description = "인증 실패",
-                    content = @Content()
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "UNAUTHORIZED",
+                                            "status": "401",
+                                            "message": "로그인이 필요합니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             )
     })
     @PostMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -131,12 +236,56 @@ public class UserController {
             @ApiResponse(
                     responseCode = "400",
                     description = "잘못된 요청",
-                    content = @Content()
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "BAD_REQUEST",
+                                            "status": "400",
+                                            "message": "잘못된 요청입니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             ),
             @ApiResponse(
                     responseCode = "401",
                     description = "인증 실패",
-                    content = @Content()
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "UNAUTHORIZED",
+                                            "status": "401",
+                                            "message": "로그인이 필요합니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "닉네임 중복",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "error": {
+                                            "code": "DUPLICATE_NICKNAME",
+                                            "status": "409",
+                                            "message": "이미 사용 중인 닉네임입니다."
+                                          }
+                                        }
+                                        """
+                            )
+                    )
             )
     })
     @PatchMapping("/me")
