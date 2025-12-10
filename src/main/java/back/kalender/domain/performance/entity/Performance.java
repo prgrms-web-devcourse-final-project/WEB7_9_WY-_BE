@@ -18,33 +18,27 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Performance extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_hall_id", nullable = false)
+    @JoinColumn(nullable = false)
     private PerformanceHall performanceHall;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "artist_id", nullable = false)
+    @JoinColumn( nullable = false)
     private Artist artist;
 
     private String title;
 
-    @Column(name = "poster_image_url")
     private String posterImageUrl;
 
-    @Column(name = "start_date")
     private LocalDate startDate;
 
-    @Column(name = "end_date")
     private LocalDate endDate;
 
-    @Column(name = "running_time")
     private Integer runningTime;
 
-    @Column(name = "booking_notice", columnDefinition = "TEXT")
+    @Column( columnDefinition = "TEXT")
     private String bookingNotice;
 
-    @Column(name = "sales_start_time")
     private LocalDateTime salesStartTime;
 
-    @Column(name = "sales_end_time")
     private LocalDateTime salesEndTime;
 }
