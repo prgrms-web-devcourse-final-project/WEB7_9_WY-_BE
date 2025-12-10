@@ -6,7 +6,6 @@ import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
 import back.kalender.global.exception.ErrorCode;
-import back.kalender.global.exception.GlobalExceptionHandler;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
