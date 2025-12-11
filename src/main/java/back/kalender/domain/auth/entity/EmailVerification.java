@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 )
 public class EmailVerification extends BaseEntity {
 
+    private static final int DEFAULT_EXPIRY_MINUTES = 5;
+
     @Column(nullable = false)
     private Long userId;
 
@@ -33,15 +35,23 @@ public class EmailVerification extends BaseEntity {
     private LocalDateTime expiredAt;
 
     public static EmailVerification create(Long userId, String code) {
+        return create(userId, code, DEFAULT_EXPIRY_MINUTES);
+    }
+
+    public static EmailVerification create(Long userId, String code, int expiryMinutes) {
         EmailVerification ev = new EmailVerification();
         ev.userId = userId;
         ev.code = code;
         ev.used = false;
-        ev.expiredAt = LocalDateTime.now().plusMinutes(5);
+        ev.expiredAt = LocalDateTime.now().plusMinutes(expiryMinutes);
         return ev;
     }
 
     public void markUsed() {
         this.used = true;
+    }
+
+    public boolean isExpired() {
+        return expiredAt.isBefore(LocalDateTime.now());
     }
 }

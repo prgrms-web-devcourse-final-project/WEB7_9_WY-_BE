@@ -3,7 +3,6 @@ package back.kalender.domain.auth.controller;
 import back.kalender.domain.auth.dto.request.*;
 import back.kalender.domain.auth.dto.response.*;
 import back.kalender.domain.auth.service.AuthService;
-import back.kalender.global.security.user.CustomUserDetails;
 import back.kalender.global.security.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -81,16 +80,7 @@ public class UserAuthController {
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response
     ) {
-        authService.logout(refreshToken);
-        
-        // Refresh Token 쿠키 삭제
-        jakarta.servlet.http.Cookie cookie = new jakarta.servlet.http.Cookie("refreshToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
-        
+        authService.logout(refreshToken, response);
         return ResponseEntity.ok().build();
     }
 
@@ -356,10 +346,7 @@ public class UserAuthController {
                             }
                             """)))
     })
-    public ResponseEntity<EmailStatusResponse> getEmailStatus(
-            // @Parameter(hidden = true)
-            // @org.springframework.security.core.annotation.AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
+    public ResponseEntity<EmailStatusResponse> getEmailStatus() {
         Long userId = SecurityUtil.getCurrentUserIdOrThrow();
         
         EmailStatusResponse response = authService.getEmailStatus(userId);

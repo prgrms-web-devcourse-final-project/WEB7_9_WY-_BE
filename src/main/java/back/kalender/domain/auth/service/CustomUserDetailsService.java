@@ -29,9 +29,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        List<GrantedAuthority> authorities = Collections.singletonList(
-                new SimpleGrantedAuthority("ROLE_USER")
-        );
+        List<GrantedAuthority> authorities = createAuthorities("ROLE_USER");
 
         return new CustomUserDetails(
                 user.getId(),
@@ -39,6 +37,10 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getPassword(),
                 authorities
         );
+    }
+
+    private List<GrantedAuthority> createAuthorities(String roleName) {
+        return Collections.singletonList(new SimpleGrantedAuthority(roleName));
     }
 }
 

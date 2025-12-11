@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 )
 public class PasswordResetToken extends BaseEntity {
 
+    private static final int DEFAULT_EXPIRY_MINUTES = 5;
+
     @Column(nullable = false)
     private Long userId;
 
@@ -33,15 +35,23 @@ public class PasswordResetToken extends BaseEntity {
     private LocalDateTime expiredAt;
 
     public static PasswordResetToken create(Long userId, String code) {
+        return create(userId, code, DEFAULT_EXPIRY_MINUTES);
+    }
+
+    public static PasswordResetToken create(Long userId, String code, int expiryMinutes) {
         PasswordResetToken token = new PasswordResetToken();
         token.userId = userId;
         token.token = code;
         token.used = false;
-        token.expiredAt = LocalDateTime.now().plusMinutes(5);
+        token.expiredAt = LocalDateTime.now().plusMinutes(expiryMinutes);
         return token;
     }
 
     public void markUsed() {
         this.used = true;
+    }
+
+    public boolean isExpired() {
+        return expiredAt.isBefore(LocalDateTime.now());
     }
 }

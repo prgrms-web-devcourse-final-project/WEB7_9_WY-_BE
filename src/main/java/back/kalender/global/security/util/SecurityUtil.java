@@ -8,12 +8,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 public class SecurityUtil {
 
-    /**
-     * SecurityContext에서 현재 인증된 사용자의 ID를 가져옵니다.
-     * @return 사용자 ID, 인증되지 않은 경우 null
-     */
+
     public static Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             Object principal = authentication.getPrincipal();
             if (principal instanceof CustomUserDetails) {
@@ -37,24 +34,18 @@ public class SecurityUtil {
         return userId;
     }
 
-    /**
-     * SecurityContext에서 현재 인증된 사용자의 이메일을 가져옵니다.
-     * @return 사용자 이메일, 인증되지 않은 경우 null
-     */
+
     public static String getCurrentUserEmail() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             return authentication.getName();
         }
         return null;
     }
 
-    /**
-     * SecurityContext에서 현재 인증된 사용자의 CustomUserDetails를 가져옵니다.
-     * @return CustomUserDetails, 인증되지 않은 경우 null
-     */
+
     public static CustomUserDetails getCurrentUserDetails() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Authentication authentication = getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             Object principal = authentication.getPrincipal();
             if (principal instanceof CustomUserDetails) {
@@ -62,6 +53,10 @@ public class SecurityUtil {
             }
         }
         return null;
+    }
+
+    private static Authentication getAuthentication() {
+        return SecurityContextHolder.getContext().getAuthentication();
     }
 }
 
