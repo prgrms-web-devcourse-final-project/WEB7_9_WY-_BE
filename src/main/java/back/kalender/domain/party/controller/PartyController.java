@@ -3,6 +3,8 @@ package back.kalender.domain.party.controller;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
+import back.kalender.domain.party.entity.PartyType;
+import back.kalender.domain.party.entity.TransportType;
 import back.kalender.domain.party.service.PartyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -146,6 +148,25 @@ public class PartyController {
         Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         Pageable pageable = PageRequest.of(page, size);
         GetPartiesResponse response = partyService.getParties(pageable, currentUserId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/schedule/{scheduleId}")
+    public ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
+            @PathVariable Long scheduleId,
+            @RequestParam(required = false) PartyType partyType,
+            @RequestParam(required = false) TransportType transportType,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
+        Pageable pageable = PageRequest.of(page, size);
+
+        GetPartiesResponse response = partyService.getPartiesBySchedule(
+                scheduleId, partyType, transportType,
+                pageable, currentUserId
+        );
+
         return ResponseEntity.ok(response);
     }
 
