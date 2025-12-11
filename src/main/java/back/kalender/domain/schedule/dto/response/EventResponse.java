@@ -7,9 +7,6 @@ public record EventResponse(
         Long scheduleId,
 
         @Schema(description = "일정 제목", example = "뮤직뱅크 출연")
-        String title,
-
-        @Schema(description = "아티스트 명", example = "NewJeans")
-        String artistName
+        String title
 ) {
 }

@@ -275,12 +275,10 @@ public class ScheduleController {
     }
 
     @GetMapping("/partyList")
-    public ResponseEntity<EventsListResponse> getEventListsSchedules(
-            @RequestParam(required = false) Optional<Long> artistId
-    ) {
+    public ResponseEntity<EventsListResponse> getEventListsSchedules() {
         Long userId = 1L; //TODO: 임시 userId
 
-        EventsListResponse response = scheduleService.getEventLists(userId, artistId);
+        EventsListResponse response = scheduleService.getEventLists(userId);
         return ResponseEntity.ok(response);
     }
 }

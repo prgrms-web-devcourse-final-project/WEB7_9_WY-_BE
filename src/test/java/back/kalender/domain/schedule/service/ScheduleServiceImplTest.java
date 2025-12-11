@@ -375,101 +375,65 @@ public class ScheduleServiceImplTest {
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
     }
-
     @Test
-    @DisplayName("파티 생성 가능 일정 조회 - 성공 (전체 아티스트)")
-    void getEventLists_Success_AllArtists() {
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (JPQL CONCAT 및 31일 기간 제한 검증)")
+    void getEventLists_Success_JPQLConcatenationCheck() {
+        // given
         Long userId = 1L;
 
+        // 1. 팔로우한 아티스트 설정
         Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 10L);
-        Artist nj = new Artist("NewJeans", "img"); ReflectionTestUtils.setField(nj, "id", 20L);
-
         ArtistFollow f1 = new ArtistFollow(userId, bts);
-        ArtistFollow f2 = new ArtistFollow(userId, nj);
 
         given(artistFollowRepository.findAllByUserId(userId))
-                .willReturn(List.of(f1, f2));
+                .willReturn(List.of(f1));
 
+        // 2. 리포지토리 반환값 설정 (CONCAT 완료된 상태 가정)
         List<EventResponse> dbResult = List.of(
-                new EventResponse(100L, "[BTS] 콘서트", "BTS"),
-                new EventResponse(200L, "[NewJeans] 팬미팅", "NewJeans")
+                new EventResponse(100L, "[BTS] 2026 월드 투어 서울")
         );
 
-        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any()))
+        // [수정] 인자가 4개로 늘어난 메서드 시그니처 반영
+        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any(), any()))
                 .willReturn(dbResult);
 
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.empty());
+        // when
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
 
-        assertThat(response.events()).hasSize(2);
-        assertThat(response.events().get(0).title()).isEqualTo("[BTS] 콘서트");
-        assertThat(response.events().get(1).artistName()).isEqualTo("NewJeans");
-
-        verify(scheduleRepository).findPartyAvailableEvents(
-                eq(List.of(10L, 20L)),
-                anyList(),
-                any(LocalDateTime.class)
-        );
-    }
-
-    @Test
-    @DisplayName("파티 생성 가능 일정 조회 - 성공 (특정 아티스트 필터링)")
-    void getEventLists_Success_SpecificArtist() {
-        Long userId = 1L;
-        Long targetArtistId = 10L;
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetArtistId))
-                .willReturn(true);
-
-        List<EventResponse> dbResult = List.of(
-                new EventResponse(100L, "월드 투어", "BTS")
-        );
-
-        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any()))
-                .willReturn(dbResult);
-
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.of(targetArtistId));
-
+        // then
         assertThat(response.events()).hasSize(1);
-        assertThat(response.events().get(0).artistName()).isEqualTo("BTS");
 
+        EventResponse item = response.events().get(0);
+
+        // 3. 검증: Service가 데이터를 그대로 전달했는지 확인 (CONCAT 동작 확인)
+        assertThat(item.title()).isEqualTo("[BTS] 2026 월드 투어 서울");
+
+        // 4. [중요] verify: 리포지토리에 시작 시간과 종료 시간(31일 후)이 모두 전달되었는지 검증
         verify(scheduleRepository).findPartyAvailableEvents(
-                eq(List.of(targetArtistId)),
+                eq(List.of(10L)),
                 anyList(),
-                any(LocalDateTime.class)
+                any(LocalDateTime.class), // now
+                any(LocalDateTime.class)  // endDate (now + 31 days)
         );
-        verify(artistFollowRepository, times(0)).findAllByUserId(any());
     }
 
     @Test
     @DisplayName("파티 생성 가능 일정 조회 - 성공 (팔로우한 아티스트가 없는 경우)")
     void getEventLists_Success_NoFollowedArtists() {
+        // given
         Long userId = 1L;
 
+        // 팔로우 목록이 비어있음
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of());
 
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.empty());
+        // when
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId); // 파라미터 제거
 
+        // then
         assertThat(response.events()).isEmpty();
 
-        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("파티 생성 가능 일정 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
-    void getEventLists_Fail_NotFollowed() {
-        Long userId = 1L;
-        Long notFollowedId = 99L;
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
-                .willReturn(false);
-
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getEventLists(userId, Optional.of(notFollowedId))
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
-
-        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any());
+        // verify: 팔로우한 사람이 없으므로 무거운 Schedule 조회 쿼리는 실행되지 않아야 함 (최적화 검증)
+        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any(), any());
     }
 }

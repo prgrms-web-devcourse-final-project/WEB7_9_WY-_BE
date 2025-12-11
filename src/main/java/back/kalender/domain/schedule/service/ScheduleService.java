@@ -13,5 +13,5 @@ public interface ScheduleService {
 
     UpcomingEventsListResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit);
 
-    EventsListResponse getEventLists(Long userId, Optional<Long> artistId);
+    EventsListResponse getEventLists(Long userId);
 }

@@ -88,19 +88,20 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("""
         SELECT new back.kalender.domain.schedule.dto.response.EventResponse(
             s.id,
-            s.title,
-            a.name
+            CONCAT('[', a.name, '] ', s.title)
         )
         FROM Schedule s
         JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleCategory IN :categories  
-        AND s.scheduleTime > :now              
+        AND s.scheduleTime > :now    
+        AND s.scheduleTime <= :endDate          
         ORDER BY s.scheduleTime ASC
     """)
     List<EventResponse> findPartyAvailableEvents(
             @Param("artistIds") List<Long> artistIds,
             @Param("categories") List<ScheduleCategory> categories,
-            @Param("now") LocalDateTime now
+            @Param("now") LocalDateTime now,
+            @Param("endDate") LocalDateTime endDate
     );
 }

@@ -254,32 +254,14 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public EventsListResponse getEventLists(Long userId, Optional<Long> artistId) {
-        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}, specificArtist={}",
-                userId, artistId.orElse(null));
+    public EventsListResponse getEventLists(Long userId) {
+        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}", userId);
 
-        List<Long> targetArtistIds;
+        List<Long> targetArtistIds = getFollowedArtistIds(userId);
 
-        if (artistId.isPresent()) {
-            Long id = artistId.get();
-
-            boolean isFollowing = artistFollowRepository.existsByUserIdAndArtistId(userId, id);
-            if (!isFollowing) {
-                log.warn("[Schedule] [GetEventLists] 팔로우 관계 없음 - userId={}, artistId={}", userId, id);
-                throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
-            }
-            targetArtistIds = List.of(id);
-            log.debug("[Schedule] [GetEventLists] 단일 아티스트 필터링 적용 - artistId={}", id);
-
-        } else {
-            targetArtistIds = getFollowedArtistIds(userId);
-
-            if (targetArtistIds.isEmpty()) {
-                log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
-                return new EventsListResponse(Collections.emptyList());
-            }
-
-            log.debug("[Schedule] [GetEventLists] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
+        if (targetArtistIds.isEmpty()) {
+            log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+            return new EventsListResponse(Collections.emptyList());
         }
 
         List<ScheduleCategory> partyCategories = List.of(
@@ -292,11 +274,13 @@ public class ScheduleServiceImpl implements ScheduleService {
         );
 
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime endDate = now.plusDays(31);
 
         List<EventResponse> items = scheduleRepository.findPartyAvailableEvents(
                 targetArtistIds,
                 partyCategories,
-                now
+                now,
+                endDate
         );
 
         log.info("[Schedule] [GetEventLists] 파티 생성 기능 일정 목록 조회 완료 - count={}", items.size());
