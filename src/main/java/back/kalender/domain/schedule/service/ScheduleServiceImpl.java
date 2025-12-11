@@ -3,6 +3,7 @@ package back.kalender.domain.schedule.service;
 import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
+import back.kalender.domain.schedule.entity.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -250,5 +251,56 @@ public class ScheduleServiceImpl implements ScheduleService {
         return follows.stream()
                 .map(follow -> follow.getArtist().getId())
                 .toList();
+    }
+
+    @Override
+    public EventsListResponse getEventLists(Long userId, Optional<Long> artistId) {
+        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}, specificArtist={}",
+                userId, artistId.orElse(null));
+
+        List<Long> targetArtistIds;
+
+        if (artistId.isPresent()) {
+            Long id = artistId.get();
+
+            boolean isFollowing = artistFollowRepository.existsByUserIdAndArtistId(userId, id);
+            if (!isFollowing) {
+                log.warn("[Schedule] [GetEventLists] 팔로우 관계 없음 - userId={}, artistId={}", userId, id);
+                throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
+            }
+            targetArtistIds = List.of(id);
+            log.debug("[Schedule] [GetEventLists] 단일 아티스트 필터링 적용 - artistId={}", id);
+
+        } else {
+            targetArtistIds = getFollowedArtistIds(userId);
+
+            if (targetArtistIds.isEmpty()) {
+                log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+                return new EventsListResponse(Collections.emptyList());
+            }
+
+            log.debug("[Schedule] [GetEventLists] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
+        }
+
+        List<ScheduleCategory> partyCategories = List.of(
+                ScheduleCategory.CONCERT,
+                ScheduleCategory.FAN_MEETING,
+                ScheduleCategory.FESTIVAL,
+                ScheduleCategory.AWARD_SHOW,
+                ScheduleCategory.FAN_SIGN,
+                ScheduleCategory.BROADCAST
+        );
+
+        LocalDateTime now = LocalDateTime.now();
+
+        List<EventResponse> items = scheduleRepository.findPartyAvailableEvents(
+                targetArtistIds,
+                partyCategories,
+                now
+        );
+
+        log.info("[Schedule] [GetEventLists] 파티 생성 기능 일정 목록 조회 완료 - count={}", items.size());
+
+        return new EventsListResponse(items);
     }
 }

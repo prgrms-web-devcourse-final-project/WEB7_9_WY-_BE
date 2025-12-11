@@ -1,8 +1,6 @@
 package back.kalender.domain.schedule.controller;
 
-import back.kalender.domain.schedule.dto.response.UpcomingEventsListResponse;
-import back.kalender.domain.schedule.dto.response.DailySchedulesListResponse;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesListResponse;
+import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -273,6 +271,16 @@ public class ScheduleController {
         Long userId = 1L; //TODO: 임시 userId
 
         UpcomingEventsListResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/partyList")
+    public ResponseEntity<EventsListResponse> getEventListsSchedules(
+            @RequestParam(required = false) Optional<Long> artistId
+    ) {
+        Long userId = 1L; //TODO: 임시 userId
+
+        EventsListResponse response = scheduleService.getEventLists(userId, artistId);
         return ResponseEntity.ok(response);
     }
 }

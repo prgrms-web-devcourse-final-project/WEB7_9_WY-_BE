@@ -375,4 +375,101 @@ public class ScheduleServiceImplTest {
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
     }
+
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (전체 아티스트)")
+    void getEventLists_Success_AllArtists() {
+        Long userId = 1L;
+
+        Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 10L);
+        Artist nj = new Artist("NewJeans", "img"); ReflectionTestUtils.setField(nj, "id", 20L);
+
+        ArtistFollow f1 = new ArtistFollow(userId, bts);
+        ArtistFollow f2 = new ArtistFollow(userId, nj);
+
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of(f1, f2));
+
+        List<EventResponse> dbResult = List.of(
+                new EventResponse(100L, "[BTS] 콘서트", "BTS"),
+                new EventResponse(200L, "[NewJeans] 팬미팅", "NewJeans")
+        );
+
+        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any()))
+                .willReturn(dbResult);
+
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.empty());
+
+        assertThat(response.events()).hasSize(2);
+        assertThat(response.events().get(0).title()).isEqualTo("[BTS] 콘서트");
+        assertThat(response.events().get(1).artistName()).isEqualTo("NewJeans");
+
+        verify(scheduleRepository).findPartyAvailableEvents(
+                eq(List.of(10L, 20L)),
+                anyList(),
+                any(LocalDateTime.class)
+        );
+    }
+
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (특정 아티스트 필터링)")
+    void getEventLists_Success_SpecificArtist() {
+        Long userId = 1L;
+        Long targetArtistId = 10L;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetArtistId))
+                .willReturn(true);
+
+        List<EventResponse> dbResult = List.of(
+                new EventResponse(100L, "월드 투어", "BTS")
+        );
+
+        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any()))
+                .willReturn(dbResult);
+
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.of(targetArtistId));
+
+        assertThat(response.events()).hasSize(1);
+        assertThat(response.events().get(0).artistName()).isEqualTo("BTS");
+
+        verify(scheduleRepository).findPartyAvailableEvents(
+                eq(List.of(targetArtistId)),
+                anyList(),
+                any(LocalDateTime.class)
+        );
+        verify(artistFollowRepository, times(0)).findAllByUserId(any());
+    }
+
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (팔로우한 아티스트가 없는 경우)")
+    void getEventLists_Success_NoFollowedArtists() {
+        Long userId = 1L;
+
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of());
+
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId, Optional.empty());
+
+        assertThat(response.events()).isEmpty();
+
+        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
+    void getEventLists_Fail_NotFollowed() {
+        Long userId = 1L;
+        Long notFollowedId = 99L;
+
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
+                .willReturn(false);
+
+        assertThatThrownBy(() ->
+                scheduleServiceImpl.getEventLists(userId, Optional.of(notFollowedId))
+        )
+                .isInstanceOf(ServiceException.class)
+                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
+
+        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any());
+    }
 }
