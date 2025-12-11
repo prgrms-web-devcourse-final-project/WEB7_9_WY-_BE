@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "artist_follows")
 public class ArtistFollowTmp extends BaseEntityTmp {
 
-    //나중에 꼭 제거해야함
+    //TODO: 나중에 꼭 제거해야함
     @Column(name = "user_id", nullable = false)
     private Long userId;
 

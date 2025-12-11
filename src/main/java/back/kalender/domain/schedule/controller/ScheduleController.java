@@ -87,7 +87,7 @@ public class ScheduleController {
             @RequestParam int year,
             @RequestParam int month
     ) {
-        Long userId = 1L; // 임시 userId
+        Long userId = 1L; //TODO: 임시 userId
 
         MonthlySchedulesResponse response = scheduleService.getFollowingSchedules(userId, year, month);
 
@@ -128,7 +128,7 @@ public class ScheduleController {
             @RequestParam int year,
             @RequestParam int month
     ) {
-        Long userId = 1L; // 임시 userId
+        Long userId = 1L; //TODO: 임시 userId
 
         MonthlySchedulesResponse response = scheduleService.getSchedulesPerArtist(userId, artistId, year, month);
         return ResponseEntity.ok(response);
@@ -203,7 +203,7 @@ public class ScheduleController {
             @RequestParam String date,
             @RequestParam(required = false) Optional<Long> artistId
     ) {
-        Long userId = 1L; // 임시 userId
+        Long userId = 1L; //TODO: 임시 userId
 
         DailySchedulesResponse response = scheduleService.getDailySchedules(userId, date, artistId);
         return ResponseEntity.ok(response);
@@ -270,7 +270,7 @@ public class ScheduleController {
             @Parameter(description = "가져올 일정 개수 (기본값 10)", example = "5")
             @RequestParam(required = false, defaultValue = "10") int limit
     ){
-        Long userId = 1L; // 임시 userId
+        Long userId = 1L; //TODO: 임시 userId
 
         UpcomingEventsResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
         return ResponseEntity.ok(response);
