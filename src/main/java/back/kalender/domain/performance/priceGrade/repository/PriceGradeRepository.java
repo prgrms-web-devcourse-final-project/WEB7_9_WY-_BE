@@ -1,4 +1,4 @@
-package back.kalender.domain.performance.performane.repository;
+package back.kalender.domain.performance.priceGrade.repository;
 
 import back.kalender.domain.performance.performane.entity.Performance;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;

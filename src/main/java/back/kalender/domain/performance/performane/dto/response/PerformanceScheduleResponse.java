@@ -12,10 +12,7 @@ public record PerformanceScheduleResponse (
         LocalDate performanceDate,
         LocalTime startTime,
         Integer PerformanceNo,
-        Integer availableSeats,
-        Integer totalSeats,
-        String status,
-        Boolean isBookingAvailable
+        String status
 ){
     public static PerformanceScheduleResponse from(PerformanceSchedule schedule) {
         return new PerformanceScheduleResponse(
@@ -23,10 +20,7 @@ public record PerformanceScheduleResponse (
                 schedule.getPerformanceDate(),
                 schedule.getStartTime(),
                 schedule.getPerformanceNo(),
-                schedule.getAvailableSeats(),
-                schedule.getTotalSeats(),
-                schedule.getStatus().name(),
-                schedule.isBookingAvailable()
+                schedule.getStatus().name()
         );
     }
 }
