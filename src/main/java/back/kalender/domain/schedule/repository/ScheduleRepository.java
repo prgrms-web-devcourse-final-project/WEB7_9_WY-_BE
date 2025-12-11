@@ -25,7 +25,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
         ORDER BY s.scheduleTime ASC
@@ -48,7 +48,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime BETWEEN :startOfDay AND :endOfDay
         ORDER BY s.scheduleTime ASC
@@ -72,7 +72,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime >= :now
         ORDER BY s.scheduleTime ASC

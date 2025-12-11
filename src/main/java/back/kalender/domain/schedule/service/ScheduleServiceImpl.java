@@ -1,7 +1,7 @@
 package back.kalender.domain.schedule.service;
 
-import back.kalender.domain.artist.entity.ArtistFollowTmp;
-import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
+import back.kalender.domain.artist.entity.ArtistFollow;
+import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -28,7 +28,7 @@ import java.util.Optional;
 public class ScheduleServiceImpl implements ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
-    private final ArtistFollowRepositoryTmp artistFollowRepository;
+    private final ArtistFollowRepository artistFollowRepository;
 
     @Override
     public MonthlySchedulesListResponse getFollowingSchedules(Long userId, int year, int month) {
@@ -241,7 +241,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private List<Long> getFollowedArtistIds(Long userId) {
-        List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+        List<ArtistFollow> follows = artistFollowRepository.findAllByUserId(userId);
 
         if (follows.isEmpty()) {
             return Collections.emptyList();
