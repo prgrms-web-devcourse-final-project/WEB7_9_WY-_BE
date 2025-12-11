@@ -1,12 +1,16 @@
 package back.kalender.domain.performance;
 
 import back.kalender.domain.artist.entity.Artist;
-import back.kalender.domain.performance.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.entity.*;
-import back.kalender.domain.performance.repository.PerformanceRepository;
-import back.kalender.domain.performance.repository.PerformanceScheduleRepository;
-import back.kalender.domain.performance.repository.PriceGradeRepository;
-import back.kalender.domain.performance.service.PerformanceServiceImpl;
+import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
+import back.kalender.domain.performance.performane.dto.response.PerformanceDetailResponse;
+import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.performane.repository.PerformanceRepository;
+import back.kalender.domain.performance.performane.repository.PerformanceScheduleRepository;
+import back.kalender.domain.performance.performane.repository.PriceGradeRepository;
+import back.kalender.domain.performance.performane.service.PerformanceServiceImpl;
+import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
