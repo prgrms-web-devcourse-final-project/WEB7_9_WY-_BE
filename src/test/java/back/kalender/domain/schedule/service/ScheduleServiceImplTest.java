@@ -16,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -60,7 +59,7 @@ public class ScheduleServiceImplTest {
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(f1, f2, f3));
 
-        List<MonthlyScheduleItem> dbResult = List.of(
+        List<MonthlyScheduleResponse> dbResult = List.of(
                 createDto(100L, 1L, "BTS", "콘서트"),       // BTS 일정
                 createDto(101L, 2L, "Black Pink", "컴백"), // BP 일정
                 createDto(102L, 3L, "New Jeans", "팬미팅") // NJZ 일정
@@ -69,25 +68,25 @@ public class ScheduleServiceImplTest {
         given(scheduleRepository.findMonthlySchedules(any(), any(), any()))
                 .willReturn(dbResult);
 
-        MonthlySchedulesResponse response = scheduleServiceImpl.getFollowingSchedules(userId, 2025, 12);
+        MonthlySchedulesListResponse response = scheduleServiceImpl.getFollowingSchedules(userId, 2025, 12);
 
         assertThat(response.schedules()).hasSize(3);
 
-        MonthlyScheduleItem item1 = response.schedules().get(0);
+        MonthlyScheduleResponse item1 = response.schedules().get(0);
         assertThat(item1.artistName()).isEqualTo("BTS");
         assertThat(item1.title()).isEqualTo("콘서트");
 
-        MonthlyScheduleItem item2 = response.schedules().get(1);
+        MonthlyScheduleResponse item2 = response.schedules().get(1);
         assertThat(item2.artistName()).isEqualTo("Black Pink");
         assertThat(item2.title()).isEqualTo("컴백");
 
-        MonthlyScheduleItem item3 = response.schedules().get(2);
+        MonthlyScheduleResponse item3 = response.schedules().get(2);
         assertThat(item3.artistName()).isEqualTo("New Jeans");
         assertThat(item3.title()).isEqualTo("팬미팅");
     }
 
-    private MonthlyScheduleItem createDto(Long id, Long artistId, String artistName, String title) {
-        return new MonthlyScheduleItem(
+    private MonthlyScheduleResponse createDto(Long id, Long artistId, String artistName, String title) {
+        return new MonthlyScheduleResponse(
                 id, artistId, artistName, title,
                 ScheduleCategory.CONCERT,
                 LocalDateTime.now(),
@@ -121,7 +120,7 @@ public class ScheduleServiceImplTest {
         given(artistFollowRepository.existsByUserIdAndArtistId(userId, btsId))
                 .willReturn(true);
 
-        List<MonthlyScheduleItem> btsData = List.of(
+        List<MonthlyScheduleResponse> btsData = List.of(
                 createDto(100L, btsId, "BTS", "콘서트"),
                 createDto(101L, btsId, "BTS", "팬미팅")
         );
@@ -129,7 +128,7 @@ public class ScheduleServiceImplTest {
         given(scheduleRepository.findMonthlySchedules(any(), any(), any()))
                 .willReturn(btsData);
 
-        MonthlySchedulesResponse response = scheduleServiceImpl.getSchedulesPerArtist(userId, btsId, year, month);
+        MonthlySchedulesListResponse response = scheduleServiceImpl.getSchedulesPerArtist(userId, btsId, year, month);
 
         assertThat(response.schedules()).hasSize(2);
         assertThat(response.schedules().get(0).artistName()).isEqualTo("BTS");
@@ -194,7 +193,7 @@ public class ScheduleServiceImplTest {
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(f1, f2));
 
-        List<DailyScheduleItem> dbResult = List.of(
+        List<DailyScheduleResponse> dbResult = List.of(
                 createDailyDto(100L, "BTS", "콘서트"),
                 createDailyDto(101L, "BP", "방송")
         );
@@ -202,7 +201,7 @@ public class ScheduleServiceImplTest {
         given(scheduleRepository.findDailySchedules(any(), any(), any()))
                 .willReturn(dbResult);
 
-        DailySchedulesResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.empty());
+        DailySchedulesListResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.empty());
 
         assertThat(response.dailySchedules()).hasSize(2);
 
@@ -223,14 +222,14 @@ public class ScheduleServiceImplTest {
         given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetId))
                 .willReturn(true);
 
-        List<DailyScheduleItem> dbResult = List.of(
+        List<DailyScheduleResponse> dbResult = List.of(
                 createDailyDto(100L, "BTS", "콘서트")
         );
 
         given(scheduleRepository.findDailySchedules(any(), any(), any()))
                 .willReturn(dbResult);
 
-        DailySchedulesResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(targetId));
+        DailySchedulesListResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(targetId));
 
         assertThat(response.dailySchedules()).hasSize(1);
         assertThat(response.dailySchedules().get(0).artistName()).isEqualTo("BTS");
@@ -273,8 +272,8 @@ public class ScheduleServiceImplTest {
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
     }
 
-    private DailyScheduleItem createDailyDto(Long id, String artistName, String title) {
-        return new DailyScheduleItem(
+    private DailyScheduleResponse createDailyDto(Long id, String artistName, String title) {
+        return new DailyScheduleResponse(
                 id, artistName, title,
                 ScheduleCategory.CONCERT,
                 LocalDateTime.now(),
@@ -295,8 +294,8 @@ public class ScheduleServiceImplTest {
 
         LocalDateTime tomorrow = LocalDateTime.now().plusDays(1);
 
-        List<UpcomingEventItem> dbResult = List.of(
-                new UpcomingEventItem(
+        List<UpcomingEventResponse> dbResult = List.of(
+                new UpcomingEventResponse(
                         100L,
                         "BTS",
                         "콘서트",
@@ -312,7 +311,7 @@ public class ScheduleServiceImplTest {
         given(scheduleRepository.findUpcomingEvents(any(), any(), any()))
                 .willReturn(dbResult);
 
-        UpcomingEventsResponse response = scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), limit);
+        UpcomingEventsListResponse response = scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), limit);
 
         assertThat(response.upcomingEvents()).hasSize(1);
 

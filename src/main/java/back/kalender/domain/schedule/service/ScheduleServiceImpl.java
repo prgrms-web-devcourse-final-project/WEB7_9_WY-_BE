@@ -2,7 +2,6 @@ package back.kalender.domain.schedule.service;
 
 import back.kalender.domain.artist.entity.ArtistFollowTmp;
 import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
-import back.kalender.domain.artist.repository.ArtistRepositoryTmp;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -32,7 +31,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ArtistFollowRepositoryTmp artistFollowRepository;
 
     @Override
-    public MonthlySchedulesResponse getFollowingSchedules(Long userId, int year, int month) {
+    public MonthlySchedulesListResponse getFollowingSchedules(Long userId, int year, int month) {
         log.info("[Schedule] [GetFollowing] 팔로우 전체 일정 조회 시작 - userId={}, year={}, month={}",
                 userId, year, month);
 
@@ -45,7 +44,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (artistIds.isEmpty()) {
             log.info("[Schedule] [GetFollowing] 팔로우한 아티스트 없음, 빈 리스트 반환 - userId={}", userId);
-            return new MonthlySchedulesResponse(Collections.emptyList());
+            return new MonthlySchedulesListResponse(Collections.emptyList());
         }
 
         log.debug("[Schedule] [GetFollowing] 대상 아티스트 ID 추출 - count={}, ids={}", artistIds.size(), artistIds);
@@ -57,7 +56,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             log.debug("[Schedule] [GetFollowing] 조회 날짜 범위 계산 - start={}, end={}", startDateTime, endDateTime);
 
-            List<MonthlyScheduleItem> items = scheduleRepository.findMonthlySchedules(
+            List<MonthlyScheduleResponse> items = scheduleRepository.findMonthlySchedules(
                     artistIds,
                     startDateTime,
                     endDateTime
@@ -68,7 +67,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                     userId, items.size()
             );
 
-            return new MonthlySchedulesResponse(items);
+            return new MonthlySchedulesListResponse(items);
 
         } catch (DateTimeParseException e) {
             log.error("[Schedule] [GetFollowing] 날짜 파싱 오류 발생 - year={}, month={}", year, month, e);
@@ -77,7 +76,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public MonthlySchedulesResponse getSchedulesPerArtist(Long userId, Long artistId, int year, int month) {
+    public MonthlySchedulesListResponse getSchedulesPerArtist(Long userId, Long artistId, int year, int month) {
         log.info("[Schedule] [GetPerArtist] 아티스트별 월별 일정 조회 시작 - userId={}, artistId={}, year={}, month={}",
                 userId, artistId, year, month);
 
@@ -102,7 +101,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             log.debug("[Schedule] [GetPerArtist] 조회 날짜 범위 계산 - start={}, end={}", startDateTime, endDateTime);
 
-            List<MonthlyScheduleItem> items = scheduleRepository.findMonthlySchedules(
+            List<MonthlyScheduleResponse> items = scheduleRepository.findMonthlySchedules(
                     List.of(artistId),
                     startDateTime,
                     endDateTime
@@ -113,7 +112,7 @@ public class ScheduleServiceImpl implements ScheduleService {
                     userId, artistId, items.size()
             );
 
-            return new MonthlySchedulesResponse(items);
+            return new MonthlySchedulesListResponse(items);
 
         } catch (DateTimeParseException e) {
             log.error("[Schedule] [GetPerArtist] 날짜 파싱 오류 발생 - year={}, month={}", year, month, e);
@@ -122,7 +121,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {
+    public DailySchedulesListResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {
         log.info("[Schedule] [GetDaily] 하루 상세 일정 조회 시작 - userId={}, date={}, specificArtist={}",
                 userId, date, artistId.orElse(null));
 
@@ -160,13 +159,13 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             if (targetArtistIds.isEmpty()) {
                 log.info("[Schedule] [GetDaily] 팔로우한 아티스트 없음 - 빈 리스트 반환");
-                return new DailySchedulesResponse(Collections.emptyList());
+                return new DailySchedulesListResponse(Collections.emptyList());
             }
 
             log.debug("[Schedule] [GetDaily] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
         }
 
-        List<DailyScheduleItem> items = scheduleRepository.findDailySchedules(
+        List<DailyScheduleResponse> items = scheduleRepository.findDailySchedules(
                 targetArtistIds,
                 startOfDay,
                 endOfDay
@@ -174,10 +173,10 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         log.info("[Schedule] [GetDaily] 하루 상세 일정 조회 완료 - count={}", items.size());
 
-        return new DailySchedulesResponse(items);
+        return new DailySchedulesListResponse(items);
     }
 
-    public UpcomingEventsResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit) {
+    public UpcomingEventsListResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit) {
         log.info("[Schedule] [GetUpcoming] 다가오는 일정 조회 시작 - userId={}, specificArtist={}, limit={}",
                 userId, artistId.orElse(null), limit);
 
@@ -204,13 +203,13 @@ public class ScheduleServiceImpl implements ScheduleService {
 
             if (targetArtistIds.isEmpty()) {
                 log.info("[Schedule] [GetUpcoming] 팔로우한 아티스트 없음 - 빈 리스트 반환");
-                return new UpcomingEventsResponse(Collections.emptyList());
+                return new UpcomingEventsListResponse(Collections.emptyList());
             }
 
             log.debug("[Schedule] [GetUpcoming] 전체 팔로우 아티스트 적용 - count={}", targetArtistIds.size());
         }
 
-        List<UpcomingEventItem> rawItems = scheduleRepository.findUpcomingEvents(
+        List<UpcomingEventResponse> rawItems = scheduleRepository.findUpcomingEvents(
                 targetArtistIds,
                 LocalDateTime.now(),
                 PageRequest.of(0, limit)
@@ -218,11 +217,11 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         LocalDate today = LocalDate.now();
 
-        List<UpcomingEventItem> processedItems = rawItems.stream()
+        List<UpcomingEventResponse> processedItems = rawItems.stream()
                 .map(item -> {
                     long dDay = java.time.temporal.ChronoUnit.DAYS.between(today, item.scheduleTime().toLocalDate());
 
-                    return new UpcomingEventItem(
+                    return new UpcomingEventResponse(
                             item.scheduleId(),
                             item.artistName(),
                             item.title(),
@@ -238,7 +237,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         log.info("[Schedule] [GetUpcoming] 다가오는 일정 조회 완료 - count={}", processedItems.size());
 
-        return new UpcomingEventsResponse(processedItems);
+        return new UpcomingEventsListResponse(processedItems);
     }
 
     private List<Long> getFollowedArtistIds(Long userId) {

@@ -1,8 +1,8 @@
 package back.kalender.domain.schedule.controller;
 
-import back.kalender.domain.schedule.dto.response.UpcomingEventsResponse;
-import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
+import back.kalender.domain.schedule.dto.response.UpcomingEventsListResponse;
+import back.kalender.domain.schedule.dto.response.DailySchedulesListResponse;
+import back.kalender.domain.schedule.dto.response.MonthlySchedulesListResponse;
 import back.kalender.domain.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,7 +32,7 @@ public class ScheduleController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = MonthlySchedulesResponse.class),
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesListResponse.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "schedules": [
@@ -83,13 +83,13 @@ public class ScheduleController {
                                     """)))
     })
     @GetMapping("/following")
-    public ResponseEntity<MonthlySchedulesResponse> getFollowingSchedules(
+    public ResponseEntity<MonthlySchedulesListResponse> getFollowingSchedules(
             @RequestParam int year,
             @RequestParam int month
     ) {
         Long userId = 1L; //TODO: 임시 userId
 
-        MonthlySchedulesResponse response = scheduleService.getFollowingSchedules(userId, year, month);
+        MonthlySchedulesListResponse response = scheduleService.getFollowingSchedules(userId, year, month);
 
         return ResponseEntity.ok(response);
     }
@@ -100,7 +100,7 @@ public class ScheduleController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = MonthlySchedulesResponse.class))),
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesListResponse.class))),
             @ApiResponse(responseCode = "400", description = "잘못된 요청",
                     content = @Content(examples = @ExampleObject(value = """
                                     {
@@ -123,14 +123,14 @@ public class ScheduleController {
                                     """)))
     })
     @GetMapping("/artist/{artistId}")
-    public ResponseEntity<MonthlySchedulesResponse> getSchedulesPerArtist(
+    public ResponseEntity<MonthlySchedulesListResponse> getSchedulesPerArtist(
             @PathVariable Long artistId,
             @RequestParam int year,
             @RequestParam int month
     ) {
         Long userId = 1L; //TODO: 임시 userId
 
-        MonthlySchedulesResponse response = scheduleService.getSchedulesPerArtist(userId, artistId, year, month);
+        MonthlySchedulesListResponse response = scheduleService.getSchedulesPerArtist(userId, artistId, year, month);
         return ResponseEntity.ok(response);
     }
 
@@ -140,7 +140,7 @@ public class ScheduleController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = DailySchedulesResponse.class),
+                    content = @Content(schema = @Schema(implementation = DailySchedulesListResponse.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "dailySchedules": [
@@ -199,13 +199,13 @@ public class ScheduleController {
                                     """)))
     })
     @GetMapping("/daily")
-    public ResponseEntity<DailySchedulesResponse> getDailySchedules(
+    public ResponseEntity<DailySchedulesListResponse> getDailySchedules(
             @RequestParam String date,
             @RequestParam(required = false) Optional<Long> artistId
     ) {
         Long userId = 1L; //TODO: 임시 userId
 
-        DailySchedulesResponse response = scheduleService.getDailySchedules(userId, date, artistId);
+        DailySchedulesListResponse response = scheduleService.getDailySchedules(userId, date, artistId);
         return ResponseEntity.ok(response);
     }
 
@@ -215,7 +215,7 @@ public class ScheduleController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = UpcomingEventsResponse.class),
+                    content = @Content(schema = @Schema(implementation = UpcomingEventsListResponse.class),
                             examples = @ExampleObject(value = """
                                     {
                                       "upcomingEvents": [
@@ -265,14 +265,14 @@ public class ScheduleController {
                                     """)))
     })
     @GetMapping("/upcoming")
-    public ResponseEntity<UpcomingEventsResponse> getUpcomingSchedules(
+    public ResponseEntity<UpcomingEventsListResponse> getUpcomingSchedules(
             @RequestParam(required = false) Optional<Long> artistId,
             @Parameter(description = "가져올 일정 개수 (기본값 10)", example = "5")
             @RequestParam(required = false, defaultValue = "10") int limit
     ){
         Long userId = 1L; //TODO: 임시 userId
 
-        UpcomingEventsResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
+        UpcomingEventsListResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
         return ResponseEntity.ok(response);
     }
 }

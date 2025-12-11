@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-public record UpcomingEventItem(
+public record UpcomingEventResponse(
         @Schema(description = "일정 ID", example = "205")
         Long scheduleId,
 
@@ -34,7 +34,7 @@ public record UpcomingEventItem(
         @Schema(description = "일정 장소 (선택 사항)", example = "코엑스 라이브플라자")
         Optional<String> location
 ) {
-        public UpcomingEventItem(
+        public UpcomingEventResponse(
                 Long scheduleId,
                 String artistName,
                 String title,

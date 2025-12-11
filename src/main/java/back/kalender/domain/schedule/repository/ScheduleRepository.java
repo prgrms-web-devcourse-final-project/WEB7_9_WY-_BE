@@ -1,8 +1,8 @@
 package back.kalender.domain.schedule.repository;
 
-import back.kalender.domain.schedule.dto.response.DailyScheduleItem;
-import back.kalender.domain.schedule.dto.response.MonthlyScheduleItem;
-import back.kalender.domain.schedule.dto.response.UpcomingEventItem;
+import back.kalender.domain.schedule.dto.response.DailyScheduleResponse;
+import back.kalender.domain.schedule.dto.response.MonthlyScheduleResponse;
+import back.kalender.domain.schedule.dto.response.UpcomingEventResponse;
 import back.kalender.domain.schedule.entity.Schedule;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +14,7 @@ import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("""
-        SELECT new back.kalender.domain.schedule.dto.response.MonthlyScheduleItem(
+        SELECT new back.kalender.domain.schedule.dto.response.MonthlyScheduleResponse(
             s.id,
             s.artistId,
             a.name,
@@ -30,14 +30,14 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
         AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
         ORDER BY s.scheduleTime ASC
     """)
-    List<MonthlyScheduleItem> findMonthlySchedules(
+    List<MonthlyScheduleResponse> findMonthlySchedules(
             @Param("artistIds") List<Long> artistIds,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime
     );
 
     @Query("""
-        SELECT new back.kalender.domain.schedule.dto.response.DailyScheduleItem(
+        SELECT new back.kalender.domain.schedule.dto.response.DailyScheduleResponse(
             s.id,
             a.name,
             s.title,
@@ -53,14 +53,14 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
         AND s.scheduleTime BETWEEN :startOfDay AND :endOfDay
         ORDER BY s.scheduleTime ASC
     """)
-    List<DailyScheduleItem> findDailySchedules(
+    List<DailyScheduleResponse> findDailySchedules(
             @Param("artistIds") List<Long> artistIds,
             @Param("startOfDay") LocalDateTime startOfDay,
             @Param("endOfDay") LocalDateTime endOfDay
     );
 
     @Query("""
-        SELECT new back.kalender.domain.schedule.dto.response.UpcomingEventItem(
+        SELECT new back.kalender.domain.schedule.dto.response.UpcomingEventResponse(
             s.id,
             a.name,
             s.title,
@@ -77,7 +77,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
         AND s.scheduleTime >= :now
         ORDER BY s.scheduleTime ASC
     """)
-    List<UpcomingEventItem> findUpcomingEvents(
+    List<UpcomingEventResponse> findUpcomingEvents(
             @Param("artistIds") List<Long> artistIds,
             @Param("now") LocalDateTime now,
             Pageable pageable
