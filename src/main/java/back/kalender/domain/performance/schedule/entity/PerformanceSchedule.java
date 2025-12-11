@@ -30,17 +30,8 @@ public class PerformanceSchedule extends BaseEntity {
     @Column(name="performance_no")
     private Integer performanceNo;
 
-    private Integer availableSeats;
-
-    private Integer totalSeats;
-
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private ScheduleStatus status;
-
-    // 예매 가능 여부 체크 메서드
-    public boolean isBookingAvailable() {
-        return this.status == ScheduleStatus.AVAILABLE && this.availableSeats > 0;
-    }
 
 }

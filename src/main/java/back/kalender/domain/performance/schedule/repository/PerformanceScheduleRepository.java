@@ -1,4 +1,4 @@
-package back.kalender.domain.performance.performane.repository;
+package back.kalender.domain.performance.schedule.repository;
 
 import back.kalender.domain.performance.performane.entity.Performance;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
@@ -18,6 +18,8 @@ public interface PerformanceScheduleRepository extends JpaRepository<Performance
             Performance performance,
             LocalDate performanceDate
     );
+
+    List<PerformanceSchedule> findByPerformanceId(Long performanceId);
 
     // 특정 공연의 예매 가능한 날짜 목록 조회 (중복 제거)
     @Query("SELECT DISTINCT ps.performanceDate FROM PerformanceSchedule ps " +
