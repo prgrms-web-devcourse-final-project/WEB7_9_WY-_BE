@@ -1,12 +1,14 @@
 package back.kalender.domain.schedule.controller;
 
-import back.kalender.domain.schedule.dto.response.DailyScheduleItem;
-import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.ScheduleItem;
-import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.dto.response.UpcomingEventsListResponse;
+import back.kalender.domain.schedule.dto.response.DailySchedulesListResponse;
+import back.kalender.domain.schedule.dto.response.MonthlySchedulesListResponse;
 import back.kalender.domain.schedule.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,9 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -32,21 +31,65 @@ public class ScheduleController {
             description = "팔로우한 모든 아티스트의 특정 월 일정 데이터를 가져와 캘린더에 표시합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "요청 형식 오류")
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesListResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "schedules": [
+                                        {
+                                          "id": 101,
+                                          "artistId": 2,
+                                          "artistName": "BTS",
+                                          "title": "콘서트 - BTS",
+                                          "scheduleCategory": "CONCERT",
+                                          "scheduleTime": "2025-11-02T19:00:00",
+                                          "performanceId": 501,
+                                          "date": "2025-11-02",
+                                          "location": "고척 스카이돔"
+                                        },
+                                        {
+                                          "id": 102,
+                                          "artistId": 3,
+                                          "artistName": "NewJeans",
+                                          "title": "팬미팅 - NewJeans",
+                                          "scheduleCategory": "FAN_MEETING",
+                                          "scheduleTime": "2025-11-04T14:00:00",
+                                          "performanceId": null,
+                                          "date": "2025-11-04",
+                                          "location": null
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (날짜 형식 오류 등)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "일정 조회 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "4001",
+                                        "status": "404",
+                                        "message": "일정을 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
     })
     @GetMapping("/following")
-    public ResponseEntity<MonthlySchedulesResponse> getFollowingSchedules(
+    public ResponseEntity<MonthlySchedulesListResponse> getFollowingSchedules(
             @RequestParam int year,
             @RequestParam int month
     ) {
-        List<ScheduleItem> dummyList = List.of(
-                new ScheduleItem(101L, 2L, "BTS", "콘서트 - BTS", ScheduleCategory.CONCERT, Optional.of(501L), LocalDateTime.of(year, month, 2, 19, 0), LocalDate.of(year, month, 2)),
-                new ScheduleItem(105L, 4L, "aespa", "뮤직뱅크 - aespa", ScheduleCategory.BROADCAST, Optional.empty(), LocalDateTime.of(year, month, 10, 17, 0), LocalDate.of(year, month, 10)),
-                new ScheduleItem(106L, 6L, "IVE", "팬미팅 - IVE", ScheduleCategory.FAN_MEETING, Optional.of(601L), LocalDateTime.of(year, month, 10, 14, 0), LocalDate.of(year, month, 10)),
-                new ScheduleItem(108L, 2L, "BTS", "지민 생일", ScheduleCategory.BIRTHDAY, Optional.empty(), LocalDateTime.of(year, month, 18, 0, 0), LocalDate.of(year, month, 18))
-        );
-        MonthlySchedulesResponse response = new MonthlySchedulesResponse(dummyList);
+        Long userId = 1L; //TODO: 임시 userId
+
+        MonthlySchedulesListResponse response = scheduleService.getFollowingSchedules(userId, year, month);
 
         return ResponseEntity.ok(response);
     }
@@ -56,22 +99,38 @@ public class ScheduleController {
             description = "특정 아티스트를 필터링하여 해당 아티스트의 월별 일정만 표시합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "403", description = "팔로우하지 않은 아티스트"),
-            @ApiResponse(responseCode = "400", description = "요청 형식 오류")
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = MonthlySchedulesListResponse.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """)))
     })
     @GetMapping("/artist/{artistId}")
-    public ResponseEntity<MonthlySchedulesResponse> getArtistSchedules(
+    public ResponseEntity<MonthlySchedulesListResponse> getSchedulesPerArtist(
             @PathVariable Long artistId,
             @RequestParam int year,
             @RequestParam int month
     ) {
-        List<ScheduleItem> dummyList = List.of(
-                new ScheduleItem(105L, artistId, "aespa", "뮤직뱅크", ScheduleCategory.BROADCAST, Optional.empty(), LocalDateTime.of(year, month, 10, 17, 0), LocalDate.of(year, month, 10)),
-                new ScheduleItem(109L, artistId, "aespa", "팬사인회 응모", ScheduleCategory.FAN_SIGN, Optional.empty(), LocalDateTime.of(year, month, 25, 20, 0), LocalDate.of(year, month, 25))
-        );
-        MonthlySchedulesResponse response = new MonthlySchedulesResponse(dummyList);
+        Long userId = 1L; //TODO: 임시 userId
 
+        MonthlySchedulesListResponse response = scheduleService.getSchedulesPerArtist(userId, artistId, year, month);
         return ResponseEntity.ok(response);
     }
 
@@ -80,20 +139,140 @@ public class ScheduleController {
             description = "캘린더에서 특정 날짜를 클릭했을 때, 해당 날짜의 상세 일정 목록을 팝업 형태로 제공합니다."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "400", description = "날짜 형식 오류")
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = DailySchedulesListResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "dailySchedules": [
+                                        {
+                                          "scheduleId": 120,
+                                          "artistName": "NewJeans",
+                                          "title": "뮤직뱅크 출연",
+                                          "scheduleCategory": "BROADCAST",
+                                          "scheduleTime": "2025-12-15T17:00:00",
+                                          "performanceId": null,
+                                          "link": null,
+                                          "location": "KBS 신관 공개홀"
+                                        },
+                                        {
+                                          "scheduleId": 121,
+                                          "artistName": "BTS",
+                                          "title": "팬사인회",
+                                          "scheduleCategory": "FAN_SIGN",
+                                          "scheduleTime": "2025-12-15T19:00:00",
+                                          "performanceId": null,
+                                          "link": "https://ticket.example.com/bts",
+                                          "location": "코엑스"
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (날짜 형식 오류)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다. (Date Format: yyyy-MM-dd)"
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스케쥴 조회 실패 (유저 정보 없음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "1001",
+                                        "status": "404",
+                                        "message": "유저를 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
     })
     @GetMapping("/daily")
-    public ResponseEntity<DailySchedulesResponse> getDailySchedules(
+    public ResponseEntity<DailySchedulesListResponse> getDailySchedules(
             @RequestParam String date,
             @RequestParam(required = false) Optional<Long> artistId
     ) {
-        List<DailyScheduleItem> dummyList = List.of(
-                new DailyScheduleItem(105L, "aespa", "뮤직뱅크 - aespa", ScheduleCategory.BROADCAST, LocalDateTime.of(2025, 11, 10, 17, 0), Optional.of("https://kbs.co.kr/apply"), Optional.empty()),
-                new DailyScheduleItem(106L, "IVE", "팬미팅 - IVE", ScheduleCategory.FAN_MEETING, LocalDateTime.of(2025, 11, 10, 14, 0), Optional.of("https://ticket.yes24.com/ive"), Optional.of(601L))
-        );
-        DailySchedulesResponse response = new DailySchedulesResponse(dummyList);
+        Long userId = 1L; //TODO: 임시 userId
 
+        DailySchedulesListResponse response = scheduleService.getDailySchedules(userId, date, artistId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "다가오는 일정 조회",
+            description = "팔로우한 아티스트들의 다가오는 일정을 시간순으로 정렬하여 제공합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = UpcomingEventsListResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "upcomingEvents": [
+                                        {
+                                          "scheduleId": 205,
+                                          "artistName": "aespa",
+                                          "title": "팬사인회",
+                                          "scheduleCategory": "FAN_SIGN",
+                                          "scheduleTime": "2025-12-20T14:00:00",
+                                          "performanceId": null,
+                                          "link": "https://example.com",
+                                          "daysUntilEvent": 5,
+                                          "location": "코엑스"
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 (Limit 값 오류)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "002",
+                                        "status": "400",
+                                        "message": "유효하지 않은 입력 값입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (팔로우하지 않음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "팔로우하지 않은 아티스트입니다."
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "스케쥴 조회 실패 (유저 정보 없음)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "1001",
+                                        "status": "404",
+                                        "message": "유저를 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
+    })
+    @GetMapping("/upcoming")
+    public ResponseEntity<UpcomingEventsListResponse> getUpcomingSchedules(
+            @RequestParam(required = false) Optional<Long> artistId,
+            @Parameter(description = "가져올 일정 개수 (기본값 10)", example = "5")
+            @RequestParam(required = false, defaultValue = "10") int limit
+    ){
+        Long userId = 1L; //TODO: 임시 userId
+
+        UpcomingEventsListResponse response = scheduleService.getUpcomingEvents(userId, artistId, limit);
         return ResponseEntity.ok(response);
     }
 }
