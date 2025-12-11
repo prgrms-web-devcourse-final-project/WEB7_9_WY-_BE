@@ -12,6 +12,7 @@ public enum ErrorCode {
     // User 1000
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
     DUPLICATE_NICKNAME("1002", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
+    DUPLICATE_EMAIL("1003", HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
 
     // Artist 2000
     ARTIST_NOT_FOUND("2001",HttpStatus.NOT_FOUND,"아티스트를 찾을 수 없습니다."),
