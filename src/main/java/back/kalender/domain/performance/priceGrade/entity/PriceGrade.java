@@ -1,5 +1,6 @@
-package back.kalender.domain.performance.entity;
+package back.kalender.domain.performance.priceGrade.entity;
 
+import back.kalender.domain.performance.performane.entity.Performance;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

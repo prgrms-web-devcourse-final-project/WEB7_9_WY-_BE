@@ -1,6 +1,7 @@
-package back.kalender.domain.performance.entity;
+package back.kalender.domain.performance.performane.entity;
 
 import back.kalender.domain.artist.entity.Artist;
+import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

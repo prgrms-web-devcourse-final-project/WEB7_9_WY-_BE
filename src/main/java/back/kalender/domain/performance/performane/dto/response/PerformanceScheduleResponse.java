@@ -1,6 +1,6 @@
-package back.kalender.domain.performance.dto.response;
+package back.kalender.domain.performance.performane.dto.response;
 
-import back.kalender.domain.performance.entity.PerformanceSchedule;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;

@@ -1,4 +1,4 @@
-package back.kalender.domain.performance.entity;
+package back.kalender.domain.performance.performanceHall.entity;
 
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.Column;

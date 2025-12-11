@@ -1,7 +1,7 @@
-package back.kalender.domain.performance.repository;
+package back.kalender.domain.performance.performane.repository;
 
-import back.kalender.domain.performance.entity.Performance;
-import back.kalender.domain.performance.entity.PriceGrade;
+import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,4 +1,4 @@
-package back.kalender.domain.performance.entity;
+package back.kalender.domain.performance.schedule.entity;
 
 public enum ScheduleStatus {
     AVAILABLE("예매 가능"),

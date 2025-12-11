@@ -1,12 +1,12 @@
-package back.kalender.domain.performance.service;
+package back.kalender.domain.performance.performane.service;
 
-import back.kalender.domain.performance.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.entity.Performance;
-import back.kalender.domain.performance.entity.PerformanceSchedule;
-import back.kalender.domain.performance.entity.PriceGrade;
-import back.kalender.domain.performance.repository.PerformanceRepository;
-import back.kalender.domain.performance.repository.PerformanceScheduleRepository;
-import back.kalender.domain.performance.repository.PriceGradeRepository;
+import back.kalender.domain.performance.performane.dto.response.PerformanceDetailResponse;
+import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
+import back.kalender.domain.performance.performane.repository.PerformanceRepository;
+import back.kalender.domain.performance.performane.repository.PerformanceScheduleRepository;
+import back.kalender.domain.performance.performane.repository.PriceGradeRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
-package back.kalender.domain.performance.controller;
+package back.kalender.domain.performance.performane.controller;
 
-import back.kalender.domain.performance.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.service.PerformanceService;
+import back.kalender.domain.performance.performane.dto.response.PerformanceDetailResponse;
+import back.kalender.domain.performance.performane.service.PerformanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,10 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Tag(name = "Performance", description = "공연 관련 API")
 @RestController

@@ -1,7 +1,7 @@
-package back.kalender.domain.performance.repository;
+package back.kalender.domain.performance.performane.repository;
 
-import back.kalender.domain.performance.entity.Performance;
-import back.kalender.domain.performance.entity.PerformanceSchedule;
+import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

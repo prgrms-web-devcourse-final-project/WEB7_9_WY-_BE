@@ -1,10 +1,10 @@
-package back.kalender.domain.performance.dto.response;
+package back.kalender.domain.performance.performane.dto.response;
 
 import back.kalender.domain.artist.entity.Artist;
-import back.kalender.domain.performance.entity.Performance;
-import back.kalender.domain.performance.entity.PerformanceHall;
-import back.kalender.domain.performance.entity.PerformanceSchedule;
-import back.kalender.domain.performance.entity.PriceGrade;
+import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
