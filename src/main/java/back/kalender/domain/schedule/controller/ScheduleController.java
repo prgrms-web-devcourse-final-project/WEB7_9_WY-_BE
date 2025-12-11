@@ -274,6 +274,48 @@ public class ScheduleController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+            summary = "이벤트 선택 목록 조회",
+            description = "사용자가 팔로우하는 아티스트들의 외부 행사 중 현재 시점부터 31일 이내의 일정만 조회합니다. (파티 생성용과 파티 목록 조회용 드롭다운 목록 제공)"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = EventsListResponse.class),
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "events": [
+                                        {
+                                          "scheduleId": 120,
+                                          "title": "[BTS] WORLD TOUR 2026"
+                                        },
+                                        {
+                                          "scheduleId": 121,
+                                          "title": "[NewJeans] 미니 3집 발매 팬사인회"
+                                        }
+                                      ]
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음 (유저 인증 실패 등)",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "2001",
+                                        "status": "403",
+                                        "message": "인증에 실패했습니다." 
+                                      }
+                                    }
+                                    """))),
+            @ApiResponse(responseCode = "404", description = "일정 조회 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                                    {
+                                      "error": {
+                                        "code": "4001",
+                                        "status": "404",
+                                        "message": "일정을 찾을 수 없습니다."
+                                      }
+                                    }
+                                    """)))
+    })
     @GetMapping("/partyList")
     public ResponseEntity<EventsListResponse> getEventListsSchedules() {
         Long userId = 1L; //TODO: 임시 userId

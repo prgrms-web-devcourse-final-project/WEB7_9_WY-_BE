@@ -381,59 +381,47 @@ public class ScheduleServiceImplTest {
         // given
         Long userId = 1L;
 
-        // 1. 팔로우한 아티스트 설정
         Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 10L);
         ArtistFollow f1 = new ArtistFollow(userId, bts);
 
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(f1));
 
-        // 2. 리포지토리 반환값 설정 (CONCAT 완료된 상태 가정)
         List<EventResponse> dbResult = List.of(
                 new EventResponse(100L, "[BTS] 2026 월드 투어 서울")
         );
 
-        // [수정] 인자가 4개로 늘어난 메서드 시그니처 반영
         given(scheduleRepository.findPartyAvailableEvents(any(), any(), any(), any()))
                 .willReturn(dbResult);
 
-        // when
         EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
 
-        // then
         assertThat(response.events()).hasSize(1);
 
         EventResponse item = response.events().get(0);
 
-        // 3. 검증: Service가 데이터를 그대로 전달했는지 확인 (CONCAT 동작 확인)
         assertThat(item.title()).isEqualTo("[BTS] 2026 월드 투어 서울");
 
-        // 4. [중요] verify: 리포지토리에 시작 시간과 종료 시간(31일 후)이 모두 전달되었는지 검증
         verify(scheduleRepository).findPartyAvailableEvents(
                 eq(List.of(10L)),
                 anyList(),
-                any(LocalDateTime.class), // now
-                any(LocalDateTime.class)  // endDate (now + 31 days)
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
         );
     }
 
     @Test
     @DisplayName("파티 생성 가능 일정 조회 - 성공 (팔로우한 아티스트가 없는 경우)")
     void getEventLists_Success_NoFollowedArtists() {
-        // given
         Long userId = 1L;
 
-        // 팔로우 목록이 비어있음
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of());
 
-        // when
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId); // 파라미터 제거
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
 
-        // then
         assertThat(response.events()).isEmpty();
 
-        // verify: 팔로우한 사람이 없으므로 무거운 Schedule 조회 쿼리는 실행되지 않아야 함 (최적화 검증)
         verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any(), any());
     }
 }
