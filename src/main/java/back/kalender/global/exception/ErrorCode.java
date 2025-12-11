@@ -46,9 +46,24 @@ public enum ErrorCode {
     // Performance 5000
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
     PERFORMANCE_HALL_NOT_FOUND("5002", HttpStatus.NOT_FOUND, "공연장을 찾을 수 없습니다."),
-    PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다.");
+    PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다."),
 
     // MyPage 6000
+
+    // Auth 7000
+    INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
+    INVALID_REFRESH_TOKEN("7002", HttpStatus.UNAUTHORIZED, "유효하지 않은 refresh token입니다."),
+    EXPIRED_REFRESH_TOKEN("7003", HttpStatus.UNAUTHORIZED, "만료된 refresh token입니다."),
+    INVALID_EMAIL_VERIFICATION_CODE("7004", HttpStatus.BAD_REQUEST, "유효하지 않은 인증 코드입니다."),
+    EXPIRED_EMAIL_VERIFICATION_CODE("7005", HttpStatus.UNAUTHORIZED, "만료된 인증 코드입니다."),
+    EMAIL_VERIFICATION_CODE_NOT_FOUND("7006", HttpStatus.NOT_FOUND, "인증 코드를 찾을 수 없습니다."),
+    EMAIL_ALREADY_VERIFIED("7007", HttpStatus.BAD_REQUEST, "이미 인증된 이메일입니다."),
+    EMAIL_VERIFICATION_LIMIT_EXCEEDED("7008", HttpStatus.TOO_MANY_REQUESTS, "인증 코드 발송 횟수를 초과했습니다."),
+    INVALID_PASSWORD_RESET_TOKEN("7009", HttpStatus.BAD_REQUEST, "유효하지 않은 비밀번호 재설정 토큰입니다."),
+    EXPIRED_PASSWORD_RESET_TOKEN("7010", HttpStatus.UNAUTHORIZED, "만료된 비밀번호 재설정 토큰입니다."),
+    PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
+    PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
+    PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다.");
 
     private final String code;
     private final HttpStatus status;

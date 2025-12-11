@@ -17,8 +17,8 @@ public class JwtProperties {
 
     @Getter
     public static class TokenExpiration {
-        private final long access;   // custom.jwt.tokenExpiration.access
-        private final long refresh;  // custom.jwt.tokenExpiration.refresh
+        private final long access;
+        private final long refresh;
 
         public TokenExpiration(long access, long refresh) {
             this.access = access;

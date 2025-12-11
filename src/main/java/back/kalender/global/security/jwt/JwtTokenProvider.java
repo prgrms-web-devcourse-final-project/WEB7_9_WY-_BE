@@ -31,10 +31,7 @@ public class JwtTokenProvider {
     public void init() {
         // secret 문자열로 HMAC 키 생성
         this.signingKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
-
-        // access: 초 단위 → 밀리초 변환
         this.accessTokenValidityInMillis = jwtProperties.getTokenExpiration().getAccess() * 1000;
-        // refresh: 일 단위 → 밀리초 변환
         this.refreshTokenValidityInMillis = jwtProperties.getTokenExpiration().getRefresh() * 24 * 60 * 60 * 1000;
     }
 
@@ -84,10 +81,8 @@ public class JwtTokenProvider {
                     .parseClaimsJws(token);
             return true;
         } catch (SecurityException | MalformedJwtException e) {
-            // 잘못된 서명 or 토큰 형식
             return false;
         } catch (ExpiredJwtException e) {
-            // 만료
             return false;
         } catch (UnsupportedJwtException e) {
             return false;
@@ -115,5 +110,23 @@ public class JwtTokenProvider {
                 null,
                 userDetails.getAuthorities()
         );
+    }
+
+    public Long getUserId(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        Object userIdObj = claims.get("userId");
+        if (userIdObj instanceof Integer) {
+            return ((Integer) userIdObj).longValue();
+        } else if (userIdObj instanceof Long) {
+            return (Long) userIdObj;
+        } else if (userIdObj instanceof Number) {
+            return ((Number) userIdObj).longValue();
+        }
+        return null;
     }
 }

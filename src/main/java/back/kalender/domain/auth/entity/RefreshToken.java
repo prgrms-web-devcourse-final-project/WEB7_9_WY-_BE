@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @Table(
         name = "refresh_tokens",
         indexes = {
-                @Index(name = "idx_user_id", columnList = "userId"),
-                @Index(name = "idx_token", columnList = "token")
+                @Index(name = "idx_refresh_user_id", columnList = "userId"),
+                @Index(name = "idx_refresh_token", columnList = "token")
         }
 )
 public class RefreshToken extends BaseEntity {

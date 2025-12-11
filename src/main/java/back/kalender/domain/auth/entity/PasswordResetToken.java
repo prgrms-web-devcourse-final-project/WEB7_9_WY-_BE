@@ -15,8 +15,8 @@ import java.time.LocalDateTime;
 @Table(
         name = "password_reset_tokens",
         indexes = {
-                @Index(name = "idx_user_id", columnList = "userId"),
-                @Index(name = "idx_token", columnList = "token")
+                @Index(name = "idx_password_user_id", columnList = "userId"),
+                @Index(name = "idx_password_token", columnList = "token")
         }
 )
 public class PasswordResetToken extends BaseEntity {

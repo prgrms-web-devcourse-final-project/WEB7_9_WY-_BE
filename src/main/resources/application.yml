@@ -57,4 +57,4 @@ custom:
     tokenExpiration:
       access: 1800
       refresh: 14
-    secret: ${custom.jwt.secretPattern}
+    secret: ${JWT_SECRET}
