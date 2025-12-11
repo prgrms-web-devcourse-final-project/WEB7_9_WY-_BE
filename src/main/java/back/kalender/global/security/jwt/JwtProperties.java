@@ -9,10 +9,12 @@ public class JwtProperties {
 
     private final String secret;
     private final TokenExpiration tokenExpiration;
+    private final CookieProperties cookie;
 
-    public JwtProperties(String secret, TokenExpiration tokenExpiration) {
+    public JwtProperties(String secret, TokenExpiration tokenExpiration, CookieProperties cookie) {
         this.secret = secret;
         this.tokenExpiration = tokenExpiration;
+        this.cookie = cookie;
     }
 
     @Getter
@@ -23,6 +25,15 @@ public class JwtProperties {
         public TokenExpiration(long access, long refresh) {
             this.access = access;
             this.refresh = refresh;
+        }
+    }
+
+    @Getter
+    public static class CookieProperties {
+        private final boolean secure;
+
+        public CookieProperties(boolean secure) {
+            this.secure = secure;
         }
     }
 }

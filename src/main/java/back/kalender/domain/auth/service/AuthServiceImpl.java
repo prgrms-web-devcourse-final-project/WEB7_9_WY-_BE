@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,12 +55,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 토큰 생성
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("email", user.getEmail());
-
-        String accessToken = jwtTokenProvider.createAccessToken(user.getEmail(), claims);
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), claims);
+        String accessToken = createAccessToken(user);
+        String refreshToken = createRefreshToken(user);
 
         // Refresh Token DB 저장
         RefreshToken refreshTokenEntity = RefreshToken.create(
@@ -70,15 +67,10 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(refreshTokenEntity);
 
         // Access Token을 Response Header에 설정
-        response.setHeader("Authorization", "Bearer " + accessToken);
+        applyAccessTokenHeader(response, accessToken);
 
         // Refresh Token을 httpOnly secure 쿠키로 설정
-        Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(true);
-        refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge((int) (jwtProperties.getTokenExpiration().getRefresh() * 24 * 60 * 60));
-        response.addCookie(refreshTokenCookie);
+        response.addCookie(buildRefreshTokenCookie(refreshToken));
 
         return new UserLoginResponse(
                 user.getId(),
@@ -110,7 +102,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         // 만료 확인
-        if (refreshTokenEntity.getExpiredAt().isBefore(LocalDateTime.now())) {
+        if (isExpired(refreshTokenEntity.getExpiredAt())) {
             refreshTokenRepository.delete(refreshTokenEntity);
             throw new ServiceException(ErrorCode.EXPIRED_REFRESH_TOKEN);
         }
@@ -120,12 +112,8 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         // 새 토큰 생성
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("email", user.getEmail());
-
-        String newAccessToken = jwtTokenProvider.createAccessToken(user.getEmail(), claims);
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getEmail(), claims);
+        String newAccessToken = createAccessToken(user);
+        String newRefreshToken = createRefreshToken(user);
 
         // 기존 Refresh Token 삭제
         refreshTokenRepository.delete(refreshTokenEntity);
@@ -139,15 +127,10 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.save(newRefreshTokenEntity);
 
         // Access Token을 Response Header에 설정
-        response.setHeader("Authorization", "Bearer " + newAccessToken);
+        applyAccessTokenHeader(response, newAccessToken);
 
         // Refresh Token을 httpOnly secure 쿠키로 설정
-        Cookie refreshTokenCookie = new Cookie("refreshToken", newRefreshToken);
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(true);
-        refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge((int) (jwtProperties.getTokenExpiration().getRefresh() * 24 * 60 * 60));
-        response.addCookie(refreshTokenCookie);
+        response.addCookie(buildRefreshTokenCookie(newRefreshToken));
     }
 
     @Override
@@ -186,7 +169,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 만료 확인
-        if (resetToken.getExpiredAt().isBefore(LocalDateTime.now())) {
+        if (isExpired(resetToken.getExpiredAt())) {
             throw new ServiceException(ErrorCode.EXPIRED_PASSWORD_RESET_TOKEN);
         }
 
@@ -214,7 +197,7 @@ public class AuthServiceImpl implements AuthService {
         // 최근 5분 이내 발송된 인증 코드 확인 (재발송 제한)
         emailVerificationRepository.findTopByUserIdOrderByCreatedAtDesc(user.getId())
                 .ifPresent(verification -> {
-                    if (verification.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(1))) {
+                    if (verification.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(5))) {
                         throw new ServiceException(ErrorCode.EMAIL_VERIFICATION_LIMIT_EXCEEDED);
                     }
                 });
@@ -254,7 +237,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 만료 확인
-        if (verification.getExpiredAt().isBefore(LocalDateTime.now())) {
+        if (isExpired(verification.getExpiredAt())) {
             throw new ServiceException(ErrorCode.EXPIRED_EMAIL_VERIFICATION_CODE);
         }
 
@@ -283,6 +266,41 @@ public class AuthServiceImpl implements AuthService {
                 user.getEmailVerified() != null ? user.getEmailVerified() : false,
                 verifiedAt
         );
+    }
+
+    // ------------------------------ HELPERS ------------------------------------------
+    private Map<String, Object> buildUserClaims(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("email", user.getEmail());
+        return claims;
+    }
+
+    private String createAccessToken(User user) {
+        return jwtTokenProvider.createAccessToken(user.getEmail(), buildUserClaims(user));
+    }
+    private String createRefreshToken(User user) {
+        return jwtTokenProvider.createRefreshToken(user.getEmail(), buildUserClaims(user));
+    }
+
+    private void applyAccessTokenHeader(HttpServletResponse response, String accessToken) {
+        response.setHeader("Authorization", "Bearer " + accessToken);
+    }
+
+    private Cookie buildRefreshTokenCookie(String token) {
+        Cookie cookie = new Cookie("refreshToken", token);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(jwtProperties.getCookie().isSecure());
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (jwtProperties.getTokenExpiration().getRefresh() * 24 * 60 * 60));
+        return cookie;
+    }
+
+    private boolean isExpired(LocalDateTime expiredAt) {
+        LocalDateTime now = LocalDateTime.now();
+        Duration remaining = Duration.between(now, expiredAt);
+        // 만료 시간이 지금보다 과거면 음수 or 0
+        return !remaining.isPositive(); // 0 또는 음수면 만료로 봄
     }
 }
 

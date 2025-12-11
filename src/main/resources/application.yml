@@ -58,3 +58,5 @@ custom:
       access: 1800
       refresh: 14
     secret: ${JWT_SECRET}
+    cookie:
+      secure: false

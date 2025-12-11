@@ -29,3 +29,7 @@ custom:
     domain: "${custom.prod.domain}"
     backUrl: "${custom.prod.backUrl}"
     frontUrl: "${custom.prod.frontUrl}"
+
+  jwt:
+    cookie:
+      secure: false
