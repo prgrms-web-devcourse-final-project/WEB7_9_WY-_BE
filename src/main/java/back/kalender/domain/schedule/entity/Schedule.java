@@ -1,26 +1,23 @@
 package back.kalender.domain.schedule.entity;
 
+import back.kalender.global.common.entity.BaseEntityTmp;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "schedule")
+@Table(
+        name = "schedules",
+        indexes = @Index(name = "idx_schedule_artist_time", columnList = "a rtistId, scheduleTime")
+)
 @Getter
-@NoArgsConstructor
 @Builder
-@AllArgsConstructor
-@EntityListeners(AuditingEntityListener.class)
-public class Schedule {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class Schedule extends BaseEntityTmp {
 
     @Column(nullable = false)
     private Long artistId;
@@ -36,9 +33,8 @@ public class Schedule {
 
     private String link;
 
-    //party를 위헤 임시로 만듬
-    private String location;
-
     @Column(name = "schedule_time")
     private LocalDateTime scheduleTime;
+
+    private String location;
 }

@@ -1,31 +1,17 @@
 package back.kalender.domain.schedule.service;
 
-import back.kalender.domain.schedule.dto.response.DailySchedulesResponse;
-import back.kalender.domain.schedule.dto.response.MonthlySchedulesResponse;
-import org.springframework.stereotype.Service;
+import back.kalender.domain.schedule.dto.response.DailySchedulesListResponse;
+import back.kalender.domain.schedule.dto.response.MonthlySchedulesListResponse;
+import back.kalender.domain.schedule.dto.response.UpcomingEventsListResponse;
 
 import java.util.Optional;
 
-@Service
-public class ScheduleService {
-//    private final ScheduleRepository scheduleRepository;
-//    private final ArtistRepositoryTmp artistRepository;
+public interface ScheduleService {
+    MonthlySchedulesListResponse getFollowingSchedules(Long userId, int year, int month);
 
-//    public ScheduleService(ScheduleRepository scheduleRepository, ArtistRepositoryTmp artistRepository) {
-//        this.scheduleRepository = scheduleRepository;
-//        this.artistRepository = artistRepository;
-//    }
+    MonthlySchedulesListResponse getSchedulesPerArtist(Long userId, Long artistId, int year, int month);
 
-    public MonthlySchedulesResponse getFollowingSchedules(Long userId, int year, int month) {
-        return null;
-    }
+    DailySchedulesListResponse getDailySchedules(Long userId, String date, Optional<Long> artistId);
 
-    public MonthlySchedulesResponse getArtistSchedules(Long userId, Long artistId, int year, int month) {
-        return null;
-    }
-
-
-    public DailySchedulesResponse getDailySchedules(Long userId, String date, Optional<Long> artistId) {
-        return null;
-    }
+    UpcomingEventsListResponse getUpcomingEvents(Long userId, Optional<Long> artistId, int limit);
 }

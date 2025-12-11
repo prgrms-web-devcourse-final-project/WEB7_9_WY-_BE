@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 public enum ErrorCode {
     // Common 0
+    INVALID_INPUT_VALUE("004", HttpStatus.BAD_REQUEST, "유효하지 않은 입력 값입니다."),
     UNAUTHORIZED("002",HttpStatus.UNAUTHORIZED,"로그인이 필요합니다."),
     INTERNAL_SERVER_ERROR("003",HttpStatus.INTERNAL_SERVER_ERROR,"서버에서 오류가 발생했습니다."),
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
@@ -43,6 +44,7 @@ public enum ErrorCode {
     CANNOT_REDUCE_MAX_MEMBERS("3413", HttpStatus.BAD_REQUEST, "현재 인원보다 적게 최대 인원을 설정할 수 없습니다."),
     // Schedule 4000
     SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
+
 
     // Performance 5000
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
