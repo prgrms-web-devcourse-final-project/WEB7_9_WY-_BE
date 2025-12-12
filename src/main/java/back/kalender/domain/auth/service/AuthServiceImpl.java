@@ -40,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -119,8 +120,8 @@ public class AuthServiceImpl implements AuthService {
         PasswordResetToken resetToken = PasswordResetToken.create(user.getId(), token);
         passwordResetTokenRepository.save(resetToken);
 
-        // TODO: 이메일 발송 로직 구현
-        // emailService.sendPasswordResetEmail(user.getEmail(), token);
+        // 이메일 발송
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
     }
 
     @Override
@@ -184,8 +185,8 @@ public class AuthServiceImpl implements AuthService {
         EmailVerification verification = EmailVerification.create(user.getId(), code);
         emailVerificationRepository.save(verification);
 
-        // TODO: 이메일 발송 로직 구현
-        // emailService.sendVerificationEmail(user.getEmail(), code);
+        // 이메일 발송
+        emailService.sendVerificationEmail(user.getEmail(), code);
     }
 
     @Override
