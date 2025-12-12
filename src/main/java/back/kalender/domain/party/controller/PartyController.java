@@ -151,6 +151,27 @@ public class PartyController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+            summary = "스케줄별 파티 목록 조회",
+            description = "특정 스케줄에 해당하는 파티 목록을 조회합니다. 파티 타입과 교통수단으로 필터링할 수 있습니다. 페이징 처리됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = GetPartiesResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "스케줄을 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = """
+                    {
+                      "code": "4001",
+                      "message": "일정을 찾을 수 없습니다."
+                    }
+                    """))
+            )
+    })
     @GetMapping("/schedule/{scheduleId}")
     public ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
             @PathVariable Long scheduleId,
