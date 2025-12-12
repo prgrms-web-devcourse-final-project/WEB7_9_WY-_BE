@@ -31,7 +31,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ArtistFollowRepository artistFollowRepository;
 
     @Override
-    public IntegratedSchedulesListResponse getIntegratedSchedules(Long userId, int year, int month, Optional<Long> artistId) {
+    public FollowingSchedulesListResponse getFollowingSchedules(Long userId, int year, int month, Optional<Long> artistId) {
         log.info("[Schedule] [Integrated] 통합 일정 조회 요청 진입 - userId: {}, year: {}, month: {}, filterArtistId: {}",
                 userId, year, month, artistId.orElse(null));
         if (month < 1 || month > 12) {
@@ -59,7 +59,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (targetArtistIds.isEmpty()) {
             log.info("[Schedule] [Integrated] 조회 대상 아티스트가 없음 (팔로우 0명) - 빈 결과 반환");
-            return new IntegratedSchedulesListResponse(Collections.emptyList(), Collections.emptyList());
+            return new FollowingSchedulesListResponse(Collections.emptyList(), Collections.emptyList());
         }
 
         log.info("[Schedule] [Integrated] 최종 DB 조회 대상 아티스트 ID 목록 (총 {}명): {}", targetArtistIds.size(), targetArtistIds);
@@ -108,7 +108,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         log.info("[Schedule] [Integrated] 요청 처리 최종 완료 - Response 반환");
 
-        return new IntegratedSchedulesListResponse(monthlyData, upcomingData);
+        return new FollowingSchedulesListResponse(monthlyData, upcomingData);
     }
 
     private List<Long> getFollowedArtistIds(Long userId) {

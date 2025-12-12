@@ -14,11 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -70,7 +68,7 @@ class ScheduleServiceImplTest {
         given(scheduleRepository.findUpcomingEvents(anyList(), any(), any()))
                 .willReturn(upcomingRaw);
 
-        IntegratedSchedulesListResponse response = scheduleService.getIntegratedSchedules(userId, year, month, Optional.empty());
+        FollowingSchedulesListResponse response = scheduleService.getFollowingSchedules(userId, year, month, Optional.empty());
 
         assertThat(response.monthlySchedules()).hasSize(2);
         assertThat(response.monthlySchedules().get(0).artistName()).isEqualTo("BTS");
@@ -99,7 +97,7 @@ class ScheduleServiceImplTest {
         given(scheduleRepository.findUpcomingEvents(anyList(), any(), any()))
                 .willReturn(Collections.emptyList());
 
-        scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.of(targetArtistId));
+        scheduleService.getFollowingSchedules(userId, 2025, 12, Optional.of(targetArtistId));
 
         verify(artistFollowRepository, times(0)).findAllByUserId(any());
 
@@ -117,7 +115,7 @@ class ScheduleServiceImplTest {
                 .willReturn(false);
 
         assertThatThrownBy(() ->
-                scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.of(notFollowedId))
+                scheduleService.getFollowingSchedules(userId, 2025, 12, Optional.of(notFollowedId))
         )
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
@@ -132,7 +130,7 @@ class ScheduleServiceImplTest {
         int invalidMonth = 13;
 
         assertThatThrownBy(() ->
-                scheduleService.getIntegratedSchedules(userId, 2025, invalidMonth, Optional.empty())
+                scheduleService.getFollowingSchedules(userId, 2025, invalidMonth, Optional.empty())
         )
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
@@ -145,7 +143,7 @@ class ScheduleServiceImplTest {
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(Collections.emptyList());
 
-        IntegratedSchedulesListResponse response = scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.empty());
+        FollowingSchedulesListResponse response = scheduleService.getFollowingSchedules(userId, 2025, 12, Optional.empty());
 
         assertThat(response.monthlySchedules()).isEmpty();
         assertThat(response.upcomingEvents()).isEmpty();
