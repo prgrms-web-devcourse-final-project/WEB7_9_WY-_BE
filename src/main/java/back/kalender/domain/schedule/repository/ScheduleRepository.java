@@ -1,8 +1,7 @@
 package back.kalender.domain.schedule.repository;
 
-import back.kalender.domain.schedule.dto.response.DailyScheduleResponse;
+import back.kalender.domain.schedule.dto.response.ScheduleResponse;
 import back.kalender.domain.schedule.dto.response.EventResponse;
-import back.kalender.domain.schedule.dto.response.MonthlyScheduleResponse;
 import back.kalender.domain.schedule.dto.response.UpcomingEventResponse;
 import back.kalender.domain.schedule.entity.Schedule;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
@@ -16,31 +15,9 @@ import java.util.List;
 
 public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     @Query("""
-        SELECT new back.kalender.domain.schedule.dto.response.MonthlyScheduleResponse(
+        SELECT new back.kalender.domain.schedule.dto.response.ScheduleResponse(
             s.id,
             s.artistId,
-            a.name,
-            s.title,
-            s.scheduleCategory,
-            s.scheduleTime,
-            s.performanceId,
-            s.location
-        )
-        FROM Schedule s
-        JOIN Artist a ON s.artistId = a.id
-        WHERE s.artistId IN :artistIds
-        AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
-        ORDER BY s.scheduleTime ASC
-    """)
-    List<MonthlyScheduleResponse> findMonthlySchedules(
-            @Param("artistIds") List<Long> artistIds,
-            @Param("startDateTime") LocalDateTime startDateTime,
-            @Param("endDateTime") LocalDateTime endDateTime
-    );
-
-    @Query("""
-        SELECT new back.kalender.domain.schedule.dto.response.DailyScheduleResponse(
-            s.id,
             a.name,
             s.title,
             s.scheduleCategory,
@@ -52,13 +29,13 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
         FROM Schedule s
         JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
-        AND s.scheduleTime BETWEEN :startOfDay AND :endOfDay
+        AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
         ORDER BY s.scheduleTime ASC
     """)
-    List<DailyScheduleResponse> findDailySchedules(
+    List<ScheduleResponse> findMonthlySchedules(
             @Param("artistIds") List<Long> artistIds,
-            @Param("startOfDay") LocalDateTime startOfDay,
-            @Param("endOfDay") LocalDateTime endOfDay
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime
     );
 
     @Query("""

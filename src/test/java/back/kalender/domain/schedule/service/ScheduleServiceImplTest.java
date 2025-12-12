@@ -1,7 +1,7 @@
 package back.kalender.domain.schedule.service;
 
-import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.entity.Artist;
+import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
@@ -14,9 +14,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,400 +32,170 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ScheduleService 테스트")
-public class ScheduleServiceImplTest {
+@DisplayName("ScheduleService 통합 로직 테스트")
+class ScheduleServiceImplTest {
+
     @Mock
     private ScheduleRepository scheduleRepository;
+
     @Mock
     private ArtistFollowRepository artistFollowRepository;
+
     @InjectMocks
-    private ScheduleServiceImpl scheduleServiceImpl;
+    private ScheduleServiceImpl scheduleService;
 
     @Test
-    @DisplayName("getFollowingSchedules(팔로우한 전체 아티스트 일정 조회) 테스트")
-    void getFollowingSchedules_Success() {
+    @DisplayName("통합 조회: 전체 아티스트 조회 성공 (D-Day 계산 및 상세 정보 포함 확인)")
+    void getIntegratedSchedules_AllArtists_Success() {
         Long userId = 1L;
+        int year = 2025;
+        int month = 12;
 
-        Artist bts = new Artist("BTS", "image_url");
-        Artist bp = new Artist("Black Pink", "image_url");
-        Artist njz = new Artist("New Jeans", "image_url");
-        Artist nct = new Artist("NCT WISH", "image_url");
-
-        ReflectionTestUtils.setField(bts, "id", 1L);
-        ReflectionTestUtils.setField(bp, "id", 2L);
-        ReflectionTestUtils.setField(njz, "id", 3L);
-        ReflectionTestUtils.setField(nct, "id", 4L);
-
-        ArtistFollow f1 = new ArtistFollow(userId, bts);
-        ArtistFollow f2 = new ArtistFollow(userId, bp);
-        ArtistFollow f3 = new ArtistFollow(userId, njz);
-
+        Artist bts = createArtist(1L, "BTS");
+        Artist nj = createArtist(2L, "NewJeans");
         given(artistFollowRepository.findAllByUserId(userId))
-                .willReturn(List.of(f1, f2, f3));
+                .willReturn(List.of(new ArtistFollow(userId, bts), new ArtistFollow(userId, nj)));
 
-        List<MonthlyScheduleResponse> dbResult = List.of(
-                createDto(100L, 1L, "BTS", "콘서트"),       // BTS 일정
-                createDto(101L, 2L, "Black Pink", "컴백"), // BP 일정
-                createDto(102L, 3L, "New Jeans", "팬미팅") // NJZ 일정
+        List<ScheduleResponse> monthlyData = List.of(
+                createScheduleDto(100L, 1L, "BTS", "콘서트", "2025-12-05T19:00:00"),
+                createScheduleDto(101L, 2L, "NewJeans", "뮤직뱅크", "2025-12-10T17:00:00")
         );
+        given(scheduleRepository.findMonthlySchedules(anyList(), any(), any()))
+                .willReturn(monthlyData);
 
-        given(scheduleRepository.findMonthlySchedules(any(), any(), any()))
-                .willReturn(dbResult);
-
-        MonthlySchedulesListResponse response = scheduleServiceImpl.getFollowingSchedules(userId, 2025, 12);
-
-        assertThat(response.schedules()).hasSize(3);
-
-        MonthlyScheduleResponse item1 = response.schedules().get(0);
-        assertThat(item1.artistName()).isEqualTo("BTS");
-        assertThat(item1.title()).isEqualTo("콘서트");
-
-        MonthlyScheduleResponse item2 = response.schedules().get(1);
-        assertThat(item2.artistName()).isEqualTo("Black Pink");
-        assertThat(item2.title()).isEqualTo("컴백");
-
-        MonthlyScheduleResponse item3 = response.schedules().get(2);
-        assertThat(item3.artistName()).isEqualTo("New Jeans");
-        assertThat(item3.title()).isEqualTo("팬미팅");
-    }
-
-    private MonthlyScheduleResponse createDto(Long id, Long artistId, String artistName, String title) {
-        return new MonthlyScheduleResponse(
-                id, artistId, artistName, title,
-                ScheduleCategory.CONCERT,
-                LocalDateTime.now(),
-                Optional.empty(),
-                Optional.empty()
+        LocalDateTime futureEventTime = LocalDateTime.now().plusDays(3);
+        List<UpcomingEventResponse> upcomingRaw = List.of(
+                createUpcomingDtoRaw(200L, "BTS", "연말 무대", futureEventTime)
         );
+        given(scheduleRepository.findUpcomingEvents(anyList(), any(), any()))
+                .willReturn(upcomingRaw);
+
+        IntegratedSchedulesListResponse response = scheduleService.getIntegratedSchedules(userId, year, month, Optional.empty());
+
+        assertThat(response.monthlySchedules()).hasSize(2);
+        assertThat(response.monthlySchedules().get(0).artistName()).isEqualTo("BTS");
+        assertThat(response.monthlySchedules().get(0).link()).isPresent();
+
+        assertThat(response.upcomingEvents()).hasSize(1);
+        assertThat(response.upcomingEvents().get(0).title()).isEqualTo("연말 무대");
+
+        assertThat(response.upcomingEvents().get(0).daysUntilEvent()).isEqualTo(3L);
+
+        verify(scheduleRepository).findMonthlySchedules(eq(List.of(1L, 2L)), any(), any());
+        verify(scheduleRepository).findUpcomingEvents(eq(List.of(1L, 2L)), any(), any(Pageable.class));
     }
 
     @Test
-    @DisplayName("월별 전체 조회 - 실패 (유효하지 않은 월 입력)")
-    void getFollowingSchedules_Fail_InvalidMonth() {
+    @DisplayName("통합 조회: 특정 아티스트 필터링 성공")
+    void getIntegratedSchedules_SpecificArtist_Success() {
         Long userId = 1L;
-        int year = 2025;
-        int invalidMonth = 13;
+        Long targetArtistId = 1L;
 
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getFollowingSchedules(userId, year, invalidMonth)
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
-    }
-
-    @Test
-    @DisplayName("여러 아티스트 중 특정 아티스트(BTS)만 조회 시, 정확히 해당 ID로만 필터링하여 요청한다.")
-    void getArtistSchedules_FilterVerification() {
-        Long userId = 1L;
-        Long btsId = 1L;
-        int year = 2025;
-        int month = 11;
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, btsId))
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetArtistId))
                 .willReturn(true);
 
-        List<MonthlyScheduleResponse> btsData = List.of(
-                createDto(100L, btsId, "BTS", "콘서트"),
-                createDto(101L, btsId, "BTS", "팬미팅")
-        );
+        given(scheduleRepository.findMonthlySchedules(anyList(), any(), any()))
+                .willReturn(Collections.emptyList());
+        given(scheduleRepository.findUpcomingEvents(anyList(), any(), any()))
+                .willReturn(Collections.emptyList());
 
-        given(scheduleRepository.findMonthlySchedules(any(), any(), any()))
-                .willReturn(btsData);
+        scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.of(targetArtistId));
 
-        MonthlySchedulesListResponse response = scheduleServiceImpl.getSchedulesPerArtist(userId, btsId, year, month);
+        verify(artistFollowRepository, times(0)).findAllByUserId(any());
 
-        assertThat(response.schedules()).hasSize(2);
-        assertThat(response.schedules().get(0).artistName()).isEqualTo("BTS");
-
-        verify(scheduleRepository).findMonthlySchedules(
-                eq(List.of(btsId)),
-                any(),
-                any()
-        );
-
-        verify(artistFollowRepository).existsByUserIdAndArtistId(userId, btsId);
+        verify(scheduleRepository).findMonthlySchedules(eq(List.of(targetArtistId)), any(), any());
+        verify(scheduleRepository).findUpcomingEvents(eq(List.of(targetArtistId)), any(), any());
     }
 
     @Test
-    @DisplayName("월별 개별 조회 - 실패 (유효하지 않은 월 입력)")
-    void getArtistSchedules_Fail_InvalidMonth() {
-        Long userId = 1L;
-        Long artistId = 1L;
-        int year = 2025;
-        int invalidMonth = 0; // 1~12 범위를 벗어남
-
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getSchedulesPerArtist(userId, artistId, year, invalidMonth)
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
-    }
-
-    @Test
-    @DisplayName("월별 개별 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
-    void getArtistSchedules_Fail_NotFollowed() {
+    @DisplayName("통합 조회 실패: 팔로우하지 않은 아티스트 요청 (보안/권한 검증)")
+    void getIntegratedSchedules_Fail_NotFollowed() {
         Long userId = 1L;
         Long notFollowedId = 99L;
-        int year = 2025;
-        int month = 11;
 
         given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
                 .willReturn(false);
 
         assertThatThrownBy(() ->
-                scheduleServiceImpl.getSchedulesPerArtist(userId, notFollowedId, year, month)
+                scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.of(notFollowedId))
         )
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
 
         verify(scheduleRepository, times(0)).findMonthlySchedules(any(), any(), any());
     }
-    @Test
-    @DisplayName("하루 상세 조회 - 성공 (전체 아티스트)")
-    void getDailySchedules_Success_AllArtists() {
-        Long userId = 1L;
-        String dateStr = "2025-12-15";
-
-        Artist bts = new Artist("BTS", "img");
-        ReflectionTestUtils.setField(bts, "id", 1L);
-        ArtistFollow f1 = new ArtistFollow(userId, bts);
-
-        Artist bp = new Artist("BP", "img");
-        ReflectionTestUtils.setField(bp, "id", 2L);
-        ArtistFollow f2 = new ArtistFollow(userId, bp);
-
-        given(artistFollowRepository.findAllByUserId(userId))
-                .willReturn(List.of(f1, f2));
-
-        List<DailyScheduleResponse> dbResult = List.of(
-                createDailyDto(100L, "BTS", "콘서트"),
-                createDailyDto(101L, "BP", "방송")
-        );
-
-        given(scheduleRepository.findDailySchedules(any(), any(), any()))
-                .willReturn(dbResult);
-
-        DailySchedulesListResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.empty());
-
-        assertThat(response.dailySchedules()).hasSize(2);
-
-        verify(scheduleRepository).findDailySchedules(
-                eq(List.of(1L, 2L)),
-                any(),
-                any()
-        );
-    }
 
     @Test
-    @DisplayName("하루 상세 조회 - 성공 (특정 아티스트 필터링)")
-    void getDailySchedules_Success_SpecificArtist() {
+    @DisplayName("통합 조회 실패: 유효하지 않은 월 입력")
+    void getIntegratedSchedules_Fail_InvalidMonth() {
         Long userId = 1L;
-        Long targetId = 1L; // BTS
-        String dateStr = "2025-12-15";
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetId))
-                .willReturn(true);
-
-        List<DailyScheduleResponse> dbResult = List.of(
-                createDailyDto(100L, "BTS", "콘서트")
-        );
-
-        given(scheduleRepository.findDailySchedules(any(), any(), any()))
-                .willReturn(dbResult);
-
-        DailySchedulesListResponse response = scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(targetId));
-
-        assertThat(response.dailySchedules()).hasSize(1);
-        assertThat(response.dailySchedules().get(0).artistName()).isEqualTo("BTS");
-
-        verify(scheduleRepository).findDailySchedules(
-                eq(List.of(targetId)),
-                any(),
-                any()
-        );
-        verify(artistFollowRepository, times(0)).findAllByUserId(any());
-    }
-
-    @Test
-    @DisplayName("하루 상세 조회 - 실패 (날짜 포맷 오류)")
-    void getDailySchedules_Fail_InvalidDate() {
-        Long userId = 1L;
-        String invalidDate = "2025/12/15";
+        int invalidMonth = 13;
 
         assertThatThrownBy(() ->
-                scheduleServiceImpl.getDailySchedules(userId, invalidDate, Optional.empty())
+                scheduleService.getIntegratedSchedules(userId, 2025, invalidMonth, Optional.empty())
         )
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
     }
 
     @Test
-    @DisplayName("하루 상세 조회 - 실패 (팔로우하지 않은 아티스트 요청)")
-    void getDailySchedules_Fail_NotFollowed() {
+    @DisplayName("통합 조회: 팔로우한 아티스트가 없는 경우 (빈 리스트 반환, DB 조회 X)")
+    void getIntegratedSchedules_Success_NoFollows() {
         Long userId = 1L;
-        Long notFollowedId = 99L;
-        String dateStr = "2025-12-15";
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
-                .willReturn(false);
-
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getDailySchedules(userId, dateStr, Optional.of(notFollowedId))
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
-    }
-
-    private DailyScheduleResponse createDailyDto(Long id, String artistName, String title) {
-        return new DailyScheduleResponse(
-                id, artistName, title,
-                ScheduleCategory.CONCERT,
-                LocalDateTime.now(),
-                null, null, "장소"
-        );
-    }
-
-    @Test
-    @DisplayName("다가오는 일정 조회 - 성공 (전체 아티스트 & D-Day 계산 검증)")
-    void getUpcomingEvents_Success_AllArtists() {
-        Long userId = 1L;
-        int limit = 5;
-
-        Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 1L);
-        ArtistFollow f1 = new ArtistFollow(userId, bts);
-
-        given(artistFollowRepository.findAllByUserId(userId)).willReturn(List.of(f1));
-
-        LocalDateTime tomorrow = LocalDateTime.now().plusDays(1);
-
-        List<UpcomingEventResponse> dbResult = List.of(
-                new UpcomingEventResponse(
-                        100L,
-                        "BTS",
-                        "콘서트",
-                        ScheduleCategory.CONCERT,
-                        tomorrow,
-                        Optional.empty(),
-                        Optional.empty(),
-                        0L,
-                        Optional.empty()
-                )
-        );
-
-        given(scheduleRepository.findUpcomingEvents(any(), any(), any()))
-                .willReturn(dbResult);
-
-        UpcomingEventsListResponse response = scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), limit);
-
-        assertThat(response.upcomingEvents()).hasSize(1);
-
-        assertThat(response.upcomingEvents().get(0).daysUntilEvent()).isEqualTo(1L);
-
-        verify(scheduleRepository).findUpcomingEvents(
-                eq(List.of(1L)),
-                any(LocalDateTime.class),
-                refEq(org.springframework.data.domain.PageRequest.of(0, limit))
-        );
-    }
-
-    @Test
-    @DisplayName("다가오는 일정 조회 - 성공 (특정 아티스트 필터링)")
-    void getUpcomingEvents_Success_SpecificArtist() {
-        Long userId = 1L;
-        Long targetId = 1L;
-        int limit = 10;
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, targetId))
-                .willReturn(true);
-
-        given(scheduleRepository.findUpcomingEvents(any(), any(), any()))
-                .willReturn(List.of());
-
-        scheduleServiceImpl.getUpcomingEvents(userId, Optional.of(targetId), limit);
-
-        verify(scheduleRepository).findUpcomingEvents(
-                eq(List.of(targetId)),
-                any(),
-                any()
-        );
-        verify(artistFollowRepository, times(0)).findAllByUserId(any());
-    }
-
-    @Test
-    @DisplayName("다가오는 일정 조회 - 실패 (Limit 값 오류)")
-    void getUpcomingEvents_Fail_InvalidLimit() {
-        Long userId = 1L;
-        int invalidLimit = -1;
-
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getUpcomingEvents(userId, Optional.empty(), invalidLimit)
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.INVALID_INPUT_VALUE.getMessage());
-    }
-
-    @Test
-    @DisplayName("다가오는 일정 조회 - 실패 (팔로우하지 않은 아티스트)")
-    void getUpcomingEvents_Fail_NotFollowed() {
-        Long userId = 1L;
-        Long notFollowedId = 99L;
-
-        given(artistFollowRepository.existsByUserIdAndArtistId(userId, notFollowedId))
-                .willReturn(false);
-
-        assertThatThrownBy(() ->
-                scheduleServiceImpl.getUpcomingEvents(userId, Optional.of(notFollowedId), 10)
-        )
-                .isInstanceOf(ServiceException.class)
-                .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
-    }
-    @Test
-    @DisplayName("파티 생성 가능 일정 조회 - 성공 (JPQL CONCAT 및 31일 기간 제한 검증)")
-    void getEventLists_Success_JPQLConcatenationCheck() {
-        // given
-        Long userId = 1L;
-
-        Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 10L);
-        ArtistFollow f1 = new ArtistFollow(userId, bts);
-
         given(artistFollowRepository.findAllByUserId(userId))
-                .willReturn(List.of(f1));
+                .willReturn(Collections.emptyList());
 
-        List<EventResponse> dbResult = List.of(
-                new EventResponse(100L, "[BTS] 2026 월드 투어 서울")
-        );
+        IntegratedSchedulesListResponse response = scheduleService.getIntegratedSchedules(userId, 2025, 12, Optional.empty());
 
-        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any(), any()))
-                .willReturn(dbResult);
+        assertThat(response.monthlySchedules()).isEmpty();
+        assertThat(response.upcomingEvents()).isEmpty();
 
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
+        verify(scheduleRepository, times(0)).findMonthlySchedules(any(), any(), any());
+        verify(scheduleRepository, times(0)).findUpcomingEvents(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("파티 이벤트 리스트 조회: 성공")
+    void getEventLists_Success() {
+        Long userId = 1L;
+        Artist bts = createArtist(10L, "BTS");
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of(new ArtistFollow(userId, bts)));
+
+        List<EventResponse> events = List.of(new EventResponse(100L, "[BTS] 콘서트"));
+        given(scheduleRepository.findPartyAvailableEvents(anyList(), anyList(), any(), any()))
+                .willReturn(events);
+
+        EventsListResponse response = scheduleService.getEventLists(userId);
 
         assertThat(response.events()).hasSize(1);
+        assertThat(response.events().get(0).title()).isEqualTo("[BTS] 콘서트");
+    }
 
-        EventResponse item = response.events().get(0);
+    private Artist createArtist(Long id, String name) {
+        Artist artist = new Artist(name, "img_url");
+        ReflectionTestUtils.setField(artist, "id", id);
+        return artist;
+    }
 
-        assertThat(item.title()).isEqualTo("[BTS] 2026 월드 투어 서울");
-
-        verify(scheduleRepository).findPartyAvailableEvents(
-                eq(List.of(10L)),
-                anyList(),
-                any(LocalDateTime.class),
-                any(LocalDateTime.class)
+    private ScheduleResponse createScheduleDto(Long id, Long artistId, String artistName, String title, String timeStr) {
+        return new ScheduleResponse(
+                id, artistId, artistName, title,
+                ScheduleCategory.CONCERT,
+                LocalDateTime.parse(timeStr),
+                null, "https://ticket.com", "서울"
         );
     }
 
-    @Test
-    @DisplayName("파티 생성 가능 일정 조회 - 성공 (팔로우한 아티스트가 없는 경우)")
-    void getEventLists_Success_NoFollowedArtists() {
-        Long userId = 1L;
-
-        given(artistFollowRepository.findAllByUserId(userId))
-                .willReturn(List.of());
-
-        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
-
-        assertThat(response.events()).isEmpty();
-
-        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any(), any());
+    private UpcomingEventResponse createUpcomingDtoRaw(Long id, String artistName, String title, LocalDateTime time) {
+        return new UpcomingEventResponse(
+                id, artistName, title,
+                ScheduleCategory.CONCERT,
+                time,
+                null,
+                "https://ticket.com",
+                null,
+                "서울"
+        );
     }
 }
