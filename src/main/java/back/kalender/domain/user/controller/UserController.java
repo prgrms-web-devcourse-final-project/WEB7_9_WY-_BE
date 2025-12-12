@@ -19,8 +19,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-
 @Tag(name = "User", description = "회원가입, 회원 정보 관련 API")
 @RestController
 @RequestMapping("/api/v1/user")
@@ -94,18 +92,8 @@ public class UserController {
     public ResponseEntity<UserSignupResponse> signup(
             @RequestBody UserSignupRequest request
     ) {
-        // TODO: 더미데이터 삭제, 서비스 연결 필요
-
-        // 더미 데이터
-        UserSignupResponse dummyData = new UserSignupResponse(
-                1L,
-                request.email(),
-                request.nickname(),
-                request.birthDate(),
-                LocalDateTime.now()
-        );
-
-        return ResponseEntity.ok(dummyData);
+        UserSignupResponse response = userService.signup(request);
+        return ResponseEntity.ok(response);
     }
 
 

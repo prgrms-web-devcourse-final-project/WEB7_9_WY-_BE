@@ -54,5 +54,9 @@ custom:
     frontUrl: "${custom.dev.frontUrl}"
 
   jwt:
-    expireSeconds: "#{30 * 60}"
-    secretPattern: ${custom.jwt.secretPattern}
+    tokenExpiration:
+      access: 1800
+      refresh: 14
+    secret: ${JWT_SECRET}
+    cookie:
+      secure: false

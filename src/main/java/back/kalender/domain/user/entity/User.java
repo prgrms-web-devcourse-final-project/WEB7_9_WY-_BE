@@ -4,11 +4,8 @@ import back.kalender.global.common.entity.BaseEntity;
 import back.kalender.global.common.Enum.Gender;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -36,12 +33,24 @@ public class User extends BaseEntity {
 
     private LocalDate birthDate;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private Boolean emailVerified = false;
+
     public void updateNickname(String nickname) {
         this.nickname = nickname;
     }
 
     public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
+    }
+
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
     }
 
     // 나이 계산 메서드
