@@ -1,5 +1,6 @@
 package back.kalender.domain.performance.hallSeat.entity;
 
+import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -14,22 +15,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class HallSeat extends BaseEntity {
 
-    @Column(name = "hall_id")
-    private Long hallId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "performance_hall_id", nullable = false)
+    private PerformanceHall performanceHall;
 
-    private Integer floor;   // 1층, 2층, 3층
-
-    private String block;    // A, B, C, 1층A 등
-
+    private Integer floor;   // 1층, 2층 등
+    private String block;
     @Column(name = "row_number")
-    private Integer row;     // 행 번호
-    private Integer number;  // 좌석 번호
+    private Integer row;
+    private Integer number;
 
-    private Integer x;       // 좌표
+    private Integer x;
     private Integer y;
 
     @Enumerated(EnumType.STRING)
-    private SeatType seatType;   // NORMAL, WHEELCHAIR, LIMITED_VIEW, STANDING
+    private SeatType seatType;
 
     public enum SeatType {
         NORMAL,
@@ -37,7 +37,4 @@ public class HallSeat extends BaseEntity {
         LIMITED_VIEW,
         STANDING
     }
-
 }
-
-
