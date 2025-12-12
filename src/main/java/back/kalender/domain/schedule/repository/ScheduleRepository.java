@@ -1,9 +1,11 @@
 package back.kalender.domain.schedule.repository;
 
 import back.kalender.domain.schedule.dto.response.DailyScheduleResponse;
+import back.kalender.domain.schedule.dto.response.EventResponse;
 import back.kalender.domain.schedule.dto.response.MonthlyScheduleResponse;
 import back.kalender.domain.schedule.dto.response.UpcomingEventResponse;
 import back.kalender.domain.schedule.entity.Schedule;
+import back.kalender.domain.schedule.entity.ScheduleCategory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -25,7 +27,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime BETWEEN :startDateTime AND :endDateTime
         ORDER BY s.scheduleTime ASC
@@ -48,7 +50,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime BETWEEN :startOfDay AND :endOfDay
         ORDER BY s.scheduleTime ASC
@@ -72,7 +74,7 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             s.location
         )
         FROM Schedule s
-        JOIN ArtistTmp a ON s.artistId = a.id
+        JOIN Artist a ON s.artistId = a.id
         WHERE s.artistId IN :artistIds
         AND s.scheduleTime >= :now
         ORDER BY s.scheduleTime ASC
@@ -81,5 +83,25 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("artistIds") List<Long> artistIds,
             @Param("now") LocalDateTime now,
             Pageable pageable
+    );
+
+    @Query("""
+        SELECT new back.kalender.domain.schedule.dto.response.EventResponse(
+            s.id,
+            CONCAT('[', a.name, '] ', s.title)
+        )
+        FROM Schedule s
+        JOIN Artist a ON s.artistId = a.id
+        WHERE s.artistId IN :artistIds
+        AND s.scheduleCategory IN :categories  
+        AND s.scheduleTime > :now    
+        AND s.scheduleTime <= :endDate          
+        ORDER BY s.scheduleTime ASC
+    """)
+    List<EventResponse> findPartyAvailableEvents(
+            @Param("artistIds") List<Long> artistIds,
+            @Param("categories") List<ScheduleCategory> categories,
+            @Param("now") LocalDateTime now,
+            @Param("endDate") LocalDateTime endDate
     );
 }

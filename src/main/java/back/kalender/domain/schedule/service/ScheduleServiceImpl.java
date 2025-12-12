@@ -1,8 +1,9 @@
 package back.kalender.domain.schedule.service;
 
-import back.kalender.domain.artist.entity.ArtistFollowTmp;
-import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
+import back.kalender.domain.artist.entity.ArtistFollow;
+import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
+import back.kalender.domain.schedule.entity.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -28,7 +29,7 @@ import java.util.Optional;
 public class ScheduleServiceImpl implements ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
-    private final ArtistFollowRepositoryTmp artistFollowRepository;
+    private final ArtistFollowRepository artistFollowRepository;
 
     @Override
     public MonthlySchedulesListResponse getFollowingSchedules(Long userId, int year, int month) {
@@ -241,7 +242,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private List<Long> getFollowedArtistIds(Long userId) {
-        List<ArtistFollowTmp> follows = artistFollowRepository.findAllByUserId(userId);
+        List<ArtistFollow> follows = artistFollowRepository.findAllByUserId(userId);
 
         if (follows.isEmpty()) {
             return Collections.emptyList();
@@ -250,5 +251,40 @@ public class ScheduleServiceImpl implements ScheduleService {
         return follows.stream()
                 .map(follow -> follow.getArtist().getId())
                 .toList();
+    }
+
+    @Override
+    public EventsListResponse getEventLists(Long userId) {
+        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}", userId);
+
+        List<Long> targetArtistIds = getFollowedArtistIds(userId);
+
+        if (targetArtistIds.isEmpty()) {
+            log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+            return new EventsListResponse(Collections.emptyList());
+        }
+
+        List<ScheduleCategory> partyCategories = List.of(
+                ScheduleCategory.CONCERT,
+                ScheduleCategory.FAN_MEETING,
+                ScheduleCategory.FESTIVAL,
+                ScheduleCategory.AWARD_SHOW,
+                ScheduleCategory.FAN_SIGN,
+                ScheduleCategory.BROADCAST
+        );
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime endDate = now.plusDays(31);
+
+        List<EventResponse> items = scheduleRepository.findPartyAvailableEvents(
+                targetArtistIds,
+                partyCategories,
+                now,
+                endDate
+        );
+
+        log.info("[Schedule] [GetEventLists] 파티 생성 기능 일정 목록 조회 완료 - count={}", items.size());
+
+        return new EventsListResponse(items);
     }
 }

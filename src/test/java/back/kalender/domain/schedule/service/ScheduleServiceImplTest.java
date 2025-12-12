@@ -1,8 +1,8 @@
 package back.kalender.domain.schedule.service;
 
-import back.kalender.domain.artist.entity.ArtistFollowTmp;
-import back.kalender.domain.artist.entity.ArtistTmp;
-import back.kalender.domain.artist.repository.ArtistFollowRepositoryTmp;
+import back.kalender.domain.artist.entity.ArtistFollow;
+import back.kalender.domain.artist.entity.Artist;
+import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
@@ -33,7 +33,7 @@ public class ScheduleServiceImplTest {
     @Mock
     private ScheduleRepository scheduleRepository;
     @Mock
-    private ArtistFollowRepositoryTmp artistFollowRepository;
+    private ArtistFollowRepository artistFollowRepository;
     @InjectMocks
     private ScheduleServiceImpl scheduleServiceImpl;
 
@@ -42,19 +42,19 @@ public class ScheduleServiceImplTest {
     void getFollowingSchedules_Success() {
         Long userId = 1L;
 
-        ArtistTmp bts = new ArtistTmp("BTS", "image_url");
-        ArtistTmp bp = new ArtistTmp("Black Pink", "image_url");
-        ArtistTmp njz = new ArtistTmp("New Jeans", "image_url");
-        ArtistTmp nct = new ArtistTmp("NCT WISH", "image_url");
+        Artist bts = new Artist("BTS", "image_url");
+        Artist bp = new Artist("Black Pink", "image_url");
+        Artist njz = new Artist("New Jeans", "image_url");
+        Artist nct = new Artist("NCT WISH", "image_url");
 
         ReflectionTestUtils.setField(bts, "id", 1L);
         ReflectionTestUtils.setField(bp, "id", 2L);
         ReflectionTestUtils.setField(njz, "id", 3L);
         ReflectionTestUtils.setField(nct, "id", 4L);
 
-        ArtistFollowTmp f1 = new ArtistFollowTmp(userId, bts);
-        ArtistFollowTmp f2 = new ArtistFollowTmp(userId, bp);
-        ArtistFollowTmp f3 = new ArtistFollowTmp(userId, njz);
+        ArtistFollow f1 = new ArtistFollow(userId, bts);
+        ArtistFollow f2 = new ArtistFollow(userId, bp);
+        ArtistFollow f3 = new ArtistFollow(userId, njz);
 
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(f1, f2, f3));
@@ -182,13 +182,13 @@ public class ScheduleServiceImplTest {
         Long userId = 1L;
         String dateStr = "2025-12-15";
 
-        ArtistTmp bts = new ArtistTmp("BTS", "img");
+        Artist bts = new Artist("BTS", "img");
         ReflectionTestUtils.setField(bts, "id", 1L);
-        ArtistFollowTmp f1 = new ArtistFollowTmp(userId, bts);
+        ArtistFollow f1 = new ArtistFollow(userId, bts);
 
-        ArtistTmp bp = new ArtistTmp("BP", "img");
+        Artist bp = new Artist("BP", "img");
         ReflectionTestUtils.setField(bp, "id", 2L);
-        ArtistFollowTmp f2 = new ArtistFollowTmp(userId, bp);
+        ArtistFollow f2 = new ArtistFollow(userId, bp);
 
         given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(f1, f2));
@@ -287,8 +287,8 @@ public class ScheduleServiceImplTest {
         Long userId = 1L;
         int limit = 5;
 
-        ArtistTmp bts = new ArtistTmp("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 1L);
-        ArtistFollowTmp f1 = new ArtistFollowTmp(userId, bts);
+        Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 1L);
+        ArtistFollow f1 = new ArtistFollow(userId, bts);
 
         given(artistFollowRepository.findAllByUserId(userId)).willReturn(List.of(f1));
 
@@ -374,5 +374,54 @@ public class ScheduleServiceImplTest {
         )
                 .isInstanceOf(ServiceException.class)
                 .hasMessageContaining(ErrorCode.ARTIST_NOT_FOLLOWED.getMessage());
+    }
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (JPQL CONCAT 및 31일 기간 제한 검증)")
+    void getEventLists_Success_JPQLConcatenationCheck() {
+        // given
+        Long userId = 1L;
+
+        Artist bts = new Artist("BTS", "img"); ReflectionTestUtils.setField(bts, "id", 10L);
+        ArtistFollow f1 = new ArtistFollow(userId, bts);
+
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of(f1));
+
+        List<EventResponse> dbResult = List.of(
+                new EventResponse(100L, "[BTS] 2026 월드 투어 서울")
+        );
+
+        given(scheduleRepository.findPartyAvailableEvents(any(), any(), any(), any()))
+                .willReturn(dbResult);
+
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
+
+        assertThat(response.events()).hasSize(1);
+
+        EventResponse item = response.events().get(0);
+
+        assertThat(item.title()).isEqualTo("[BTS] 2026 월드 투어 서울");
+
+        verify(scheduleRepository).findPartyAvailableEvents(
+                eq(List.of(10L)),
+                anyList(),
+                any(LocalDateTime.class),
+                any(LocalDateTime.class)
+        );
+    }
+
+    @Test
+    @DisplayName("파티 생성 가능 일정 조회 - 성공 (팔로우한 아티스트가 없는 경우)")
+    void getEventLists_Success_NoFollowedArtists() {
+        Long userId = 1L;
+
+        given(artistFollowRepository.findAllByUserId(userId))
+                .willReturn(List.of());
+
+        EventsListResponse response = scheduleServiceImpl.getEventLists(userId);
+
+        assertThat(response.events()).isEmpty();
+
+        verify(scheduleRepository, times(0)).findPartyAvailableEvents(any(), any(), any(), any());
     }
 }

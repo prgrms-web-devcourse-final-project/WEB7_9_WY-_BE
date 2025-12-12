@@ -1,23 +1,21 @@
 package back.kalender.domain.schedule.entity;
 
-import back.kalender.global.common.entity.BaseEntityTmp;
+import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(
         name = "schedules",
-        indexes = @Index(name = "idx_schedule_artist_time", columnList = "a rtistId, scheduleTime")
+        indexes = @Index(name = "idx_schedule_artist_time", columnList = "artistId, scheduleTime")
 )
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Schedule extends BaseEntityTmp {
+public class Schedule extends BaseEntity {
 
     @Column(nullable = false)
     private Long artistId;
