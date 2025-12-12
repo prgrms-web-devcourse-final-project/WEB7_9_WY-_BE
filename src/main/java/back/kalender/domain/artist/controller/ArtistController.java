@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+//  TODO: 로그 작성 및 apiresponse 에러응답 수정 및 test코드 수정
+
 @Tag(name = "Artist", description = "아티스트 조회 및 팔로우 관련 API")
 @RestController
 @RequestMapping("api/v1/artist")
