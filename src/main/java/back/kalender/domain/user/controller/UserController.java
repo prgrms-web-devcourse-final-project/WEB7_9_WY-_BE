@@ -6,6 +6,7 @@ import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.service.UserService;
+import back.kalender.global.security.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -146,8 +147,7 @@ public class UserController {
     })
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile() {
-        // TODO: @AuthenticationPrincipal로 userId 받아오기
-        Long userId = 1L;
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
 
         UserProfileResponse response = userService.getMyProfile(userId);
         return ResponseEntity.ok(response);
@@ -204,8 +204,7 @@ public class UserController {
     public ResponseEntity<UploadProfileImgResponse> uploadProfileImage(
             @RequestParam("profile_image") MultipartFile profileImage
     ) {
-        // TODO: @AuthenticationPrincipal로 userId 받아오기
-        Long userId = 1L;
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
 
         UploadProfileImgResponse response = userService.uploadProfileImage(userId, profileImage);
         return ResponseEntity.ok(response);
@@ -280,8 +279,7 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> updateMyProfile(
             @RequestBody UpdateProfileRequest request
     ) {
-        // TODO: @AuthenticationPrincipal로 userId 받아오기
-        Long userId = 1L;
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
 
         UserProfileResponse response = userService.updateMyProfile(userId, request);
         return ResponseEntity.ok(response);

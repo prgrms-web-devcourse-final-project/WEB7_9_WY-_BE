@@ -1,11 +1,10 @@
-package back.kalender.domain.user;
+package back.kalender.domain.user.service;
 
 import back.kalender.domain.user.dto.request.UpdateProfileRequest;
 import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.repository.UserRepository;
-import back.kalender.domain.user.service.UserServiceImpl;
 import back.kalender.global.common.Enum.Gender;
 import back.kalender.global.exception.ServiceException;
 import org.junit.jupiter.api.DisplayName;
