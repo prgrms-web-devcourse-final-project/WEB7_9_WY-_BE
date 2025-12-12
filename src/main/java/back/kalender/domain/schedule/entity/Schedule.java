@@ -1,11 +1,9 @@
 package back.kalender.domain.schedule.entity;
 
-import back.kalender.global.common.entity.BaseEntityTmp;
+import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,7 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Schedule extends BaseEntityTmp {
+public class Schedule extends BaseEntity {
 
     @Column(nullable = false)
     private Long artistId;
