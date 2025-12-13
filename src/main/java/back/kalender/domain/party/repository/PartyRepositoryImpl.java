@@ -33,7 +33,7 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         List<Party> content = queryFactory
                 .selectFrom(party)
                 .where(
-                        scheduleIdEq(scheduleId),
+                        party.scheduleId.eq(scheduleId),
                         partyTypeEq(partyType),
                         transportTypeEq(transportType)
                 )
@@ -46,16 +46,12 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
                 .select(party.count())
                 .from(party)
                 .where(
-                        scheduleIdEq(scheduleId),
+                        party.scheduleId.eq(scheduleId),
                         partyTypeEq(partyType),
                         transportTypeEq(transportType)
                 );
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
-    }
-
-    private BooleanExpression scheduleIdEq(Long scheduleId) {
-        return scheduleId != null ? QParty.party.scheduleId.eq(scheduleId) : null;
     }
 
     private BooleanExpression partyTypeEq(PartyType partyType) {
