@@ -3,6 +3,8 @@ package back.kalender.domain.party.service;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
+import back.kalender.domain.party.entity.PartyType;
+import back.kalender.domain.party.entity.TransportType;
 import org.springframework.data.domain.Pageable;
 
 public interface PartyService {
@@ -14,6 +16,8 @@ public interface PartyService {
     void deleteParty(Long partyId, Long currentUserId);
 
     GetPartiesResponse getParties(Pageable pageable, Long currentUserId);
+
+    GetPartiesResponse getPartiesBySchedule(Long scheduleId, PartyType partyType, TransportType transportType, Pageable pageable, Long currentUserId);
 
     ApplyToPartyResponse applyToParty(Long partyId, Long currentUserId);
 

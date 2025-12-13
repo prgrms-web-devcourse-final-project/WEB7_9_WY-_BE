@@ -112,7 +112,32 @@ public class PartyServiceImpl implements PartyService {
     @Override
     public GetPartiesResponse getParties(Pageable pageable, Long currentUserId) {
         Page<Party> partyPage = partyRepository.findAll(pageable);
+        return convertToGetPartiesResponse(partyPage, currentUserId);
+    }
 
+    @Override
+    public GetPartiesResponse getPartiesBySchedule(
+            Long scheduleId,
+            PartyType partyType,
+            TransportType transportType,
+            Pageable pageable,
+            Long currentUserId
+    ) {
+        Schedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
+                scheduleId,
+                partyType,
+                transportType,
+                pageable
+        );
+
+        return convertToGetPartiesResponse(partyPage, currentUserId);
+    }
+
+
+    private GetPartiesResponse convertToGetPartiesResponse(Page<Party> partyPage, Long currentUserId) {
         List<GetPartiesResponse.PartyItem> partyItems = partyPage.getContent().stream()
                 .map(party -> {
                     User leader = userRepository.findById(party.getLeaderId())
