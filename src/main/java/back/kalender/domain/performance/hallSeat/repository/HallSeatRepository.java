@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface HallSeatRepository extends JpaRepository<HallSeat, Long> {
 
-    List<HallSeat> findByHallId(Long hallId);
+    List<HallSeat> findByPerformanceHall_Id(Long hallId);
+
 }
