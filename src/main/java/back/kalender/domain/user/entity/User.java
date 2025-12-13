@@ -35,7 +35,7 @@ public class User extends BaseEntity {
 
     @Column(name = "email_verified", nullable = false)
     @Builder.Default
-    private Boolean emailVerified = false;
+    private boolean emailVerified = false;
 
     public void updateNickname(String nickname) {
         this.nickname = nickname;

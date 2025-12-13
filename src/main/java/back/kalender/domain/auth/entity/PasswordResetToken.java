@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 )
 public class PasswordResetToken extends BaseEntity {
 
-    private static final int DEFAULT_EXPIRY_MINUTES = 5;
+    private static final int DEFAULT_EXPIRY_MINUTES = 60; // 1시간
 
     @Column(nullable = false)
     private Long userId;
