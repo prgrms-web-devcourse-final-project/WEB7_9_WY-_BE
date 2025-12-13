@@ -1,20 +1,32 @@
 package back.kalender.domain.auth.service;
 
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
+
+    private static final String BRAND_NAME = "Kalender";
+    private static final String TEMPLATE_VERIFICATION = "email/verification";
+    private static final String TEMPLATE_PASSWORD_RESET = "email/password-reset";
+    private static final String CHARSET_UTF8 = "UTF-8";
+    private static final String PASSWORD_RESET_PATH = "/auth/reset-password";
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
@@ -27,59 +39,91 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendVerificationEmail(String to, String code) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        String subject = String.format("[%s] 이메일 인증 코드", BRAND_NAME);
+        Map<String, Object> variables = Map.of(
+                "code", code,
+                "frontUrl", frontUrl
+        );
 
-            helper.setFrom(fromEmail);
-            helper.setTo(to);
-            helper.setSubject("[Kalender] 이메일 인증 코드");
-
-            // Thymeleaf 템플릿에 전달할 변수 설정
-            Context context = new Context();
-            context.setVariable("code", code);
-            context.setVariable("frontUrl", frontUrl);
-
-            // 템플릿을 HTML로 렌더링
-            String htmlContent = templateEngine.process("email/verification", context);
-            helper.setText(htmlContent, true);
-
-            mailSender.send(message);
-            log.info("이메일 인증 코드 발송 완료: {}", to);
-        } catch (MessagingException e) {
-            log.error("이메일 인증 코드 발송 실패: {}", to, e);
-            throw new RuntimeException("이메일 발송에 실패했습니다.", e);
-        }
+        sendEmail(to, subject, TEMPLATE_VERIFICATION, variables);
+        log.info("이메일 인증 코드 발송 완료: {}", mask(to));
     }
 
     @Override
     public void sendPasswordResetEmail(String to, String token) {
+        String subject = String.format("[%s] 비밀번호 재설정", BRAND_NAME);
+        String resetUrl = buildResetUrl(token);
+
+        Map<String, Object> variables = Map.of(
+                "resetUrl", resetUrl,
+                "frontUrl", frontUrl
+        );
+
+        sendEmail(to, subject, TEMPLATE_PASSWORD_RESET, variables);
+        log.info("비밀번호 재설정 이메일 발송 완료: {}", mask(to));
+    }
+
+
+    // 공통 이메일 발송 메서드
+    private void sendEmail(String to, String subject, String templateName, Map<String, Object> variables) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(to);
-            helper.setSubject("[Kalender] 비밀번호 재설정");
-
-            // 비밀번호 재설정 링크 생성
-            String resetUrl = frontUrl + "/auth/reset-password?token=" + token;
-
-            // Thymeleaf 템플릿에 전달할 변수 설정
-            Context context = new Context();
-            context.setVariable("resetUrl", resetUrl);
-            context.setVariable("frontUrl", frontUrl);
-
-            // 템플릿을 HTML로 렌더링
-            String htmlContent = templateEngine.process("email/password-reset", context);
-            helper.setText(htmlContent, true);
-
+            MimeMessage message = createMimeMessage(to, subject, templateName, variables);
             mailSender.send(message);
-            log.info("비밀번호 재설정 이메일 발송 완료: {}", to);
-        } catch (MessagingException e) {
-            log.error("비밀번호 재설정 이메일 발송 실패: {}", to, e);
-            throw new RuntimeException("이메일 발송에 실패했습니다.", e);
+        } catch (MessagingException | MailException e) {
+            log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", mask(to), subject, e);
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
-}
 
+    // MimeMessage 생성
+    private MimeMessage createMimeMessage(String to, String subject, String templateName, Map<String, Object> variables)
+            throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, CHARSET_UTF8);
+
+        helper.setFrom(fromEmail);
+        helper.setTo(to);
+        helper.setSubject(subject);
+
+        String htmlContent = renderTemplate(templateName, variables);
+        helper.setText(htmlContent, true);
+
+        return message;
+    }
+
+
+    // Thymeleaf 템플릿 렌더링
+    private String renderTemplate(String templateName, Map<String, Object> variables) {
+        Context context = new Context();
+        variables.forEach(context::setVariable);
+        return templateEngine.process(templateName, context);
+    }
+
+    // 비밀번호 재설정 URL 생성(인코딩/조합 안전)
+    private String buildResetUrl(String token) {
+        return UriComponentsBuilder.fromUriString(frontUrl)
+                .path(PASSWORD_RESET_PATH)
+                .queryParam("token", token)
+                .build()
+                .toUriString();
+    }
+
+    // 이메일 마스킹 (PII 로그 최소화)
+    private String mask(String email) {
+        if (email == null || email.isBlank()) {
+            return email;
+        }
+
+        int at = email.indexOf('@');
+        if (at <= 0) {
+            return "***";
+        }
+
+        // local-part가 너무 짧으면 전부 마스킹
+        if (at == 1) {
+            return "*@" + email.substring(at + 1);
+        }
+
+        return email.charAt(0) + "***" + email.substring(at);
+    }
+}
