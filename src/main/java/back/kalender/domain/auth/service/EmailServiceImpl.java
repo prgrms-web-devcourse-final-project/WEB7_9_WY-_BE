@@ -108,7 +108,7 @@ public class EmailServiceImpl implements EmailService {
                 .toUriString();
     }
 
-    // 이메일 마스킹 (PII 로그 최소화)
+    // 이메일 마스킹 (개인정보 로그 최소화)
     private String mask(String email) {
         if (email == null || email.isBlank()) {
             return email;
