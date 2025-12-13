@@ -5,6 +5,8 @@ import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
+import back.kalender.domain.user.entity.User;
+import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -13,27 +15,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Transactional(readOnly = true)
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class ArtistServiceImpl implements ArtistService {
 
     private final ArtistRepository artistRepository;
     private final ArtistFollowRepository artistFollowRepository;
+    private final UserRepository userRepository;
 
     @Override
-    public List<ArtistResponse>  getAllArtists() {
-        List<Artist>  artists = artistRepository.findAll();
-        return artists.stream()
+    public List<ArtistResponse> getAllArtists() {
+        return artistRepository.findAll().stream()
                 .map(ArtistResponse::from)
                 .toList();
     }
 
     @Override
     public List<ArtistResponse> getAllFollowedArtists(Long userId) {
-        List<ArtistFollow> followedArtists = artistFollowRepository.findAllByUserId(userId);
-        return followedArtists.stream()
-                .map(followedArtist -> ArtistResponse.from(followedArtist.getArtist()))
+        User user = userRepository.getReferenceById(userId);
+
+        return artistFollowRepository.findAllByUser(user).stream()
+                .map(follow -> ArtistResponse.from(follow.getArtist()))
                 .toList();
     }
 
@@ -41,14 +44,16 @@ public class ArtistServiceImpl implements ArtistService {
     @Transactional
     public void followArtist(Long userId, Long artistId) {
 
+        User user = userRepository.getReferenceById(userId);
+
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.ARTIST_NOT_FOUND));
 
-        if (artistFollowRepository.existsByUserIdAndArtistId(userId, artistId)) {
+        if (artistFollowRepository.existsByUserAndArtist(user, artist)) {
             throw new ServiceException(ErrorCode.ALREADY_FOLLOWED);
         }
 
-        ArtistFollow follow = new ArtistFollow(userId, artist);
+        ArtistFollow follow = new ArtistFollow(user, artist);
         artistFollowRepository.save(follow);
     }
 
@@ -56,12 +61,16 @@ public class ArtistServiceImpl implements ArtistService {
     @Transactional
     public void unfollowArtist(Long userId, Long artistId) {
 
-        boolean exists = artistFollowRepository.existsByUserIdAndArtistId(userId, artistId);
+        User user = userRepository.getReferenceById(userId);
 
-        if (!exists) {
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.ARTIST_NOT_FOUND));
+
+        if (!artistFollowRepository.existsByUserAndArtist(user, artist)) {
             throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
         }
 
-        artistFollowRepository.deleteByUserIdAndArtistId(userId,artistId);
+        // ✅ 실제 언팔로우
+        artistFollowRepository.deleteByUserAndArtist(user, artist);
     }
 }
