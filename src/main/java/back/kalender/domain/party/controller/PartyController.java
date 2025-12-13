@@ -6,6 +6,7 @@ import back.kalender.domain.party.dto.response.*;
 import back.kalender.domain.party.entity.PartyType;
 import back.kalender.domain.party.entity.TransportType;
 import back.kalender.domain.party.service.PartyService;
+import back.kalender.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,10 +60,10 @@ public class PartyController {
     })
     @PostMapping
     public ResponseEntity<CreatePartyResponse> createParty(
-            @Valid @RequestBody CreatePartyRequest request
+            @Valid @RequestBody CreatePartyRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        CreatePartyResponse response = partyService.createParty(request, currentUserId);
+        CreatePartyResponse response = partyService.createParty(request, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -101,10 +103,10 @@ public class PartyController {
     @PutMapping("/{partyId}")
     public ResponseEntity<UpdatePartyResponse> updateParty(
             @PathVariable Long partyId,
-            @Valid @RequestBody UpdatePartyRequest request
+            @Valid @RequestBody UpdatePartyRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        UpdatePartyResponse response = partyService.updateParty(partyId, request, currentUserId);
+        UpdatePartyResponse response = partyService.updateParty(partyId, request, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -128,10 +130,10 @@ public class PartyController {
     })
     @DeleteMapping("/{partyId}")
     public ResponseEntity<Void> deleteParty(
-            @PathVariable Long partyId
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        partyService.deleteParty(partyId, currentUserId);
+        partyService.deleteParty(partyId, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 
@@ -143,11 +145,11 @@ public class PartyController {
     @GetMapping
     public ResponseEntity<GetPartiesResponse> getParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         Pageable pageable = PageRequest.of(page, size);
-        GetPartiesResponse response = partyService.getParties(pageable, currentUserId);
+        GetPartiesResponse response = partyService.getParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -178,14 +180,14 @@ public class PartyController {
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         Pageable pageable = PageRequest.of(page, size);
 
         GetPartiesResponse response = partyService.getPartiesBySchedule(
                 scheduleId, partyType, transportType,
-                pageable, currentUserId
+                pageable, userDetails.getUserId()
         );
 
         return ResponseEntity.ok(response);
@@ -246,10 +248,10 @@ public class PartyController {
     })
     @PostMapping("/{partyId}/application/apply")
     public ResponseEntity<ApplyToPartyResponse> applyToParty(
-            @PathVariable Long partyId
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        ApplyToPartyResponse response = partyService.applyToParty(partyId, currentUserId);
+        ApplyToPartyResponse response = partyService.applyToParty(partyId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -281,10 +283,10 @@ public class PartyController {
     @DeleteMapping("/{partyId}/application/{applicationId}/cancel")
     public ResponseEntity<Void> cancelApplication(
             @PathVariable Long partyId,
-            @PathVariable Long applicationId
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        partyService.cancelApplication(partyId, applicationId, currentUserId);
+        partyService.cancelApplication(partyId, applicationId, userDetails.getUserId());
         return ResponseEntity.noContent().build();
     }
 
@@ -340,10 +342,10 @@ public class PartyController {
     @PatchMapping("/{partyId}/application/{applicationId}/accept")
     public ResponseEntity<AcceptApplicationResponse> acceptApplication(
             @PathVariable Long partyId,
-            @PathVariable Long applicationId
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        AcceptApplicationResponse response = partyService.acceptApplication(partyId, applicationId, currentUserId);
+        AcceptApplicationResponse response = partyService.acceptApplication(partyId, applicationId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -391,10 +393,10 @@ public class PartyController {
     @PatchMapping("/{partyId}/application/{applicationId}/reject")
     public ResponseEntity<RejectApplicationResponse> rejectApplication(
             @PathVariable Long partyId,
-            @PathVariable Long applicationId
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        RejectApplicationResponse response = partyService.rejectApplication(partyId, applicationId, currentUserId);
+        RejectApplicationResponse response = partyService.rejectApplication(partyId, applicationId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -419,10 +421,10 @@ public class PartyController {
     })
     @GetMapping("/{partyId}/application/applicants")
     public ResponseEntity<GetApplicantsResponse> getApplicants(
-            @PathVariable Long partyId
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
-        GetApplicantsResponse response = partyService.getApplicants(partyId, currentUserId);
+        GetApplicantsResponse response = partyService.getApplicants(partyId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -455,11 +457,11 @@ public class PartyController {
     public ResponseEntity<GetMyApplicationsResponse> getMyApplications(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         Pageable pageable = PageRequest.of(page, size);
-        GetMyApplicationsResponse response = partyService.getMyApplications(status, pageable, currentUserId);
+        GetMyApplicationsResponse response = partyService.getMyApplications(status, pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
@@ -472,11 +474,11 @@ public class PartyController {
     public ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long currentUserId = 1L; // TODO: SecurityContext에서 가져오기
         Pageable pageable = PageRequest.of(page, size);
-        GetMyCreatedPartiesResponse response = partyService.getMyCreatedParties(status, pageable, currentUserId);
+        GetMyCreatedPartiesResponse response = partyService.getMyCreatedParties(status, pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 }
