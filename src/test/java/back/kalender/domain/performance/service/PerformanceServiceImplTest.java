@@ -1,4 +1,4 @@
-package back.kalender.domain.performance;
+package back.kalender.domain.performance.service;
 
 import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
