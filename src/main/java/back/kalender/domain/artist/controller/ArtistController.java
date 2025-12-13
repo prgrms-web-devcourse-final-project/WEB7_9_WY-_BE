@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 @Tag(name = "Artist", description = "아티스트 조회 및 팔로우 관련 API")
 @RestController
-@RequestMapping("api/v1/artist")
+@RequestMapping("/api/v1/artist")
 @RequiredArgsConstructor
 public class ArtistController {
 
