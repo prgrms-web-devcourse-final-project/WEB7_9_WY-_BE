@@ -46,7 +46,7 @@ public class EmailServiceImpl implements EmailService {
         );
 
         sendEmail(to, subject, TEMPLATE_VERIFICATION, variables);
-        log.info("이메일 인증 코드 발송 완료: {}", mask(to));
+        log.info("[이메일 인증 코드] 수신자: {} | 인증 코드: {}", to, code);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class EmailServiceImpl implements EmailService {
         );
 
         sendEmail(to, subject, TEMPLATE_PASSWORD_RESET, variables);
-        log.info("비밀번호 재설정 이메일 발송 완료: {}", mask(to));
+        log.info("[비밀번호 재설정] 수신자: {} | 토큰: {} | 링크: {}", to, token, resetUrl);
     }
 
 
@@ -68,7 +68,8 @@ public class EmailServiceImpl implements EmailService {
     private void sendEmail(String to, String subject, String templateName, Map<String, Object> variables) {
         try {
             MimeMessage message = createMimeMessage(to, subject, templateName, variables);
-            mailSender.send(message);
+            // 실제 이메일 발송 (개발 환경에서는 주석 처리)
+            // mailSender.send(message);
         } catch (MessagingException | MailException e) {
             log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", mask(to), subject, e);
             throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
