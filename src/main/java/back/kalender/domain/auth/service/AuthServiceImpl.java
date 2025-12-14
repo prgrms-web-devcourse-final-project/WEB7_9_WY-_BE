@@ -40,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -54,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 토큰 생성, 저장 및 응답 설정
+        // 주의: 기존 refresh token을 삭제하지 않으므로 여러 기기에서 동시 로그인 가능
         createAndSaveTokens(user, response);
 
         return new UserLoginResponse(
@@ -61,13 +63,14 @@ public class AuthServiceImpl implements AuthService {
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileImage(),
-                user.getEmailVerified() != null ? user.getEmailVerified() : false
+user.isEmailVerified()
         );
     }
 
     @Override
     @Transactional
     public void logout(String refreshToken, HttpServletResponse response) {
+        // 해당 기기의 refresh token만 삭제 (다른 기기는 영향 없음)
         if (refreshToken != null) {
             refreshTokenRepository.findByToken(refreshToken)
                     .ifPresent(refreshTokenRepository::delete);
@@ -98,7 +101,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(refreshTokenEntity.getUserId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        // 기존 Refresh Token 삭제
+        // 기존 Refresh Token 삭제 (토큰 로테이션: 보안을 위해 사용된 토큰은 즉시 무효화)
         refreshTokenRepository.delete(refreshTokenEntity);
 
         // 새 토큰 생성, 저장 및 응답 설정
@@ -119,8 +122,8 @@ public class AuthServiceImpl implements AuthService {
         PasswordResetToken resetToken = PasswordResetToken.create(user.getId(), token);
         passwordResetTokenRepository.save(resetToken);
 
-        // TODO: 이메일 발송 로직 구현
-        // emailService.sendPasswordResetEmail(user.getEmail(), token);
+        // 이메일 발송
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
     }
 
     @Override
@@ -151,8 +154,9 @@ public class AuthServiceImpl implements AuthService {
 
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
 
-        // 토큰 사용 처리
+        // 토큰 사용 처리 (updatedAt 자동 업데이트를 위해 명시적 저장)
         resetToken.markUsed();
+        passwordResetTokenRepository.save(resetToken);
     }
 
     @Override
@@ -162,7 +166,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         // 이미 인증된 경우
-        if (user.getEmailVerified() != null && user.getEmailVerified()) {
+        if (user.isEmailVerified()) {
             throw new ServiceException(ErrorCode.EMAIL_ALREADY_VERIFIED);
         }
 
@@ -184,8 +188,8 @@ public class AuthServiceImpl implements AuthService {
         EmailVerification verification = EmailVerification.create(user.getId(), code);
         emailVerificationRepository.save(verification);
 
-        // TODO: 이메일 발송 로직 구현
-        // emailService.sendVerificationEmail(user.getEmail(), code);
+        // 이메일 발송
+        emailService.sendVerificationEmail(user.getEmail(), code);
     }
 
     @Override
@@ -209,8 +213,9 @@ public class AuthServiceImpl implements AuthService {
             throw new ServiceException(ErrorCode.EXPIRED_EMAIL_VERIFICATION_CODE);
         }
 
-        // 인증 처리
+        // 인증 처리 (updatedAt 자동 업데이트를 위해 명시적 저장)
         verification.markUsed();
+        emailVerificationRepository.save(verification);
         user.verifyEmail();
 
         return new VerifyEmailResponse(request.email(), true);
@@ -231,18 +236,22 @@ public class AuthServiceImpl implements AuthService {
         return new EmailStatusResponse(
                 user.getId(),
                 user.getEmail(),
-                user.getEmailVerified() != null ? user.getEmailVerified() : false,
+user.isEmailVerified(),
                 verifiedAt
         );
     }
 
     // ------------------------------ HELPERS ------------------------------------------
+    /**
+     * Access Token과 Refresh Token을 생성하고 저장합니다.
+     * 여러 기기 로그인을 허용하므로 기존 refresh token을 삭제하지 않습니다.
+     */
     private void createAndSaveTokens(User user, HttpServletResponse response) {
         // 토큰 생성
         String accessToken = createAccessToken(user);
         String refreshToken = createRefreshToken(user);
 
-        // Refresh Token DB 저장
+        // Refresh Token DB 저장 (기존 토큰은 삭제하지 않음 - 여러 기기 로그인 허용)
         RefreshToken refreshTokenEntity = RefreshToken.create(
                 user.getId(),
                 refreshToken,
