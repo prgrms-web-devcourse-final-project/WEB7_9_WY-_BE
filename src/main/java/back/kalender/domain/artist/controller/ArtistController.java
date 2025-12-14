@@ -4,6 +4,7 @@ import back.kalender.domain.artist.dto.response.ArtistListResponse;
 import back.kalender.domain.artist.dto.response.ArtistResponse;
 import back.kalender.domain.artist.service.ArtistService;
 import back.kalender.global.exception.ErrorResponse;
+import back.kalender.global.security.user.CustomUserDetails;
 import back.kalender.global.security.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -62,17 +64,18 @@ public class ArtistController {
             )
     })
     @GetMapping("/following")
-    public ResponseEntity<ArtistListResponse> getFollowingArtists() {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+    public ResponseEntity<ArtistListResponse> getFollowingArtists(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
 
-        log.info("Request: getFollowingArtists userId={}", userId);
+        log.info("Request: getFollowingArtists userId={}", userDetails.getUserId());
 
         List<ArtistResponse> followedArtistResponses =
-                artistService.getAllFollowedArtists(userId);
+                artistService.getAllFollowedArtists(userDetails.getUserId());
 
         log.info(
                 "Response: getFollowingArtists success, userId={}, size={}",
-                userId,
+                userDetails.getUserId(),
                 followedArtistResponses.size()
         );
 
@@ -128,14 +131,16 @@ public class ArtistController {
             )
     })
     @PostMapping("/{artistId}/follow")
-    public ResponseEntity<Void> followArtist(@PathVariable Long artistId) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+    public ResponseEntity<Void> followArtist(
+            @PathVariable Long artistId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
 
-        log.info("Request: followArtist userId={}, artistId={}", userId, artistId);
+        log.info("Request: followArtist userId={}, artistId={}", userDetails.getUserId(), artistId);
 
-        artistService.followArtist(userId, artistId);
+        artistService.followArtist(userDetails.getUserId(), artistId);
 
-        log.info("Response: followArtist success userId={}, artistId={}", userId, artistId);
+        log.info("Response: followArtist success userId={}, artistId={}", userDetails.getUserId(), artistId);
         return ResponseEntity.ok().build();
     }
 
@@ -169,14 +174,16 @@ public class ArtistController {
             )
     })
     @DeleteMapping("/{artistId}/unfollow")
-    public ResponseEntity<Void> unfollowArtist(@PathVariable Long artistId) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+    public ResponseEntity<Void> unfollowArtist(
+            @PathVariable Long artistId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
 
-        log.info("Request: unfollowArtist userId={}, artistId={}", userId, artistId);
+        log.info("Request: unfollowArtist userId={}, artistId={}", userDetails.getUserId(), artistId);
 
-        artistService.unfollowArtist(userId, artistId);
+        artistService.unfollowArtist(userDetails.getUserId(), artistId);
 
-        log.info("Response: unfollowArtist success userId={}, artistId={}", userId, artistId);
+        log.info("Response: unfollowArtist success userId={}, artistId={}", userDetails.getUserId(), artistId);
         return ResponseEntity.noContent().build();
     }
 }
