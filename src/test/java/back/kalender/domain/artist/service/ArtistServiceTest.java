@@ -5,7 +5,6 @@ import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
-import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -17,7 +16,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
@@ -63,14 +61,15 @@ class ArtistServiceTest {
     @Test
     void getAllFollowedArtists_success() {
         Long userId = 1L;
-        User user = mock(User.class);
+        Long artistId = 10L;
+
+        ArtistFollow follow = new ArtistFollow(userId, artistId);
         Artist artist = new Artist("아이유", "img");
 
-        ArtistFollow follow = new ArtistFollow(user, artist);
-
-        given(userRepository.getReferenceById(userId)).willReturn(user);
-        given(artistFollowRepository.findAllByUser(user))
+        given(artistFollowRepository.findAllByUserId(userId))
                 .willReturn(List.of(follow));
+        given(artistRepository.findAllById(List.of(artistId)))
+                .willReturn(List.of(artist));
 
         List<ArtistResponse> result =
                 artistService.getAllFollowedArtists(userId);
@@ -88,13 +87,9 @@ class ArtistServiceTest {
         Long userId = 1L;
         Long artistId = 10L;
 
-        User user = mock(User.class);
-        Artist artist = new Artist("아이유", "img");
-
-        given(userRepository.getReferenceById(userId)).willReturn(user);
-        given(artistRepository.findById(artistId))
-                .willReturn(Optional.of(artist));
-        given(artistFollowRepository.existsByUserAndArtist(user, artist))
+        given(artistRepository.existsById(artistId))
+                .willReturn(true);
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, artistId))
                 .willReturn(false);
 
         artistService.followArtist(userId, artistId);
@@ -109,13 +104,9 @@ class ArtistServiceTest {
         Long userId = 1L;
         Long artistId = 10L;
 
-        User user = mock(User.class);
-        Artist artist = new Artist("아이유", "img");
-
-        given(userRepository.getReferenceById(userId)).willReturn(user);
-        given(artistRepository.findById(artistId))
-                .willReturn(Optional.of(artist));
-        given(artistFollowRepository.existsByUserAndArtist(user, artist))
+        given(artistRepository.existsById(artistId))
+                .willReturn(true);
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, artistId))
                 .willReturn(true);
 
         ServiceException exception = catchThrowableOfType(
@@ -137,19 +128,13 @@ class ArtistServiceTest {
         Long userId = 1L;
         Long artistId = 10L;
 
-        User user = mock(User.class);
-        Artist artist = new Artist("아이유", "img");
-
-        given(userRepository.getReferenceById(userId)).willReturn(user);
-        given(artistRepository.findById(artistId))
-                .willReturn(Optional.of(artist));
-        given(artistFollowRepository.existsByUserAndArtist(user, artist))
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, artistId))
                 .willReturn(true);
 
         artistService.unfollowArtist(userId, artistId);
 
         then(artistFollowRepository).should()
-                .deleteByUserAndArtist(user, artist);
+                .deleteByUserIdAndArtistId(userId, artistId);
     }
 
     @DisplayName("아티스트 언팔로우 실패 - 팔로우 상태 아님")
@@ -158,13 +143,7 @@ class ArtistServiceTest {
         Long userId = 1L;
         Long artistId = 10L;
 
-        User user = mock(User.class);
-        Artist artist = new Artist("아이유", "img");
-
-        given(userRepository.getReferenceById(userId)).willReturn(user);
-        given(artistRepository.findById(artistId))
-                .willReturn(Optional.of(artist));
-        given(artistFollowRepository.existsByUserAndArtist(user, artist))
+        given(artistFollowRepository.existsByUserIdAndArtistId(userId, artistId))
                 .willReturn(false);
 
         ServiceException exception = catchThrowableOfType(
