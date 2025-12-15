@@ -52,26 +52,14 @@ jobs:
           name: build-artifacts
           path: ./
 
-      - name: Clean up EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          timeout: 5m
-          script: |
-            pgrep -f java | xargs -r kill -9 || true
-            rm -f /home/${{ secrets.EC2_USER }}/*.jar
-
-      - name: Upload to EC2 (SCP)
+      - name: Upload to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          timeout: 5m
+          timeout: 10m
           source: "*.jar"
           target: "/home/${{ secrets.EC2_USER }}/"
 
@@ -82,8 +70,15 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          timeout: 5m
+          timeout: 10m
           script: |
+            pgrep -f java | xargs -r kill -9 || true
+            
+            ls -t /home/${{ secrets.EC2_USER }}/*.jar | tail -n +2 | xargs -r rm -f
+            
+            JAR_NAME=$(ls -t /home/${{ secrets.EC2_USER }}/*.jar | head -n 1)
+            echo "Deploying: $JAR_NAME"
+            
             nohup env \
               SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
               SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
