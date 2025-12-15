@@ -71,28 +71,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 10m
+          envs: DB_URL,DB_USERNAME,DB_PASSWORD,REDIS_PASSWORD,RABBITMQ_USER,RABBITMQ_PASSWORD
           script: |
-            pgrep -f java | xargs -r kill -9 || true
+            export SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
+            export SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
+            export SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}"
+            export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
+            export RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}"
+            export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
             
-            ls -t /home/${{ secrets.EC2_USER }}/*.jar | tail -n +2 | xargs -r rm -f
-            
-            JAR_NAME=$(ls -t /home/${{ secrets.EC2_USER }}/*.jar | head -n 1)
-            echo "Deploying: $JAR_NAME"
-            
-            nohup env \
-              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
-              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
-              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
-              RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}" \
-              RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}" \
-              /usr/bin/java \
-              -Xms256m -Xmx768m \
-              -XX:MaxMetaspaceSize=256m \
-              -XX:+UseG1GC \
-              -XX:MaxGCPauseMillis=200 \
-              -jar \
-              -Dspring.profiles.active=dev \
-              $JAR_NAME > /home/${{ secrets.EC2_USER }}/app.log 2>&1 < /dev/null &
-            
-            sleep 10
+            ./deploy.sh
