@@ -61,7 +61,7 @@ jobs:
           port: 22
           timeout: 5m
           script: |
-            pgrep -f java | xargs -r kill -9
+            pgrep -f java | xargs -r kill -9 || true
             rm -f /home/${{ secrets.EC2_USER }}/*.jar
 
       - name: Upload to EC2 (SCP)
