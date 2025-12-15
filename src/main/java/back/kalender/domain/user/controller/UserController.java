@@ -6,10 +6,12 @@ import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.service.UserService;
+import back.kalender.global.security.user.CustomUserDetails;
 import back.kalender.global.security.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,8 +34,10 @@ public class UserController implements UserControllerSpec {
 
     @GetMapping("/me")
     @Override
-    public ResponseEntity<UserProfileResponse> getMyProfile() {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+    public ResponseEntity<UserProfileResponse> getMyProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Long userId = userDetails.getUserId();
 
         UserProfileResponse response = userService.getMyProfile(userId);
         return ResponseEntity.ok(response);
@@ -43,9 +47,10 @@ public class UserController implements UserControllerSpec {
     @PostMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Override
     public ResponseEntity<UploadProfileImgResponse> uploadProfileImage(
-            @RequestParam("profile_image") MultipartFile profileImage
+            @RequestParam("profile_image") MultipartFile profileImage,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        Long userId = userDetails.getUserId();
 
         UploadProfileImgResponse response = userService.uploadProfileImage(userId, profileImage);
         return ResponseEntity.ok(response);
@@ -55,9 +60,11 @@ public class UserController implements UserControllerSpec {
     @PatchMapping("/me")
     @Override
     public ResponseEntity<UserProfileResponse> updateMyProfile(
-            @RequestBody UpdateProfileRequest request
+            @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+
     ) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        Long userId = userDetails.getUserId();
 
         UserProfileResponse response = userService.updateMyProfile(userId, request);
         return ResponseEntity.ok(response);

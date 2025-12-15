@@ -5,6 +5,7 @@ import back.kalender.domain.user.dto.request.UserSignupRequest;
 import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
+import back.kalender.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
@@ -131,7 +133,10 @@ public interface UserControllerSpec {
                     )
             )
     })
-    ResponseEntity<UserProfileResponse> getMyProfile();
+    ResponseEntity<UserProfileResponse> getMyProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+
+    );
 
     @Operation(
             summary = "프로필 이미지 업로드",
@@ -181,7 +186,9 @@ public interface UserControllerSpec {
             )
     })
     ResponseEntity<UploadProfileImgResponse> uploadProfileImage(
-            @RequestParam("profile_image") MultipartFile profileImage);
+            @RequestParam("profile_image") MultipartFile profileImage,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
 
     @Operation(
             summary = "내 정보 수정",
@@ -248,5 +255,8 @@ public interface UserControllerSpec {
                     )
             )
     })
-    ResponseEntity<UserProfileResponse> updateMyProfile(@RequestBody UpdateProfileRequest request);
+    ResponseEntity<UserProfileResponse> updateMyProfile(
+            @RequestBody UpdateProfileRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
 }
