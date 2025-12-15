@@ -21,7 +21,6 @@ public class PartyBuilder {
                 .build();
     }
 
-    // 수정: Entity의 update() 메서드가 null safe하게 변경되어 간결해짐
     public static Party update(UpdatePartyRequest request, Party party) {
         return party.update(
                 request.partyName(),
