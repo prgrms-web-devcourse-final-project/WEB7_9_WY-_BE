@@ -52,8 +52,8 @@ jobs:
           name: build-artifacts
           path: ./
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Upload to EC2 (SCP)
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -62,14 +62,28 @@ jobs:
           source: "*.jar"
           target: "/home/${{ secrets.EC2_USER }}/"
 
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
           script: |
+            # 1. 실행 중인 자바 프로세스 종료
             pgrep -f java | xargs -r kill -9
+            
+            # 2. 기존 JAR 파일 삭제
             rm -f /home/${{ secrets.EC2_USER }}/*.jar
             
+            # 3. 새 JAR 파일 실행
             nohup env \
               SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
               SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
               SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
+              RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}" \
+              RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}" \
               java -jar \
               -Dspring.profiles.active=prod \
               /home/${{ secrets.EC2_USER }}/*.jar > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
