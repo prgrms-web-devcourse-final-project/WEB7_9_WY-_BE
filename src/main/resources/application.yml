@@ -10,6 +10,21 @@ spring:
   thymeleaf:
     cache: false
     prefix: file:src/main/resources/templates/
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
   output:
     ansi:
       enabled: always
@@ -54,5 +69,9 @@ custom:
     frontUrl: "${custom.dev.frontUrl}"
 
   jwt:
-    expireSeconds: "#{30 * 60}"
-    secretPattern: ${custom.jwt.secretPattern}
+    tokenExpiration:
+      access: 1800
+      refresh: 14
+    secret: ${JWT_SECRET}
+    cookie:
+      secure: false

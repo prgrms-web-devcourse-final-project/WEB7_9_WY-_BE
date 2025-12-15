@@ -13,10 +13,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @OpenAPIDefinition(
         info = @Info(
-                title = "UniMate API 서버",
+                title = "Klander API 서버",
                 version = "beta",
                 description = """
-                        UniMate 서버 API 문서입니다.
+                        Klander 서버 API 문서입니다.
                         <br>
                         🔑 JWT 인증이 필요한 API를 테스트하려면 상단의 <b>Authorize</b> 버튼을 눌러
                         '{토큰}' 형식으로 JWT를 입력하세요.
