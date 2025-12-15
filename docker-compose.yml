@@ -14,7 +14,10 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
-
+    deploy:
+      resources:
+        limits:
+          memory: 256M
   redis:
     image: redis:alpine
     container_name: kalendar-redis
@@ -26,6 +29,10 @@ services:
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -40,6 +47,10 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
 volumes:
   postgres_data:
