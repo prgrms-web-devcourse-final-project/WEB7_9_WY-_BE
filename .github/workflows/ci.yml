@@ -39,3 +39,37 @@ jobs:
         with:
           name: build-artifacts
           path: build/libs/*.jar
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "*.jar"
+          target: "/home/${{ secrets.EC2_USER }}/"
+
+          script: |
+            pgrep -f java | xargs -r kill -9
+            rm -f /home/${{ secrets.EC2_USER }}/*.jar
+            
+            nohup env \
+              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
+              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
+              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              java -jar \
+              -Dspring.profiles.active=dev \
+              /home/${{ secrets.EC2_USER }}/*.jar > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
