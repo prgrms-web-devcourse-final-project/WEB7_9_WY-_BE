@@ -9,7 +9,7 @@ public enum PreferredAge {
     THIRTY("30대"),
     FORTY("40대"),
     FIFTY_PLUS("50대 이상"),
-    NONE("무관");
+    ANY("무관");
 
     private final String description;
 

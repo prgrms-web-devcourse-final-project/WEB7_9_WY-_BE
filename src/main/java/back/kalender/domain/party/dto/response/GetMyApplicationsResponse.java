@@ -1,5 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
+import back.kalender.domain.party.entity.ApplicationStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -31,7 +32,7 @@ public record GetMyApplicationsResponse(
             PartyInfo party,
 
             @Schema(description = "신청 상태", example = "대기중", allowableValues = {"대기중", "승인", "거절"})
-            String status,
+            ApplicationStatus status,
 
             @Schema(description = "채팅방 ID (승인된 경우)", example = "60")
             Long chatRoomId

@@ -6,10 +6,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "party_application",
@@ -32,14 +28,6 @@ public class PartyApplication extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private ApplicationStatus status;
-
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Builder
     public PartyApplication(Long partyId, Long applicantId, Long leaderId) {
@@ -71,10 +59,6 @@ public class PartyApplication extends BaseEntity {
 
     public boolean isApproved() {
         return this.status == ApplicationStatus.APPROVED;
-    }
-
-    public boolean isRejected() {
-        return this.status == ApplicationStatus.REJECTED;
     }
 
     public boolean isProcessed() {

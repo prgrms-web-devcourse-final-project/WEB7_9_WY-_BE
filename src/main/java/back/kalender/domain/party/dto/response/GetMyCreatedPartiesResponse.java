@@ -1,5 +1,7 @@
 package back.kalender.domain.party.dto.response;
 
+import back.kalender.domain.party.entity.PartyStatus;
+import back.kalender.domain.party.entity.TransportType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -75,7 +77,7 @@ public record GetMyCreatedPartiesResponse(
             String arrivalLocation,
 
             @Schema(description = "이동 수단", example = "택시", allowableValues = {"택시", "카풀", "대중교통"})
-            String transportType,
+            TransportType transportType,
 
             @Schema(description = "최대 인원", example = "4")
             Integer maxMembers,
@@ -84,7 +86,7 @@ public record GetMyCreatedPartiesResponse(
             Integer currentMembers,
 
             @Schema(description = "파티 상태", example = "모집중", allowableValues = {"모집중", "모집마감", "종료"})
-            String status
+            PartyStatus status
     ) {}
 
     @Schema(description = "신청 통계 정보")

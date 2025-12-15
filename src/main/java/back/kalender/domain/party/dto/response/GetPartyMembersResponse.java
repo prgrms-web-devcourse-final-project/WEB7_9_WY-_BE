@@ -1,5 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
+import back.kalender.domain.party.entity.MemberRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -33,6 +34,6 @@ public record GetPartyMembersResponse(
             String profileImage,
 
             @Schema(description = "역할", example = "파티장", allowableValues = {"파티장", "멤버"})
-            String role
+            MemberRole role
     ) {}
 }
