@@ -84,6 +84,8 @@ jobs:
               REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
               RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}" \
               RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}" \
-              java -jar \
+              java \
+              -Xms512m -Xmx512m \
+              -jar \
               -Dspring.profiles.active=dev \
               /home/${{ secrets.EC2_USER }}/*.jar > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
