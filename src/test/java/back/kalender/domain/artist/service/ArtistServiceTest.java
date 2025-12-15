@@ -23,10 +23,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class ArtistServiceImplTest {
+class ArtistServiceTest {
 
     @InjectMocks
-    private ArtistServiceImpl artistService;
+    private ArtistService artistService;
 
     @Mock
     private ArtistRepository artistRepository;

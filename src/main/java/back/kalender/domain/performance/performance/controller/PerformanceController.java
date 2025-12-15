@@ -1,7 +1,7 @@
-package back.kalender.domain.performance.performane.controller;
+package back.kalender.domain.performance.performance.controller;
 
-import back.kalender.domain.performance.performane.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.performane.service.PerformanceService;
+import back.kalender.domain.performance.performance.dto.response.PerformanceDetailResponse;
+import back.kalender.domain.performance.performance.service.PerformanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

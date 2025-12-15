@@ -1,7 +1,7 @@
-package back.kalender.domain.performance.performane.dto.response;
+package back.kalender.domain.performance.performance.dto.response;
 
 import back.kalender.domain.artist.entity.Artist;
-import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
