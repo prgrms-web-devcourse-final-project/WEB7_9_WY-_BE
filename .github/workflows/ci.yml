@@ -87,7 +87,10 @@ jobs:
               RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}" \
               RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}" \
               /usr/bin/java \
-              -Xms512m -Xmx512m \
+              -Xms256m -Xmx768m \
+              -XX:MaxMetaspaceSize=256m \
+              -XX:+UseG1GC \
+              -XX:MaxGCPauseMillis=200 \
               -jar \
               -Dspring.profiles.active=dev \
               $JAR_NAME > /home/${{ secrets.EC2_USER }}/app.log 2>&1 < /dev/null &
