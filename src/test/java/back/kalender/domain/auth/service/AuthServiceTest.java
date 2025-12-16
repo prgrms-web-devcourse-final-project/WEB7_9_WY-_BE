@@ -40,7 +40,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService 테스트")
-class AuthServiceImplTest {
+class AuthServiceTest {
 
     private static final String COOKIE_NAME_REFRESH_TOKEN = "refreshToken";
     private static final String HEADER_NAME_AUTHORIZATION = "Authorization";
@@ -75,7 +75,7 @@ class AuthServiceImplTest {
     @Mock private JwtProperties.CookieProperties cookieProperties;
 
     @InjectMocks
-    private AuthServiceImpl authService;
+    private AuthService authService;
 
     
     //---------------------- FIXTURE ------------------------------
@@ -279,7 +279,7 @@ class AuthServiceImplTest {
             RefreshToken refreshTokenEntity = createRefreshToken(TEST_USER_ID, refreshToken);
 
             given(refreshTokenRepository.findByToken(refreshToken)).willReturn(Optional.of(refreshTokenEntity));
-            setupJwtProperties();
+            setupCookieProperties();
 
             authService.logout(refreshToken, httpServletResponse);
 
