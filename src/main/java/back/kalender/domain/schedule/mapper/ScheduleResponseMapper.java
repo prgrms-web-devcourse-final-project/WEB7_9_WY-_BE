@@ -45,7 +45,7 @@ public class ScheduleResponseMapper {
         return new ScheduleResponse(
                 schedule.getId(),
                 schedule.getArtistId(),
-                artist.getName(), // 아티스트 이름 주입
+                artist.getName(),
                 schedule.getTitle(),
                 schedule.getScheduleCategory(),
                 schedule.getScheduleTime(),
