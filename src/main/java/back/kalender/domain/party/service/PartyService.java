@@ -456,10 +456,6 @@ public class PartyService{
                 .map(application -> {
                     Party party = partyMap.get(application.getPartyId());
 
-                    if (party == null || party.getStatus() == PartyStatus.COMPLETED) {
-                        return null;
-                    }
-
                     Schedule schedule = scheduleMap.get(party.getScheduleId());
                     User leader = leaderMap.get(application.getLeaderId());
 
