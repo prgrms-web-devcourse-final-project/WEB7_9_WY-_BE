@@ -70,17 +70,32 @@ public interface UserControllerSpec {
                     description = "중복된 데이터",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    value = """
-                                        {
-                                          "error": {
-                                            "code": "DUPLICATE_NICKNAME",
-                                            "status": "409",
-                                            "message": "이미 사용 중인 닉네임입니다."
-                                          }
-                                        }
-                                        """
-                            )
+                            examples = {
+                                    @ExampleObject(
+                                            name = "이메일 중복",
+                                            value = """
+                                                {
+                                                  "error": {
+                                                    "code": "DUPLICATE_EMAIL",
+                                                    "status": "409",
+                                                    "message": "이미 사용 중인 이메일입니다."
+                                                  }
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "닉네임 중복",
+                                            value = """
+                                                {
+                                                  "error": {
+                                                    "code": "DUPLICATE_NICKNAME",
+                                                    "status": "409",
+                                                    "message": "이미 사용 중인 닉네임입니다."
+                                                  }
+                                                }
+                                                """
+                                    )
+                            }
                     )
             )
     })
