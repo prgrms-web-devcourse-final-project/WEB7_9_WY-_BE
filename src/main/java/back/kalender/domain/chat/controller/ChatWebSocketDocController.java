@@ -196,7 +196,6 @@ public class ChatWebSocketDocController {
                           "partyId": 1,
                           "userId": 5,
                           "userNickname": "팬덤러버",
-                          "userProfileImage": "https://example.com/profile.jpg",
                           "message": "팬덤러버님이 퇴장하셨습니다",
                           "timestamp": "2024-12-16T14:35:00",
                           "participantCount": 3
@@ -256,7 +255,6 @@ public class ChatWebSocketDocController {
                           "partyId": 1,
                           "kickedMemberId": 3,
                           "kickedMemberNickname": "문제유저",
-                          "kickedMemberProfileImage": "https://example.com/profile.jpg",
                           "kickedByLeaderId": 1,
                           "kickedByLeaderNickname": "파티장님",
                           "message": "문제유저님이 강퇴되었습니다",
