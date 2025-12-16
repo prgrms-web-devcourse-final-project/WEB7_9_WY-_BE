@@ -7,7 +7,6 @@ import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.service.UserService;
 import back.kalender.global.security.user.CustomUserDetails;
-import back.kalender.global.security.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
