@@ -40,13 +40,4 @@ public class SpringDoc {
                 .pathsToMatch("/api/v1/**")
                 .build();
     }
-
-    @Bean
-    public GroupedOpenApi groupController() {
-        return GroupedOpenApi.builder()
-                .group("home")
-                .pathsToExclude("/api/**")
-                .build();
-    }
-
 }
