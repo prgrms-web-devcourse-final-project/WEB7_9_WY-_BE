@@ -1,6 +1,11 @@
 package back.kalender.domain.schedule.mapper;
 
+import back.kalender.domain.artist.entity.Artist;
+import back.kalender.domain.schedule.dto.response.EventResponse;
+import back.kalender.domain.schedule.dto.response.ScheduleResponse;
 import back.kalender.domain.schedule.dto.response.UpcomingEventResponse;
+import back.kalender.domain.schedule.entity.Schedule;
+
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
@@ -8,19 +13,45 @@ public class ScheduleResponseMapper {
 
     private ScheduleResponseMapper() {}
 
-    public static UpcomingEventResponse toUpcomingEventResponse(UpcomingEventResponse rawItem, LocalDate today) {
-        long daysUntilEvent = ChronoUnit.DAYS.between(today, rawItem.scheduleTime().toLocalDate());
+    public static UpcomingEventResponse toUpcomingEventResponse(
+            Schedule schedule,
+            Artist artist,
+            LocalDate today
+    ) {
+        long daysUntilEvent = ChronoUnit.DAYS.between(today, schedule.getScheduleTime().toLocalDate());
 
         return new UpcomingEventResponse(
-                rawItem.scheduleId(),
-                rawItem.artistName(),
-                rawItem.title(),
-                rawItem.scheduleCategory(),
-                rawItem.scheduleTime(),
-                rawItem.performanceId(),
-                rawItem.link(),
+                schedule.getId(),
+                artist.getName(),
+                schedule.getTitle(),
+                schedule.getScheduleCategory(),
+                schedule.getScheduleTime(),
+                schedule.getPerformanceId(),
+                schedule.getLink(),
                 daysUntilEvent,
-                rawItem.location()
+                schedule.getLocation()
+        );
+    }
+
+    public static EventResponse toEventResponse(Schedule schedule, Artist artist) {
+        String formattedTitle = "[" + artist.getName() + "] " + schedule.getTitle();
+
+        return new EventResponse(
+                schedule.getId(),
+                formattedTitle
+        );
+    }
+    public static ScheduleResponse toScheduleResponse(Schedule schedule, Artist artist) {
+        return new ScheduleResponse(
+                schedule.getId(),
+                schedule.getArtistId(),
+                artist.getName(), // 아티스트 이름 주입
+                schedule.getTitle(),
+                schedule.getScheduleCategory(),
+                schedule.getScheduleTime(),
+                schedule.getPerformanceId(),
+                schedule.getLink(),
+                schedule.getLocation()
         );
     }
 }
