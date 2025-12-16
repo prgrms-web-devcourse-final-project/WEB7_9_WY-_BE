@@ -28,7 +28,7 @@ public class ChatWebSocketDocController {
     @Operation(
             summary = "채팅방 입장",
             description = """
-            **⚠️ 이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
+            **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
             
             ---
             
@@ -86,7 +86,7 @@ public class ChatWebSocketDocController {
     @Operation(
             summary = "채팅 메시지 전송",
             description = """
-            **⚠️ 이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
+            **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
             
             ---
             
@@ -160,7 +160,7 @@ public class ChatWebSocketDocController {
     @Operation(
             summary = "채팅방 나가기 (멤버용)",
             description = """
-            **⚠️ 이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
+            **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
             
             ---
             
@@ -178,7 +178,7 @@ public class ChatWebSocketDocController {
             ---
             
             **권한**: 파티 멤버만 가능  
-            **⚠️ 제한**: 파티장은 사용 불가
+            **제한**: 파티장은 사용 불가
             """
     )
     @ApiResponses(value = {
@@ -220,7 +220,7 @@ public class ChatWebSocketDocController {
     @Operation(
             summary = "멤버 강퇴 (파티장 전용)",
             description = """
-            **⚠️ 이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
+            **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
             
             ---
             
@@ -238,7 +238,7 @@ public class ChatWebSocketDocController {
             ---
             
             **권한**: 파티장만 가능  
-            **⚠️ 제한**: 파티장 자신은 강퇴할 수 없음
+            **제한**: 파티장 자신은 강퇴할 수 없음
             """
     )
     @ApiResponses(value = {
