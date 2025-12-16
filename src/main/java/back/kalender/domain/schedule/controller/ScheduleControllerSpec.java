@@ -2,7 +2,6 @@ package back.kalender.domain.schedule.controller;
 
 import back.kalender.domain.schedule.dto.response.EventsListResponse;
 import back.kalender.domain.schedule.dto.response.FollowingSchedulesListResponse;
-import back.kalender.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -95,7 +94,7 @@ public interface ScheduleControllerSpec {
             @RequestParam int year,
             @RequestParam int month,
             @Parameter(description = "특정 아티스트만 보고 싶을 때 ID 전달 (없으면 전체 팔로우 아티스트)")
-            @RequestParam(required = false) Optional<Long> artistId,
+            @RequestParam(required = false) Long artistId,
             @AuthenticationPrincipal(expression = "userId") Long userId
     );
 

@@ -4,6 +4,7 @@ import back.kalender.domain.artist.entity.ArtistFollow;
 import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.mapper.ScheduleResponseMapper;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -31,15 +33,24 @@ public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
     private final ArtistFollowRepository artistFollowRepository;
 
+    private static final List<ScheduleCategory> PARTY_CATEGORIES = List.of(
+            ScheduleCategory.CONCERT,
+            ScheduleCategory.FAN_MEETING,
+            ScheduleCategory.FESTIVAL,
+            ScheduleCategory.AWARD_SHOW,
+            ScheduleCategory.FAN_SIGN,
+            ScheduleCategory.BROADCAST
+    );
+
     public FollowingSchedulesListResponse getFollowingSchedules(
             Long userId,
             int year,
             int month,
-            Optional<Long> artistId
+            Long artistId
     ) {
         log.info(
                 "[Schedule] [Integrated] 통합 일정 조회 요청 진입 - userId: {}, year: {}, month: {}, filterArtistId: {}",
-                userId, year, month, artistId.orElse(null)
+                userId, year, month, artistId
         );
 
         if (month < 1 || month > 12) {
@@ -49,33 +60,32 @@ public class ScheduleService {
 
         List<Long> targetArtistIds;
 
-        if (artistId.isPresent()) {
-            Long id = artistId.get();
-            log.info("[Schedule] [FilterArtist] 특정 아티스트 필터링 모드 진입 - artistId: {}", id);
+        if (artistId != null) {
+            log.info("[Schedule] [FilterArtist] 특정 아티스트 필터링 모드 진입 - artistId: {}", artistId);
 
             boolean isFollowing =
-                    artistFollowRepository.existsByUserIdAndArtistId(userId, id);
+                    artistFollowRepository.existsByUserIdAndArtistId(userId, artistId);
 
             if (!isFollowing) {
                 log.warn(
                         "[Schedule] [FilterArtist] 조회 권한 없음: 팔로우하지 않은 아티스트 - userId: {}, artistId: {}",
-                        userId, id
+                        userId, artistId
                 );
                 throw new ServiceException(ErrorCode.ARTIST_NOT_FOLLOWED);
             }
 
-            targetArtistIds = List.of(id);
+            targetArtistIds = List.of(artistId);
         } else {
             log.info("[Schedule] [GetFollowing] 전체 팔로우 아티스트 조회 모드 진입");
             targetArtistIds = getFollowedArtistIds(userId);
-        }
 
-        if (targetArtistIds.isEmpty()) {
-            log.info("[Schedule] [Integrated] 조회 대상 아티스트가 없음 (팔로우 0명) - 빈 결과 반환");
-            return new FollowingSchedulesListResponse(
-                    Collections.emptyList(),
-                    Collections.emptyList()
-            );
+            if (targetArtistIds.isEmpty()) {
+                log.info("[Schedule] [Integrated] 조회 대상 아티스트가 없음 (팔로우 0명) - 빈 결과 반환");
+                return new FollowingSchedulesListResponse(
+                        Collections.emptyList(),
+                        Collections.emptyList()
+                );
+            }
         }
 
         log.info(
@@ -115,26 +125,42 @@ public class ScheduleService {
 
         LocalDate today = LocalDate.now();
         List<UpcomingEventResponse> upcomingData = upcomingRaw.stream()
-                .map(item -> new UpcomingEventResponse(
-                        item.scheduleId(),
-                        item.artistName(),
-                        item.title(),
-                        item.scheduleCategory(),
-                        item.scheduleTime(),
-                        item.performanceId(),
-                        item.link(),
-                        java.time.temporal.ChronoUnit.DAYS.between(
-                                today,
-                                item.scheduleTime().toLocalDate()
-                        ),
-                        item.location()
-                ))
+                .map(item -> ScheduleResponseMapper.toUpcomingEventResponse(item, today))
                 .toList();
 
         log.info("[Schedule] [Upcoming] 데이터 가공 완료 (D-Day 계산) - 건수: {}", upcomingData.size());
         log.info("[Schedule] [Integrated] 요청 처리 최종 완료 - Response 반환");
 
         return new FollowingSchedulesListResponse(monthlyData, upcomingData);
+    }
+
+    public EventsListResponse getEventLists(Long userId) {
+        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}", userId);
+
+        List<Long> targetArtistIds = getFollowedArtistIds(userId);
+
+        if (targetArtistIds.isEmpty()) {
+            log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
+            return new EventsListResponse(Collections.emptyList());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime endDate = now.plusDays(31);
+
+        List<EventResponse> items =
+                scheduleRepository.findPartyAvailableEvents(
+                        targetArtistIds,
+                        PARTY_CATEGORIES,
+                        now,
+                        endDate
+                );
+
+        log.info(
+                "[Schedule] [GetEventLists] 파티 생성 기능 일정 목록 조회 완료 - count={}",
+                items.size()
+        );
+
+        return new EventsListResponse(items);
     }
 
     private List<Long> getFollowedArtistIds(Long userId) {
@@ -154,43 +180,5 @@ public class ScheduleService {
                 userId, ids.size()
         );
         return ids;
-    }
-
-    public EventsListResponse getEventLists(Long userId) {
-        log.info("[Schedule] [GetEventLists] 이벤트 리스트 조회 시작 - userId={}", userId);
-
-        List<Long> targetArtistIds = getFollowedArtistIds(userId);
-
-        if (targetArtistIds.isEmpty()) {
-            log.info("[Schedule] [GetEventLists] 팔로우한 아티스트 없음 - 빈 리스트 반환");
-            return new EventsListResponse(Collections.emptyList());
-        }
-
-        List<ScheduleCategory> partyCategories = List.of(
-                ScheduleCategory.CONCERT,
-                ScheduleCategory.FAN_MEETING,
-                ScheduleCategory.FESTIVAL,
-                ScheduleCategory.AWARD_SHOW,
-                ScheduleCategory.FAN_SIGN,
-                ScheduleCategory.BROADCAST
-        );
-
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime endDate = now.plusDays(31);
-
-        List<EventResponse> items =
-                scheduleRepository.findPartyAvailableEvents(
-                        targetArtistIds,
-                        partyCategories,
-                        now,
-                        endDate
-                );
-
-        log.info(
-                "[Schedule] [GetEventLists] 파티 생성 기능 일정 목록 조회 완료 - count={}",
-                items.size()
-        );
-
-        return new EventsListResponse(items);
     }
 }

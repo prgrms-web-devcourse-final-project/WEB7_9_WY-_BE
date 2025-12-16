@@ -21,7 +21,7 @@ public class ScheduleController implements ScheduleControllerSpec {
     public ResponseEntity<FollowingSchedulesListResponse> getFollowingSchedules(
             @RequestParam int year,
             @RequestParam int month,
-            @RequestParam(required = false) Optional<Long> artistId,
+            @RequestParam(required = false) Long artistId,
             @AuthenticationPrincipal(expression = "userId") Long userId
     ) {
         FollowingSchedulesListResponse response = scheduleService.getFollowingSchedules(userId, year, month, artistId);
