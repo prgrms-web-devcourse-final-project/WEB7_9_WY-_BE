@@ -54,7 +54,7 @@ public class BaseInitData {
                 )
         );
 
-        // 2) Artist 생성 (필수!)
+        // 2) Artist 생성
         Artist artist = artistRepository.save(new Artist("KPOP ARTIST","imageurl:www.amagon..."));
 
         // 2) 공연장 좌석 생성 (총 15,000석)
@@ -70,8 +70,8 @@ public class BaseInitData {
         // 3) 공연 생성
         Performance performance = performanceRepository.save(
                 new Performance(
-                        hall,
-                        artist,   // artist는 너가 Entity 연결 후 넣으면 됨
+                        hall.getId(),
+                        artist.getId(),
                         "KPOP DREAM CONCERT",
                         "https://image.com/poster.jpg",
                         LocalDate.of(2026, 1, 1),
@@ -84,20 +84,20 @@ public class BaseInitData {
         );
 
         // 4) 가격 등급 생성
-        priceGradeRepository.save(new PriceGrade(performance, "VIP", 200000));
-        priceGradeRepository.save(new PriceGrade(performance, "R", 150000));
-        priceGradeRepository.save(new PriceGrade(performance, "S", 100000));
-        priceGradeRepository.save(new PriceGrade(performance, "A", 70000));
+        priceGradeRepository.save(new PriceGrade(performance.getId(), "VIP", 200000));
+        priceGradeRepository.save(new PriceGrade(performance.getId(), "R", 150000));
+        priceGradeRepository.save(new PriceGrade(performance.getId(), "S", 100000));
+        priceGradeRepository.save(new PriceGrade(performance.getId(), "A", 70000));
 
         // 5) 회차 3개 생성
         scheduleRepository.save(new PerformanceSchedule(
-                performance, LocalDate.of(2026,1,5), LocalTime.of(18,0), 1, ScheduleStatus.AVAILABLE
+                performance.getId(), LocalDate.of(2026,1,5), LocalTime.of(18,0), 1, ScheduleStatus.AVAILABLE
         ));
         scheduleRepository.save(new PerformanceSchedule(
-                performance, LocalDate.of(2026,1,6), LocalTime.of(18,0), 2, ScheduleStatus.AVAILABLE
+                performance.getId(), LocalDate.of(2026,1,6), LocalTime.of(18,0), 2, ScheduleStatus.AVAILABLE
         ));
         scheduleRepository.save(new PerformanceSchedule(
-                performance, LocalDate.of(2026,1,7), LocalTime.of(18,0), 3, ScheduleStatus.AVAILABLE
+                performance.getId(), LocalDate.of(2026,1,7), LocalTime.of(18,0), 3, ScheduleStatus.AVAILABLE
         ));
 
         System.out.println("BaseInitData completed successfully");
