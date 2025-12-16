@@ -77,6 +77,8 @@ class AuthServiceImplTest {
     @InjectMocks
     private AuthServiceImpl authService;
 
+    
+    //---------------------- FIXTURE ------------------------------
     private User testUser;
 
     @BeforeEach
@@ -85,7 +87,8 @@ class AuthServiceImplTest {
         setField(testUser, "id", TEST_USER_ID);
     }
 
-    //---------------------- FIXTURE ------------------------------
+    
+    //---------------------- HELPER -------------------------------
     private User createTestUser(String email, String password, boolean emailVerified) {
         return User.builder()
                 .email(email)
@@ -131,7 +134,6 @@ class AuthServiceImplTest {
         }
     }
 
-    //---------------------- HELPER -------------------------------
     private void setupJwtProperties() {
         given(jwtProperties.getTokenExpiration()).willReturn(tokenExpiration);
         given(tokenExpiration.getAccessInMillis()).willReturn(ACCESS_TOKEN_EXPIRY_MILLIS);
