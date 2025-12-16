@@ -3,8 +3,6 @@ package back.kalender.domain.party.controller;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
-import back.kalender.domain.party.entity.ApplicationStatus;
-import back.kalender.domain.party.entity.PartyStatus;
 import back.kalender.domain.party.entity.PartyType;
 import back.kalender.domain.party.entity.TransportType;
 import back.kalender.global.security.user.CustomUserDetails;
@@ -404,7 +402,6 @@ public interface PartyControllerSpec {
     })
     @GetMapping("/user/me/party/application")
     public ResponseEntity<GetMyApplicationsResponse> getMyApplications(
-            @RequestParam(value = "status", required = false) ApplicationStatus status,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -417,7 +414,100 @@ public interface PartyControllerSpec {
     })
     @GetMapping("/user/me/party/created")
     public ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
-            @RequestParam(value = "status", required = false) PartyStatus status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
+
+    @Operation(
+            summary = "종료된 파티 목록 조회",
+            description = """
+                내가 관련된 모든 종료된 파티를 조회합니다.
+                
+                **포함되는 파티:**
+                - 내가 생성한 종료된 파티 (participationType: CREATED)
+                - 내가 참여한 종료된 파티 (participationType: JOINED)
+                
+                **정렬 기준:**
+                - 종료 시간 기준 최신순
+                
+                **페이징:**
+                - 기본 20개씩 조회
+                - page, size 파라미터로 조절 가능
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            schema = @Schema(implementation = GetCompletedPartiesResponse.class),
+                            examples = @ExampleObject(value = """
+                                {
+                                  "parties": [
+                                    {
+                                      "partyId": 1,
+                                      "participationType": "CREATED",
+                                      "event": {
+                                        "eventId": 1,
+                                        "title": "BTS 콘서트 2025",
+                                        "location": "잠실종합운동장",
+                                        "scheduleTime": "2025-12-31T19:00:00"
+                                      },
+                                      "partyDetail": {
+                                        "partyName": "즐거운 BTS 콘서트",
+                                        "partyType": "출발",
+                                        "departureLocation": "강남역",
+                                        "arrivalLocation": "잠실종합운동장",
+                                        "maxMembers": 4,
+                                        "currentMembers": 4
+                                      },
+                                      "leader": {
+                                        "leaderId": 1,
+                                        "nickname": "리더유저1",
+                                        "profileImage": "https://example.com/profile.jpg"
+                                      },
+                                      "status": "COMPLETED",
+                                      "completedAt": "2025-12-16T20:00:00",
+                                      "createdAt": "2025-12-15T10:00:00"
+                                    },
+                                    {
+                                      "partyId": 2,
+                                      "participationType": "JOINED",
+                                      "event": {
+                                        "eventId": 2,
+                                        "title": "블랙핑크 월드투어",
+                                        "location": "고척스카이돔",
+                                        "scheduleTime": "2025-11-15T20:00:00"
+                                      },
+                                      "partyDetail": {
+                                        "partyName": "블핑 콘서트 같이 가요",
+                                        "partyType": "출발",
+                                        "departureLocation": "신림역",
+                                        "arrivalLocation": "고척스카이돔",
+                                        "maxMembers": 5,
+                                        "currentMembers": 3
+                                      },
+                                      "leader": {
+                                        "leaderId": 2,
+                                        "nickname": "리더유저2",
+                                        "profileImage": "https://example.com/profile2.jpg"
+                                      },
+                                      "status": "COMPLETED",
+                                      "completedAt": "2025-11-16T23:00:00",
+                                      "createdAt": "2025-11-10T15:00:00"
+                                    }
+                                  ],
+                                  "totalElements": 5,
+                                  "totalPages": 1,
+                                  "pageNumber": 0
+                                }
+                                """)
+                    )
+            )
+    })
+    @GetMapping("/user/me/party/completed")
+    public ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails

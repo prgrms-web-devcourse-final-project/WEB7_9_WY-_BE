@@ -17,9 +17,12 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
 
     List<PartyApplication> findByPartyId(Long partyId);
 
-    Page<PartyApplication> findByApplicantId(Long applicantId, Pageable pageable);
-
     Page<PartyApplication> findByApplicantIdAndStatus(Long applicantId, ApplicationStatus status, Pageable pageable);
+
+    @Query("SELECT pa FROM PartyApplication pa WHERE pa.applicantId = :applicantId " +
+            "AND pa.status NOT IN ('COMPLETED', 'CANCELLED') " +
+            "ORDER BY pa.createdAt DESC")
+    Page<PartyApplication> findActiveApplicationsByApplicantId(@Param("applicantId") Long applicantId, Pageable pageable);
 
     boolean existsByPartyIdAndApplicantId(Long partyId, Long applicantId);
 

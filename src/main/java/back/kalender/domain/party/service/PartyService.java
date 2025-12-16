@@ -16,10 +16,12 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -416,18 +418,15 @@ public class PartyService{
         );
     }
 
-
-    public GetMyApplicationsResponse getMyApplications(ApplicationStatus status, Pageable pageable, Long currentUserId) {
-        Page<PartyApplication> applicationPage;
-
-        if (status != null) {
-            applicationPage = partyApplicationRepository.findByApplicantIdAndStatus(
-                    currentUserId, status, pageable);
-        } else {
-            applicationPage = partyApplicationRepository.findByApplicantId(currentUserId, pageable);
-        }
+    public GetMyApplicationsResponse getMyApplications(Pageable pageable, Long currentUserId) {
+        Page<PartyApplication> applicationPage = partyApplicationRepository
+                .findActiveApplicationsByApplicantId(currentUserId, pageable);
 
         List<PartyApplication> applications = applicationPage.getContent();
+
+        if (applications.isEmpty()) {
+            return new GetMyApplicationsResponse(List.of(), 0, 0, pageable.getPageNumber());
+        }
 
         List<Long> partyIds = applications.stream()
                 .map(PartyApplication::getPartyId)
@@ -456,10 +455,11 @@ public class PartyService{
         List<GetMyApplicationsResponse.ApplicationItem> applicationItems = applications.stream()
                 .map(application -> {
                     Party party = partyMap.get(application.getPartyId());
+
                     Schedule schedule = scheduleMap.get(party.getScheduleId());
                     User leader = leaderMap.get(application.getLeaderId());
 
-                    if (party == null || schedule == null || leader == null) {
+                    if (schedule == null || leader == null) {
                         throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
                     }
 
@@ -489,6 +489,7 @@ public class PartyService{
                             null
                     );
                 })
+                .filter(item -> item != null) // null 제거 (종료된 파티)
                 .toList();
 
         return new GetMyApplicationsResponse(
@@ -499,25 +500,18 @@ public class PartyService{
         );
     }
 
-
-    public GetMyCreatedPartiesResponse getMyCreatedParties(PartyStatus status, Pageable pageable, Long currentUserId) {
-        Page<Party> partyPage;
-
-        if (status != null) {
-            partyPage = partyRepository.findByLeaderIdAndStatus(currentUserId, status, pageable);
-        } else {
-            partyPage = partyRepository.findByLeaderId(currentUserId, pageable);
-        }
+    public GetMyCreatedPartiesResponse getMyCreatedParties(Pageable pageable, Long currentUserId) {
+        Page<Party> partyPage = partyRepository.findActivePartiesByLeaderId(currentUserId, pageable);
 
         List<Party> parties = partyPage.getContent();
+
+        if (parties.isEmpty()) {
+            return new GetMyCreatedPartiesResponse(List.of(), 0, 0, pageable.getPageNumber());
+        }
 
         List<Long> scheduleIds = parties.stream()
                 .map(Party::getScheduleId)
                 .distinct()
-                .toList();
-
-        List<Long> partyIds = parties.stream()
-                .map(Party::getId)
                 .toList();
 
         Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
@@ -570,4 +564,115 @@ public class PartyService{
                 partyPage.getNumber()
         );
     }
+
+    public GetCompletedPartiesResponse getMyCompletedParties(Pageable pageable, Long currentUserId) {
+        List<Party> createdParties = partyRepository.findByLeaderIdAndStatus(
+                currentUserId, PartyStatus.COMPLETED, PageRequest.of(0, 1000)
+        ).getContent();
+
+        List<PartyApplication> completedApplications = partyApplicationRepository
+                .findByApplicantIdAndStatus(
+                        currentUserId,
+                        ApplicationStatus.COMPLETED,
+                        PageRequest.of(0, 1000)
+                ).getContent();
+
+        List<Long> appliedPartyIds = completedApplications.stream()
+                .map(PartyApplication::getPartyId)
+                .distinct()
+                .toList();
+
+        List<Party> joinedParties = appliedPartyIds.isEmpty()
+                ? List.of()
+                : partyRepository.findAllById(appliedPartyIds);
+
+        List<CompletedPartyData> allCompletedParties = new ArrayList<>();
+
+        for (Party party : createdParties) {
+            allCompletedParties.add(new CompletedPartyData(party, "CREATED"));
+        }
+
+        for (Party party : joinedParties) {
+            if (!party.getLeaderId().equals(currentUserId)) {
+                allCompletedParties.add(new CompletedPartyData(party, "JOINED"));
+            }
+        }
+
+        allCompletedParties.sort((a, b) ->
+                b.party().getUpdatedAt().compareTo(a.party().getUpdatedAt())
+        );
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min(start + pageable.getPageSize(), allCompletedParties.size());
+        List<CompletedPartyData> pagedParties = allCompletedParties.subList(start, end);
+
+        List<Long> partyIds = pagedParties.stream()
+                .map(data -> data.party().getId())
+                .toList();
+
+        List<Long> leaderIds = pagedParties.stream()
+                .map(data -> data.party().getLeaderId())
+                .distinct()
+                .toList();
+
+        List<Long> scheduleIds = pagedParties.stream()
+                .map(data -> data.party().getScheduleId())
+                .distinct()
+                .toList();
+
+        Map<Long, User> leaderMap = userRepository.findAllById(leaderIds).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
+
+        Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
+                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
+
+        List<GetCompletedPartiesResponse.CompletedPartyItem> partyItems = pagedParties.stream()
+                .map(data -> {
+                    Party party = data.party();
+                    String participationType = data.participationType();
+
+                    User leader = leaderMap.get(party.getLeaderId());
+                    Schedule schedule = scheduleMap.get(party.getScheduleId());
+
+                    if (leader == null || schedule == null) {
+                        throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+                    }
+
+                    return new GetCompletedPartiesResponse.CompletedPartyItem(
+                            party.getId(),
+                            participationType,
+                            new GetCompletedPartiesResponse.EventInfo(
+                                    schedule.getId(),
+                                    schedule.getTitle(),
+                                    schedule.getLocation(),
+                                    schedule.getScheduleTime()
+                            ),
+                            new GetCompletedPartiesResponse.PartyDetailInfo(
+                                    party.getPartyName(),
+                                    party.getPartyType().getDescription(),
+                                    party.getDepartureLocation(),
+                                    party.getArrivalLocation(),
+                                    party.getMaxMembers(),
+                                    party.getCurrentMembers()
+                            ),
+                            new GetCompletedPartiesResponse.LeaderInfo(
+                                    leader.getId(),
+                                    leader.getNickname()
+                            ),
+                            party.getStatus(),
+                            party.getUpdatedAt(), // 종료 시간
+                            party.getCreatedAt()
+                    );
+                })
+                .toList();
+
+        return new GetCompletedPartiesResponse(
+                partyItems,
+                allCompletedParties.size(),
+                (int) Math.ceil((double) allCompletedParties.size() / pageable.getPageSize()),
+                pageable.getPageNumber()
+        );
+    }
+
+    private record CompletedPartyData(Party party, String participationType) {}
 }
