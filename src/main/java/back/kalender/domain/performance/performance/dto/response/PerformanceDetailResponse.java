@@ -78,6 +78,8 @@ public record PerformanceDetailResponse(
 
     public static PerformanceDetailResponse from(
             Performance performance,
+            PerformanceHall performanceHall,
+            Artist artist,
             List<PriceGrade> priceGrades,
             List<LocalDate> availableDates,
             List<PerformanceSchedule> schedules
@@ -101,11 +103,11 @@ public record PerformanceDetailResponse(
                 performance.getId(),
                 performance.getTitle(),
                 performance.getPosterImageUrl(),
-                ArtistInfo.from(performance.getArtist()),
+                ArtistInfo.from(artist),
                 performance.getStartDate(),
                 performance.getEndDate(),
                 performance.getRunningTime(),
-                PerformanceHallInfo.from(performance.getPerformanceHall()),
+                PerformanceHallInfo.from(performanceHall),
                 priceGrades.stream()
                         .map(PriceGradeInfo::from)
                         .toList(),

@@ -14,10 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class PriceGrade extends BaseEntity {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_id", nullable = false)
-    private Performance performance;
+    @Column(name = "performance_id", nullable = false)
+    private Long performanceId;
 
     @Column(name = "grade_name")
     private String gradeName;

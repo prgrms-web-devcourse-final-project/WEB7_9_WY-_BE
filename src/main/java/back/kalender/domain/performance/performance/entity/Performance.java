@@ -19,13 +19,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Performance extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(nullable = false)
-    private PerformanceHall performanceHall;
+    private Long performanceHallId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn( nullable = false)
-    private Artist artist;
+    private Long artistId;
 
     private String title;
 

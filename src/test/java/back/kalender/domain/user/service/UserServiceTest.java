@@ -28,12 +28,12 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserService 테스트")
-public class UserServiceImplTest {
+public class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
     @InjectMocks
-    private UserServiceImpl userService;
+    private UserService userService;
 
     @Test
     @DisplayName("내 정보 조회 - 성공")

@@ -9,5 +9,5 @@ import java.util.List;
 
 @Repository
 public interface PriceGradeRepository extends JpaRepository<PriceGrade, Long> {
-    List<PriceGrade> findAllByPerformance(Performance performance);
+    List<PriceGrade> findAllByPerformanceId(Long performanceId);
 }
