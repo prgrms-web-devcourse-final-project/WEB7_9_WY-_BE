@@ -63,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileImage(),
-user.isEmailVerified()
+                user.isEmailVerified()
         );
     }
 
@@ -236,7 +236,7 @@ user.isEmailVerified()
         return new EmailStatusResponse(
                 user.getId(),
                 user.getEmail(),
-user.isEmailVerified(),
+                user.isEmailVerified(),
                 verifiedAt
         );
     }
