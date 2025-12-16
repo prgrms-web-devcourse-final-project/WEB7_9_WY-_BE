@@ -7,9 +7,6 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "parties")
@@ -64,10 +61,6 @@ public class Party extends BaseEntity {
     @Column(name = "status", nullable = false)
     private PartyStatus status;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Builder
     public Party(Long scheduleId, Long leaderId, PartyType partyType, String partyName,
                  String description, String departureLocation, String arrivalLocation,
@@ -88,18 +81,36 @@ public class Party extends BaseEntity {
         this.status = PartyStatus.RECRUITING; // 기본값: 모집중
     }
 
-    public void update(String partyName, String description, String departureLocation,
+    public Party update(String partyName, String description, String departureLocation,
                        String arrivalLocation, TransportType transportType, Integer maxMembers,
                        Gender preferredGender, PreferredAge preferredAge) {
-        this.partyName = partyName;
-        this.description = description;
-        this.departureLocation = departureLocation;
-        this.arrivalLocation = arrivalLocation;
-        this.transportType = transportType;
-        this.maxMembers = maxMembers;
-        this.preferredGender = preferredGender;
-        this.preferredAge = preferredAge;
+        if (partyName != null) {
+            this.partyName = partyName;
+        }
+        if (description != null) {
+            this.description = description;
+        }
+        if (departureLocation != null) {
+            this.departureLocation = departureLocation;
+        }
+        if (arrivalLocation != null) {
+            this.arrivalLocation = arrivalLocation;
+        }
+        if (transportType != null) {
+            this.transportType = transportType;
+        }
+        if (maxMembers != null) {
+            this.maxMembers = maxMembers;
+        }
+        if (preferredGender != null) {
+            this.preferredGender = preferredGender;
+        }
+        if (preferredAge != null) {
+            this.preferredAge = preferredAge;
+        }
+        return this;
     }
+
 
     public void changeStatus(PartyStatus status) {
         this.status = status;

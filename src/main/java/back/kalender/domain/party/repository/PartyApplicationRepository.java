@@ -32,6 +32,6 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
     @Query("SELECT COUNT(pa) FROM PartyApplication pa WHERE pa.partyId = :partyId AND pa.status = 'REJECTED'")
     Long countRejectedApplications(@Param("partyId") Long partyId);
 
-    @Query("SELECT pa FROM PartyApplication pa WHERE pa.partyId = :partyId AND pa.leaderId = :leaderId")
-    List<PartyApplication> findByPartyIdAndLeaderId(@Param("partyId") Long partyId, @Param("leaderId") Long leaderId);
+    @Query("SELECT pa.partyId FROM PartyApplication pa WHERE pa.partyId IN :partyIds AND pa.applicantId = :applicantId")
+    List<Long> findAppliedPartyIds(@Param("partyIds") List<Long> partyIds, @Param("applicantId") Long applicantId);
 }

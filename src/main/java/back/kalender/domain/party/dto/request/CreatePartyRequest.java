@@ -15,7 +15,7 @@ public record CreatePartyRequest(
         Long scheduleId,
 
         @NotNull(message = "파티 타입은 필수입니다")
-        @Schema(description = "파티 타입" , implementation = PartyType.class)
+        @Schema(description = "파티 타입(출발팟, 복귀팟)" , implementation = PartyType.class)
         PartyType partyType,
 
         @NotBlank(message = "파티 이름은 필수입니다")
@@ -29,7 +29,7 @@ public record CreatePartyRequest(
 
         @NotBlank(message = "출발 위치는 필수입니다")
         @Size(max = 100, message = "출발 위치는 100자 이하여야 합니다")
-        @Schema(description = "출발 위치", example = "강남역 3번출구" )
+        @Schema(description = "출발 위치", example = "강남역" )
         String departureLocation,
 
         @NotBlank(message = "도착 위치는 필수입니다")

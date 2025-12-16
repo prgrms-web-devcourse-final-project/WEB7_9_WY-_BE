@@ -10,7 +10,7 @@ public record ApplyToPartyResponse(
         @Schema(description = "신청자 나이", example = "23")
         int applicantAge,
 
-        @Schema(description = "신청자 성별", example = "남성")
+        @Schema(description = "신청자 성별", example = "MALE", implementation = Gender.class)
         Gender gender,
 
         @Schema(description = "파티 이름", example = "BTS 공연")
