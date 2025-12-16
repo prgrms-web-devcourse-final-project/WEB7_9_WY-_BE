@@ -20,9 +20,6 @@ public record KickMemberResponse(
         @Schema(description = "강퇴된 멤버 닉네임", example = "문제유저")
         String kickedMemberNickname,
 
-        @Schema(description = "강퇴된 멤버 프로필 이미지 URL", example = "https://example.com/profile.jpg")
-        String kickedMemberProfileImage,
-
         @Schema(description = "강퇴 실행한 파티장 ID", example = "1")
         Long kickedByLeaderId,
 

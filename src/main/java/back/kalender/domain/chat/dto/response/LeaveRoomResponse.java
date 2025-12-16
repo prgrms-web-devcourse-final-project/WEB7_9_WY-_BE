@@ -20,9 +20,6 @@ public record LeaveRoomResponse(
         @Schema(description = "퇴장한 사용자 닉네임", example = "팬덤러버")
         String userNickname,
 
-        @Schema(description = "퇴장한 사용자 프로필 이미지 URL", example = "https://example.com/profile.jpg")
-        String userProfileImage,
-
         @Schema(description = "퇴장 메시지", example = "팬덤러버님이 퇴장하셨습니다")
         String message,
 
