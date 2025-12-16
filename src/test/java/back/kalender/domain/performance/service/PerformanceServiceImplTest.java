@@ -2,12 +2,12 @@ package back.kalender.domain.performance.service;
 
 import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
-import back.kalender.domain.performance.performane.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.performane.entity.Performance;
-import back.kalender.domain.performance.performane.repository.PerformanceRepository;
+import back.kalender.domain.performance.performance.dto.response.PerformanceDetailResponse;
+import back.kalender.domain.performance.performance.entity.Performance;
+import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
 import back.kalender.domain.performance.priceGrade.repository.PriceGradeRepository;
-import back.kalender.domain.performance.performane.service.PerformanceServiceImpl;
+import back.kalender.domain.performance.performance.service.PerformanceServiceImpl;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import back.kalender.domain.performance.schedule.entity.ScheduleStatus;

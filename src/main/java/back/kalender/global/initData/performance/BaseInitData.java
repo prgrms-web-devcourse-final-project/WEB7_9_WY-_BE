@@ -7,8 +7,8 @@ import back.kalender.domain.performance.performanceHall.repository.PerformanceHa
 import back.kalender.domain.performance.hallSeat.entity.HallSeat;
 import back.kalender.domain.performance.hallSeat.entity.HallSeat.SeatType;
 import back.kalender.domain.performance.hallSeat.repository.HallSeatRepository;
-import back.kalender.domain.performance.performane.entity.Performance;
-import back.kalender.domain.performance.performane.repository.PerformanceRepository;
+import back.kalender.domain.performance.performance.entity.Performance;
+import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.priceGrade.repository.PriceGradeRepository;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
