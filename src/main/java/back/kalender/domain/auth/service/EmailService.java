@@ -68,7 +68,7 @@ public class EmailService {
             // 실제 이메일 발송 (개발 환경에서는 주석 처리)
             // mailSender.send(message);
         } catch (MessagingException | MailException e) {
-            log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", mask(to), subject, e);
+            log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", to, subject, e);
             throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
@@ -105,22 +105,4 @@ public class EmailService {
                 .toUriString();
     }
 
-    // 이메일 마스킹 (개인정보 로그 최소화)
-    private String mask(String email) {
-        if (email == null || email.isBlank()) {
-            return email;
-        }
-
-        int at = email.indexOf('@');
-        if (at <= 0) {
-            return "***";
-        }
-
-        // local-part가 너무 짧으면 전부 마스킹
-        if (at == 1) {
-            return "*@" + email.substring(at + 1);
-        }
-
-        return email.charAt(0) + "***" + email.substring(at);
-    }
 }

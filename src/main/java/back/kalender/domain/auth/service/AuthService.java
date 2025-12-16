@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,6 +33,7 @@ import java.util.UUID;
 public class AuthService {
 
     private static final int EMAIL_VERIFICATION_RESEND_LIMIT_MINUTES = 5;
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -172,8 +174,8 @@ public class AuthService {
                     }
                 });
 
-        // 인증 코드 생성 (6자리 숫자)
-        String code = String.format("%06d", (int) (Math.random() * 1000000));
+        // 인증 코드 생성 (6자리 숫자) - 보안을 위해 SecureRandom 사용
+        String code = String.format("%06d", secureRandom.nextInt(1000000));
 
         // 기존 인증 코드 삭제
         emailVerificationRepository.deleteByUserId(user.getId());

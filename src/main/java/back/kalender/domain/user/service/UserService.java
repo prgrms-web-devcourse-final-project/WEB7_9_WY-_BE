@@ -6,6 +6,7 @@ import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.entity.User;
+import back.kalender.domain.user.mapper.UserBuilder;
 import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.common.Enum.Gender;
 import back.kalender.global.exception.ErrorCode;
@@ -25,7 +26,7 @@ public class UserService{
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // 회원가입 251211 ahnbs
+    // 회원가입
     @Transactional
     public UserSignupResponse signup(UserSignupRequest request) {
         // 이메일 중복 확인
@@ -52,15 +53,7 @@ public class UserService{
         String encodedPassword = passwordEncoder.encode(request.password());
 
         // 유저 생성
-        User user = User.builder()
-                .email(request.email())
-                .password(encodedPassword)
-                .nickname(request.nickname())
-                .gender(gender)
-                .birthDate(request.birthDate())
-                .emailVerified(false)
-                .build();
-
+        User user = UserBuilder.create(request, encodedPassword, gender);
         User savedUser = userRepository.save(user);
 
         return UserSignupResponse.from(savedUser);
