@@ -112,7 +112,8 @@ public class SecurityConfig {
                                 "/favicon.ico",
                                 "/swagger-ui/**",                  // Swagger UI
                                 "/v3/api-docs/**",                 // OpenAPI 문서
-                                "/swagger-resources/**"            // Swagger 리소스
+                                "/swagger-resources/**",            // Swagger 리소스
+                                "/api/v1/performance-seats/**"
                         ).permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
