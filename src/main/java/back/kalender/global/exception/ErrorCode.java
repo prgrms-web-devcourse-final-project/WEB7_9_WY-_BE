@@ -42,6 +42,7 @@ public enum ErrorCode {
 
     // 3400-3499: 파티 유효성 검증
     CANNOT_REDUCE_MAX_MEMBERS("3413", HttpStatus.BAD_REQUEST, "현재 인원보다 적게 최대 인원을 설정할 수 없습니다."),
+
     // Schedule 4000
     SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
 
@@ -67,6 +68,9 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
     PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다.");
+
+    // Notification 8000
+
 
     private final String code;
     private final HttpStatus status;

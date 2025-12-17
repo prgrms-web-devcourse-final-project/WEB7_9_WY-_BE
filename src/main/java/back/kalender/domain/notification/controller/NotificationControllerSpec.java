@@ -67,7 +67,7 @@ public interface NotificationControllerSpec {
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             examples = @ExampleObject(value = """
                                     {
-                                      "code": "AUTH_001",
+                                      "code": "7004",
                                       "message": "인증 정보가 유효하지 않습니다."
                                     }
                                     """)
@@ -80,7 +80,7 @@ public interface NotificationControllerSpec {
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             examples = @ExampleObject(value = """
                                     {
-                                      "code": "SSE_001",
+                                      "code": "503",
                                       "message": "서버의 최대 연결 수를 초과하여 더 이상 연결할 수 없습니다."
                                     }
                                     """)
