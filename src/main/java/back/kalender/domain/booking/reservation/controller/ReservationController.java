@@ -35,7 +35,7 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/reservations/{reservationId}/seats:hold")
+    @PostMapping("/reservation/{reservationId}/seats:hold")
     @Override
     public ResponseEntity<HoldSeatsResponse> holdSeats(
             @PathVariable Long reservationId,
@@ -50,7 +50,7 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/reservations/{reservationId}/seats:release")
+    @PostMapping("/reservation/{reservationId}/seats:release")
     @Override
     public ResponseEntity<ReleaseSeatsResponse> releaseSeats(
             @PathVariable Long reservationId,
@@ -65,7 +65,7 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/reservations/{reservationId}/summary")
+    @GetMapping("/reservation/{reservationId}/summary")
     @Override
     public ResponseEntity<ReservationSummaryResponse> getReservationSummary(
             @PathVariable Long reservationId,
@@ -78,7 +78,7 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/reservations/{reservationId}/delivery")
+    @PutMapping("/reservation/{reservationId}/delivery")
     @Override
     public ResponseEntity<UpdateDeliveryInfoResponse> updateDeliveryInfo(
             @PathVariable Long reservationId,
@@ -93,7 +93,7 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
-    @DeleteMapping("/reservations/{reservationId}")
+    @DeleteMapping("/reservation/{reservationId}")
     @Override
     public ResponseEntity<Void> cancelReservation(
             @PathVariable Long reservationId,
