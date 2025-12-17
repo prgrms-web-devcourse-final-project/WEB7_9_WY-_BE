@@ -24,6 +24,7 @@ import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -37,6 +38,7 @@ public class ScheduleService {
     private final ArtistFollowRepository artistFollowRepository;
     private final ArtistRepository artistRepository;
 
+    private static final int PARTY_AVAILABLE_DAYS = 31;
     private static final List<ScheduleCategory> PARTY_CATEGORIES = List.of(
             ScheduleCategory.CONCERT,
             ScheduleCategory.FAN_MEETING,
@@ -82,8 +84,16 @@ public class ScheduleService {
         List<EventResponse> items = schedules.stream()
                 .map(schedule -> {
                     Artist artist = artistMap.get(schedule.getArtistId());
+
+                    if (artist == null) {
+                        log.warn("[Schedule] 데이터 불일치 감지 - Schedule ID: {}의 Artist ID: {}를 찾을 수 없음",
+                                schedule.getId(), schedule.getArtistId());
+                        return null;
+                    }
+
                     return ScheduleResponseMapper.toEventResponse(schedule, artist);
                 })
+                .filter(Objects::nonNull)
                 .toList();
 
         return new EventsListResponse(items);
@@ -121,7 +131,7 @@ public class ScheduleService {
 
     private List<Schedule> fetchPartyAvailableEvents(List<Long> artistIds) {
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime endDate = now.plusDays(31);
+        LocalDateTime endDate = now.plusDays(PARTY_AVAILABLE_DAYS);
         return scheduleRepository.findPartyAvailableEvents(artistIds, PARTY_CATEGORIES, now, endDate);
     }
     private Map<Long, Artist> buildArtistMap(List<Schedule> list1, List<Schedule> list2) {
