@@ -52,7 +52,7 @@ logging:
     org.springframework.transaction.interceptor: TRACE
     com.rest1: DEBUG
     org.apache.tomcat.util.threads: DEBUG
-    com.zaxxer.hikari: DEBUG
+    com.zaxxer.hikari: INFO
 
 custom:
   dev:

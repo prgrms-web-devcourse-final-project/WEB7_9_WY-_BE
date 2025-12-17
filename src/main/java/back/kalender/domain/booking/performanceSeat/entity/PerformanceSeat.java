@@ -23,7 +23,6 @@ public class PerformanceSeat extends BaseEntity {
     @Column(name = "price_grade_id", nullable = false)
     private Long priceGradeId;
 
-    // 정적 좌석 구조 복사
     private Integer floor; 
     private String block;
     private Integer rowNumber;
@@ -32,10 +31,6 @@ public class PerformanceSeat extends BaseEntity {
     private Integer x;
     private Integer y;
 
-    /**
-     * 생성 전용 정적 팩토리
-     * (B가 상태값들 붙이기 전에는 이 구조만 사용)
-     */
     public static PerformanceSeat create(
             Long scheduleId,
             Long hallSeatId,
