@@ -69,9 +69,6 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
     PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다.");
 
-    // Notification 8000
-
-
     private final String code;
     private final HttpStatus status;
     private final String message;
