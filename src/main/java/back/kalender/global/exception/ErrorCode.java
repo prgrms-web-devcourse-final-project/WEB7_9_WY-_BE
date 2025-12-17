@@ -42,6 +42,7 @@ public enum ErrorCode {
 
     // 3400-3499: 파티 유효성 검증
     CANNOT_REDUCE_MAX_MEMBERS("3413", HttpStatus.BAD_REQUEST, "현재 인원보다 적게 최대 인원을 설정할 수 없습니다."),
+
     // Schedule 4000
     SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
 
