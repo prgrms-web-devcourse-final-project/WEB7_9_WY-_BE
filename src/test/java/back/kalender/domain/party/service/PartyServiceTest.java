@@ -1,5 +1,7 @@
 package back.kalender.domain.party.service;
 
+import back.kalender.domain.notification.entity.NotificationType;
+import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
@@ -62,6 +64,9 @@ class PartyServiceTest {
 
     @Mock
     private ScheduleRepository scheduleRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     private User testUser;
     private User applicant;
@@ -478,5 +483,77 @@ class PartyServiceTest {
                     .isInstanceOf(ServiceException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED_PARTY_LEADER);
         }
+    }
+    @Test
+    @DisplayName("파티 신청 시 방장에게 알림 발송")
+    void applyToParty_ShouldSendNotification() {
+        Long partyId = 100L;
+        Long applicantId = 2L;
+        Long leaderId = 1L;
+
+        Party mockParty = Party.builder()
+                .scheduleId(1L)
+                .leaderId(leaderId)
+                .partyName("콘서트 같이가요")
+                .maxMembers(4)
+                .build();
+        ReflectionTestUtils.setField(mockParty, "id", partyId);
+        ReflectionTestUtils.setField(mockParty, "status", PartyStatus.RECRUITING);
+        ReflectionTestUtils.setField(mockParty, "currentMembers", 1);
+
+        User mockApplicant = User.builder()
+                .nickname("파티광")
+                .email("test@test.com")
+                .gender(Gender.MALE)
+                .birthDate(java.time.LocalDate.of(2000, 1, 1))
+                .build();
+        ReflectionTestUtils.setField(mockApplicant, "id", applicantId);
+
+        given(partyRepository.findById(partyId)).willReturn(Optional.of(mockParty));
+        given(userRepository.findById(applicantId)).willReturn(Optional.of(mockApplicant));
+        given(partyApplicationRepository.existsByPartyIdAndApplicantId(any(), any())).willReturn(false);
+        given(partyMemberRepository.existsActiveMember(any(), any())).willReturn(false);
+
+        partyService.applyToParty(partyId, applicantId);
+
+        verify(notificationService).send(
+                eq(leaderId),
+                eq(NotificationType.APPLY),
+                anyString(),
+                contains("파티광"),
+                contains("/party/" + partyId)
+        );
+    }
+
+    @Test
+    @DisplayName("파티 신청 거절 시 신청자에게 알림 발송")
+    void rejectApplication_ShouldSendNotification() {
+        Long partyId = 100L;
+        Long applicationId = 10L;
+        Long leaderId = 1L;
+        Long applicantId = 2L;
+
+        Party mockParty = Party.builder()
+                .scheduleId(1L)
+                .leaderId(leaderId)
+                .partyName("콘서트 같이가요")
+                .build();
+        ReflectionTestUtils.setField(mockParty, "id", partyId);
+
+        PartyApplication mockApplication = PartyApplication.create(partyId, applicantId, leaderId);
+        ReflectionTestUtils.setField(mockApplication, "id", applicationId);
+
+        given(partyRepository.findById(partyId)).willReturn(Optional.of(mockParty));
+        given(partyApplicationRepository.findById(applicationId)).willReturn(Optional.of(mockApplication));
+
+        partyService.rejectApplication(partyId, applicationId, leaderId);
+
+        verify(notificationService).send(
+                eq(applicantId),
+                eq(NotificationType.REJECT),
+                anyString(),
+                contains("거절"),
+                contains("/party/" + partyId)
+        );
     }
 }

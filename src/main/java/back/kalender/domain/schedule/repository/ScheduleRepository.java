@@ -55,4 +55,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
             @Param("now") LocalDateTime now,
             @Param("endDate") LocalDateTime endDate
     );
+
+    List<Schedule> findAllByScheduleTimeBetween(LocalDateTime start, LocalDateTime end);
 }
