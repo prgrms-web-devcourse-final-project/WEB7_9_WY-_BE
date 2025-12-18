@@ -22,7 +22,6 @@ public class PerformanceSeatQueryService {
             Long scheduleId,
             String deviceId
     ) {
-        // ✅ 대기열 통과(Active) 여부 체크
         queueAccessService.checkSeatAccess(scheduleId, deviceId);
 
         return performanceSeatRepository.findSeatResponses(scheduleId);

@@ -1,17 +1,27 @@
 package back.kalender.domain.booking.waitingRoom.service;
 
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.domain.performance.schedule.service.ScheduleQueryService;
+import back.kalender.domain.schedule.service.ScheduleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class QueueAdmitScheduler {
 
     private final QueueService queueService;
+    private final ScheduleQueryService scheduleService;
 
     @Scheduled(fixedDelay = 1000)
     public void admit() {
-        queueService.admitIfCapacity(1L, 50);
+        List<Long> openScheduleIds = scheduleService.getOpenScheduleIds();
+
+        for (Long scheduleId : openScheduleIds) {
+            queueService.admitIfCapacity(scheduleId, 50);
+        }
     }
 }

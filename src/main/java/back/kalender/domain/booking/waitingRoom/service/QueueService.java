@@ -28,43 +28,50 @@ public class QueueService {
         return "queue:members:" + scheduleId;
     }
 
+    private String admittedKey(Long scheduleId) {
+        return "admitted:" + scheduleId;
+    }
+    private String activeKey(Long scheduleId) {
+        return "active:" + scheduleId;
+    }
+
     private String waitingTokenKey(String token) {
         return "waiting:" + token;
     }
 
     public QueueJoinResponse join(Long scheduleId, String deviceId) {
+        String qsid = UUID.randomUUID().toString();
+
         String qKey = queueKey(scheduleId);
-        String mKey = membersKey(scheduleId);
+        String qsidKey = "qsid:" + qsid;
 
-        Long added = redis.opsForSet().add(mKey, deviceId);
-        boolean addedNow = added != null && added == 1L;
+        redis.opsForZSet().add(qKey, qsid, System.currentTimeMillis());
+        redis.expire(qKey, JOIN_TTL);
 
-        if (addedNow) {
-            redis.opsForZSet().add(qKey, deviceId, System.currentTimeMillis());
+        redis.opsForValue().set(
+                qsidKey,
+                deviceId + ":" + scheduleId,
+                JOIN_TTL
+        );
 
-            redis.expire(qKey, JOIN_TTL);
-            redis.expire(mKey, JOIN_TTL);
-        }
+        Long rank0 = redis.opsForZSet().rank(qKey, qsid);
+        Long position = rank0 == null ? null : rank0 + 1;
 
-        Long rank0 = redis.opsForZSet().rank(qKey, deviceId);
-        Long position = (rank0 == null) ? null : rank0 + 1;
-
-        return new QueueJoinResponse("WAITING", position);
+        return new QueueJoinResponse("WAITING", position, qsid);
     }
 
+    public QueueStatusResponse status(Long scheduleId, String qsid) {
 
-    public QueueStatusResponse status(Long scheduleId, String deviceId) {
+        String admittedKey = admittedKey(scheduleId);
 
-        String aKey = "admitted:" + scheduleId;
-
-        Object tokenObj = redis.opsForHash().get(aKey, deviceId);
+        Object tokenObj = redis.opsForHash().get(admittedKey, qsid);
         if (tokenObj != null) {
             return new QueueStatusResponse("ADMITTED", null, tokenObj.toString());
         }
 
-        String qKey = queueKey(scheduleId);
+        Long rank0 = redis.opsForZSet()
+                .rank(queueKey(scheduleId), qsid);
 
-        Long rank0 = redis.opsForZSet().rank(qKey, deviceId);
         if (rank0 == null) {
             return new QueueStatusResponse("NOT_IN_QUEUE", null, null);
         }
@@ -72,20 +79,22 @@ public class QueueService {
         return new QueueStatusResponse("WAITING", rank0 + 1, null);
     }
 
-    public String issueWaitingToken(Long scheduleId, String deviceId) {
+    public String issueWaitingToken(Long scheduleId, String qsid) {
         String token = "wt_" + UUID.randomUUID().toString().replace("-", "");
+
         redis.opsForValue().set(
                 waitingTokenKey(token),
-                deviceId + ":" + scheduleId,
+                qsid + ":" + scheduleId,
                 WAITING_TOKEN_TTL
         );
+
         return token;
     }
 
     public int admitIfCapacity(Long scheduleId, int maxActive) {
-        String activeKey = "active:" + scheduleId;
+        String activeKey = activeKey(scheduleId);
 
-        Long current = redis.opsForSet().size(activeKey);
+        Long current = redis.opsForZSet().size(activeKey);
         long available = maxActive - (current == null ? 0 : current);
 
         if (available <= 0) return 0;
@@ -95,32 +104,26 @@ public class QueueService {
 
     public int admitNext(Long scheduleId, int n) {
         String qKey = queueKey(scheduleId);
-        String mKey = membersKey(scheduleId);
-        String aKey = "admitted:" + scheduleId;
+        String aKey = admittedKey(scheduleId);
 
-        // 1) 앞에서 n명 뽑기
         var next = redis.opsForZSet().range(qKey, 0, n - 1);
         if (next == null || next.isEmpty()) return 0;
 
         int admittedCount = 0;
 
-        for (String deviceId : next) {
-            // 2) 토큰 발급
-            String token = issueWaitingToken(scheduleId, deviceId);
+        for (String qsid : next) {
+            String token = issueWaitingToken(scheduleId, qsid);
 
             redis.opsForZSet().add(
-                    "active:" + scheduleId,
-                    deviceId,
+                    activeKey(scheduleId),
+                    qsid,
                     System.currentTimeMillis()
             );
 
-            // 3) admitted 기록: deviceId -> token
-            redis.opsForHash().put(aKey, deviceId, token);
-            redis.expire(aKey, JOIN_TTL); // admitted도 같이 정리되게 TTL(선택)
+            redis.opsForHash().put(aKey, qsid, token);
+            redis.expire(aKey, JOIN_TTL);
 
-            // 4) queue에서 제거
-            redis.opsForZSet().remove(qKey, deviceId);
-            redis.opsForSet().remove(mKey, deviceId);
+            redis.opsForZSet().remove(qKey, qsid);
 
             admittedCount++;
         }
