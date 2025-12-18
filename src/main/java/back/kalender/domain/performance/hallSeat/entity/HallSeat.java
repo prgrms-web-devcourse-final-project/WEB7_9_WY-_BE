@@ -22,8 +22,8 @@ public class HallSeat extends BaseEntity {
     private Integer floor;   // 1층, 2층 등
     private String block;
     @Column(name = "row_number")
-    private Integer row;
-    private Integer number;
+    private Integer rowNumber;
+    private Integer seatNumber;
 
     private Integer x;
     private Integer y;
