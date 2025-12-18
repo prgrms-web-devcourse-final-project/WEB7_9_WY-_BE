@@ -6,10 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Tag(name = "Notification", description = "알림 관련 API")
@@ -25,8 +22,16 @@ public class NotificationController implements NotificationControllerSpec {
         @AuthenticationPrincipal(expression = "userId") Long userId
         //TODO: 기능고도화 시 lastEventId 활용
         // @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
+//        @RequestParam Long userId
     ) {
         return notificationService.subscribe(userId);
     }
 
+    @PostMapping("/test-send")
+    public void testSend(
+            @RequestParam Long userId,
+            @RequestParam String message
+    ) {
+        notificationService.send(userId, back.kalender.domain.notification.entity.NotificationType.SYSTEM_ALERT, "테스트 알림", message, "/test");
+    }
 }

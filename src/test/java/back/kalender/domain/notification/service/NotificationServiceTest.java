@@ -1,6 +1,9 @@
 package back.kalender.domain.notification.service;
 
+import back.kalender.domain.notification.entity.Notification;
+import back.kalender.domain.notification.entity.NotificationType;
 import back.kalender.domain.notification.repository.EmitterRepository;
+import back.kalender.domain.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,9 +12,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -22,6 +28,12 @@ class NotificationServiceTest {
     @Mock
     private EmitterRepository emitterRepository;
 
+    @Mock
+    private NotificationRepository notificationRepository;
+
+    @Mock
+    private SseEmitter sseEmitter;
+
     @Test
     @DisplayName("구독을 요청하면 SseEmitter를 생성하고 저장한다")
     void subscribe_Success() {
@@ -31,5 +43,25 @@ class NotificationServiceTest {
 
         assertThat(result).isNotNull();
         verify(emitterRepository, times(1)).save(eq(userId), any(SseEmitter.class));
+    }
+
+    @Test
+    @DisplayName("알림 전송 시 DB에 저장하고, 연결된 유저에게 실시간 알림을 보낸다")
+    void send_Success() throws IOException {
+        Long userId = 1L;
+        String title = "새로운 알림";
+        String content = "알림 내용입니다.";
+
+        given(emitterRepository.get(userId)).willReturn(sseEmitter);
+
+        Notification notification = new Notification(userId, NotificationType.APPLY, title, content, "/url");
+        given(notificationRepository.save(any(Notification.class))).willReturn(notification);
+
+        notificationService.send(userId, NotificationType.APPLY, title, content, "/url");
+
+
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+
+        verify(sseEmitter, times(1)).send(any(SseEmitter.SseEventBuilder.class));
     }
 }
