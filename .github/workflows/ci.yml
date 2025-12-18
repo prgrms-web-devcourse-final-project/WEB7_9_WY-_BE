@@ -71,7 +71,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 10m
-          envs: DB_URL,DB_USERNAME,DB_PASSWORD,REDIS_PASSWORD,RABBITMQ_USER,RABBITMQ_PASSWORD
+          envs: DB_URL,DB_USERNAME,DB_PASSWORD,REDIS_PASSWORD,RABBITMQ_USER,RABBITMQ_PASSWORD, JWT_SECRET
           script: |
             export SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
             export SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
@@ -79,5 +79,5 @@ jobs:
             export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
             export RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}"
             export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
-            
+            export JWT_SECRET="${{ secrets.JWT_SECRET }}"
             ./deploy.sh
