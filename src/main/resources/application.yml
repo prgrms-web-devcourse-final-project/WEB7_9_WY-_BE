@@ -25,6 +25,11 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   output:
     ansi:
       enabled: always
@@ -77,3 +82,7 @@ custom:
     secret: ${JWT_SECRET}
     cookie:
       secure: false
+  redis:
+    redisson:
+      address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}
+      password: ${REDIS_PASSWORD:}
