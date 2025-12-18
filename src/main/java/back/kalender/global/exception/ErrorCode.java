@@ -52,8 +52,12 @@ public enum ErrorCode {
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
     PERFORMANCE_HALL_NOT_FOUND("5002", HttpStatus.NOT_FOUND, "공연장을 찾을 수 없습니다."),
     PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다."),
+    PERFORMANCE_SEAT_NOT_FOUND("5004", HttpStatus.NOT_FOUND, "공연 좌석을 찾을 수 없습니다."),
 
-    // MyPage 6000
+    // Reservation 6000
+    RESERVATION_NOT_FOUND("6001", HttpStatus.NOT_FOUND, "예매를 찾을 수 없습니다."),
+    RESERVATION_EXPIRED("6002", HttpStatus.BAD_REQUEST, "만료된 예매입니다."),
+    ALREADY_PAID_RESERVATION("6003", HttpStatus.BAD_REQUEST, "이미 결제된 예매입니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
