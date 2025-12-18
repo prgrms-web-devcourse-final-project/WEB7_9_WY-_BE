@@ -19,12 +19,10 @@ public class NotificationController implements NotificationControllerSpec {
     @Override
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeToNotifications(
-        @AuthenticationPrincipal(expression = "userId") Long userId
-        //TODO: 기능고도화 시 lastEventId 활용
-        // @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
-//        @RequestParam Long userId
+        @AuthenticationPrincipal(expression = "userId") Long userId,
+        @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     ) {
-        return notificationService.subscribe(userId);
+        return notificationService.subscribe(userId, lastEventId);
     }
 
     @PostMapping("/test-send")
