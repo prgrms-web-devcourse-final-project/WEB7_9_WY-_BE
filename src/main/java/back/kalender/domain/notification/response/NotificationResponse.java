@@ -6,7 +6,7 @@ import back.kalender.domain.notification.enums.NotificationType;
 import java.time.LocalDateTime;
 
 public record NotificationResponse(
-    Long NotificationId,
+    Long notificationId,
     NotificationType notificationType,
     String title,
     String content,
