@@ -1,6 +1,7 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.ApplicationStatus;
+import back.kalender.domain.party.enums.ApplicationStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -80,6 +81,7 @@ public record GetMyApplicationsResponse(
             String venueName,
 
             @Schema(description = "행사 일시", example = "2025-12-15T19:00:00")
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime eventDateTime
     ) {}
 

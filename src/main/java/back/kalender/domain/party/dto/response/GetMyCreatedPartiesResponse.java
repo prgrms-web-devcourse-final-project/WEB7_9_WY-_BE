@@ -1,7 +1,8 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.PartyStatus;
-import back.kalender.domain.party.entity.TransportType;
+import back.kalender.domain.party.enums.PartyStatus;
+import back.kalender.domain.party.enums.TransportType;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -45,6 +46,7 @@ public record GetMyCreatedPartiesResponse(
             Long chatRoomId,
 
             @Schema(description = "파티 생성 일시", example = "2025-12-01T10:00:00")
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime createdAt
     ) {}
 
@@ -61,6 +63,7 @@ public record GetMyCreatedPartiesResponse(
             String venueName,
 
             @Schema(description = "행사 일시", example = "2025-12-15T19:00:00")
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime eventDateTime
     ) {}
 
@@ -70,7 +73,7 @@ public record GetMyCreatedPartiesResponse(
             @Schema(description = "파티 타입", example = "출발팟", allowableValues = {"출발팟", "복귀팟"})
             String partyType,
 
-            @Schema(description = "출발 위치", example = "강남역 3번출구")
+            @Schema(description = "출발 위치", example = "강남역")
             String departureLocation,
 
             @Schema(description = "도착 위치", example = "잠실종합운동장")

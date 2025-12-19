@@ -1,5 +1,6 @@
 package back.kalender.domain.party.entity;
 
+import back.kalender.domain.party.enums.MemberRole;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -31,9 +32,6 @@ public class PartyMember extends BaseEntity {
     @Column(name = "left_at")
     private LocalDateTime leftAt;
 
-    @Column(name = "is_kicked", nullable = false)
-    private Boolean isKicked;
-
     @Column(name = "kicked_at")
     private LocalDateTime kickedAt;
 
@@ -42,7 +40,6 @@ public class PartyMember extends BaseEntity {
         this.partyId = partyId;
         this.userId = userId;
         this.role = role;
-        this.isKicked = false;
     }
 
     public static PartyMember createLeader(Long partyId, Long leaderId) {
@@ -61,25 +58,12 @@ public class PartyMember extends BaseEntity {
                 .build();
     }
 
-    public void leave() {
-        this.leftAt = LocalDateTime.now();
+    public void leave(LocalDateTime leftAt) {
+        this.leftAt = leftAt;
     }
 
-    public void kick() {
-        this.isKicked = true;
-        this.kickedAt = LocalDateTime.now();
-        this.leftAt = LocalDateTime.now();
-    }
-
-    public boolean isLeader() {
-        return this.role == MemberRole.LEADER;
-    }
-
-    public boolean hasLeft() {
-        return this.leftAt != null;
-    }
-
-    public boolean wasKicked() {
-        return this.isKicked != null && this.isKicked;
+    public void kick(LocalDateTime kickedAt) {
+        this.kickedAt = kickedAt;
+        this.leftAt = kickedAt;
     }
 }

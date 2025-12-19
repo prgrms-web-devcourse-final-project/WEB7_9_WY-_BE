@@ -1,6 +1,6 @@
 package back.kalender.domain.party.repository;
 
-import back.kalender.domain.party.entity.ApplicationStatus;
+import back.kalender.domain.party.enums.ApplicationStatus;
 import back.kalender.domain.party.entity.PartyApplication;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,20 +9,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
-public interface PartyApplicationRepository extends JpaRepository<PartyApplication, Long> {
-
-    Optional<PartyApplication> findById(Long applicationId);
+public interface PartyApplicationRepository extends JpaRepository<PartyApplication, Long>, PartyApplicationRepositoryCustom  {
 
     List<PartyApplication> findByPartyId(Long partyId);
 
     Page<PartyApplication> findByApplicantIdAndStatus(Long applicantId, ApplicationStatus status, Pageable pageable);
-
-    @Query("SELECT pa FROM PartyApplication pa WHERE pa.applicantId = :applicantId " +
-            "AND pa.status NOT IN ('COMPLETED', 'CANCELLED') " +
-            "ORDER BY pa.createdAt DESC")
-    Page<PartyApplication> findActiveApplicationsByApplicantId(@Param("applicantId") Long applicantId, Pageable pageable);
 
     boolean existsByPartyIdAndApplicantId(Long partyId, Long applicantId);
 

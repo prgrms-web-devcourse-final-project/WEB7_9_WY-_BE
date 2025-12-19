@@ -47,10 +47,12 @@ springdoc:
 
 logging:
   level:
-    org.hibernate.orm.jdbc.bind: TRACE
-    org.hibernate.orm.jdbc.extract: TRACE
+    org.hibernate.orm.jdbc.bind: OFF
+    org.hibernate.orm.jdbc.extract: OFF
     org.springframework.transaction.interceptor: TRACE
     com.rest1: DEBUG
+    org.apache.tomcat.util.threads: DEBUG
+    com.zaxxer.hikari: INFO
 
 custom:
   dev:
