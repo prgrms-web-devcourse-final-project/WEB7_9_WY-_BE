@@ -1,13 +1,13 @@
 package back.kalender.domain.notification.scheduler;
 
-import back.kalender.domain.notification.entity.NotificationType;
+import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyMember;
 import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
 import back.kalender.domain.schedule.entity.Schedule;
-import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.enums.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,5 +1,6 @@
 package back.kalender.domain.notification.entity;
 
+import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

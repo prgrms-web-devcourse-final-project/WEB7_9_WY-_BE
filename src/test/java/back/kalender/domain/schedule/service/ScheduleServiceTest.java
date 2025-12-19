@@ -6,7 +6,7 @@ import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.Schedule;
-import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.enums.ScheduleCategory;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;

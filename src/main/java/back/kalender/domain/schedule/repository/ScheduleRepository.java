@@ -1,10 +1,7 @@
 package back.kalender.domain.schedule.repository;
 
-import back.kalender.domain.schedule.dto.response.ScheduleResponse;
-import back.kalender.domain.schedule.dto.response.EventResponse;
-import back.kalender.domain.schedule.dto.response.UpcomingEventResponse;
 import back.kalender.domain.schedule.entity.Schedule;
-import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.enums.ScheduleCategory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

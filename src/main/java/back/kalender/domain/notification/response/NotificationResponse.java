@@ -1,7 +1,7 @@
 package back.kalender.domain.notification.response;
 
 import back.kalender.domain.notification.entity.Notification;
-import back.kalender.domain.notification.entity.NotificationType;
+import back.kalender.domain.notification.enums.NotificationType;
 
 import java.time.LocalDateTime;
 

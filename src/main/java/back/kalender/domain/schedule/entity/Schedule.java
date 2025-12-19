@@ -1,5 +1,6 @@
 package back.kalender.domain.schedule.entity;
 
+import back.kalender.domain.schedule.enums.ScheduleCategory;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;

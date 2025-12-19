@@ -1,7 +1,7 @@
 package back.kalender.domain.notification.service;
 
 import back.kalender.domain.notification.entity.Notification;
-import back.kalender.domain.notification.entity.NotificationType;
+import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.repository.EmitterRepository;
 import back.kalender.domain.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;

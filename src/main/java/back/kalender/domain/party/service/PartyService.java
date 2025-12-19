@@ -1,6 +1,6 @@
 package back.kalender.domain.party.service;
 
-import back.kalender.domain.notification.entity.NotificationType;
+import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;

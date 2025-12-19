@@ -1,11 +1,11 @@
 package back.kalender.domain.notification.controller;
 
+import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -23,13 +23,5 @@ public class NotificationController implements NotificationControllerSpec {
         @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     ) {
         return notificationService.subscribe(userId, lastEventId);
-    }
-
-    @PostMapping("/test-send")
-    public void testSend(
-            @RequestParam Long userId,
-            @RequestParam String message
-    ) {
-        notificationService.send(userId, back.kalender.domain.notification.entity.NotificationType.SYSTEM_ALERT, "테스트 알림", message, "/test");
     }
 }
