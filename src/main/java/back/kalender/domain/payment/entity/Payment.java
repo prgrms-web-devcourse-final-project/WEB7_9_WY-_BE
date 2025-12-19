@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 // 결제 엔티티
 @Entity
     @Table(name = "payments", indexes = {
-    @Index(name = "idx_payment_user_order_idempotency", columnList = "userId,orderId,idempotencyKey") // 멱등성 조회용 (userId 포함)
+    @Index(name = "idx_payment_user_order_idempotency", columnList = "userId,orderId,idempotencyKey"), // 멱등성 조회용
+    @Index(name = "idx_payment_user_order", columnList = "userId,orderId") // confirm() 조회용 (비관적 락 효율성)
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_payment_user_order_idempotency", columnNames = {"userId", "orderId", "idempotencyKey"}), // 멱등성 보장
     @UniqueConstraint(name = "uk_payment_payment_key", columnNames = "paymentKey") // 토스페이먼츠 결제 키 중복 방지

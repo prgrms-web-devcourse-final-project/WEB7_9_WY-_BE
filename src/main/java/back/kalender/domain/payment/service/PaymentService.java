@@ -14,6 +14,7 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -26,7 +27,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 기본적으로 읽기 전용 트랜잭션, 쓰기 작업은 @Transactional로 오버라이드
+@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -36,7 +37,6 @@ public class PaymentService {
 
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
-        // 멱등성 보장: 같은 (userId, orderId, idempotencyKey) 조합으로 이미 결제가 있으면 기존 결제 반환 (보안 강화)
         return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
                 .map(existingPayment -> {
                     log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, orderId: {}, idempotencyKey: {}",
@@ -49,27 +49,47 @@ public class PaymentService {
                             .build();
                 })
                 .orElseGet(() -> {
-                    // 새 결제 생성: userId를 포함하여 사용자별 멱등성 보장
-                    Payment payment = Payment.builder()
-                            .orderId(request.getOrderId())
-                            .userId(userId) // 멱등성 체크에 포함
-                            .provider(PaymentProvider.TOSS)
-                            .idempotencyKey(idempotencyKey)
-                            .amount(request.getAmount())
-                            .currency(request.getCurrency())
-                            .method(request.getMethod())
-                            .build();
+                    try {
+                        Payment payment = Payment.builder()
+                                .orderId(request.getOrderId())
+                                .userId(userId)
+                                .provider(PaymentProvider.TOSS)
+                                .idempotencyKey(idempotencyKey)
+                                .amount(request.getAmount())
+                                .currency(request.getCurrency())
+                                .method(request.getMethod())
+                                .build();
 
-                    Payment savedPayment = paymentRepository.save(payment);
-                    log.info("[Payment] 결제 생성 완료 - paymentId: {}, orderId: {}, amount: {}",
-                            savedPayment.getId(), savedPayment.getOrderId(), savedPayment.getAmount());
+                        Payment savedPayment = paymentRepository.save(payment);
+                        log.info("[Payment] 결제 생성 완료 - paymentId: {}, orderId: {}, amount: {}",
+                                savedPayment.getId(), savedPayment.getOrderId(), savedPayment.getAmount());
 
-                    return PaymentCreateResponse.builder()
-                            .paymentId(savedPayment.getId())
-                            .orderId(savedPayment.getOrderId())
-                            .amount(savedPayment.getAmount())
-                            .status(savedPayment.getStatus())
-                            .build();
+                        return PaymentCreateResponse.builder()
+                                .paymentId(savedPayment.getId())
+                                .orderId(savedPayment.getOrderId())
+                                .amount(savedPayment.getAmount())
+                                .status(savedPayment.getStatus())
+                                .build();
+                    } catch (DataIntegrityViolationException e) {
+                        // 동시 생성 경쟁: 유니크 제약조건 위반 → 재조회하여 멱등성 보장
+                        log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, orderId: {}, idempotencyKey: {}",
+                                userId, request.getOrderId(), idempotencyKey);
+                        return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
+                                .map(existingPayment -> {
+                                    log.info("[Payment] 멱등성: 재조회 후 기존 결제 반환 - paymentId: {}", existingPayment.getId());
+                                    return PaymentCreateResponse.builder()
+                                            .paymentId(existingPayment.getId())
+                                            .orderId(existingPayment.getOrderId())
+                                            .amount(existingPayment.getAmount())
+                                            .status(existingPayment.getStatus())
+                                            .build();
+                                })
+                                .orElseThrow(() -> {
+                                    log.error("[Payment] 유니크 충돌 후 재조회 실패 - userId: {}, orderId: {}, idempotencyKey: {}",
+                                            userId, request.getOrderId(), idempotencyKey);
+                                    return new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+                                });
+                    }
                 });
     }
 
@@ -81,35 +101,18 @@ public class PaymentService {
 
     @Transactional
     public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId) {
-        // 논리적 수정: paymentKey는 승인 전에는 없으므로 userId + orderId로 조회
         Payment payment = paymentRepository.findByUserIdAndOrderId(userId, request.getOrderId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
 
-        // 보안 검증: 요청한 사용자가 결제 소유자인지 확인
-        if (!payment.getUserId().equals(userId)) {
-            log.warn("[Payment] 사용자 불일치 - paymentId: {}, 저장된 userId: {}, 요청 userId: {}",
-                    payment.getId(), payment.getUserId(), userId);
-            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND); // 보안상 구체적인 에러 메시지 노출 방지
-        }
-
-        // 보안 검증: 저장된 금액과 요청 금액이 일치하는지 확인 (중간 변조 방지)
         if (!payment.getAmount().equals(request.getAmount())) {
             log.warn("[Payment] 금액 불일치 - paymentId: {}, 저장된 금액: {}, 요청 금액: {}",
                     payment.getId(), payment.getAmount(), request.getAmount());
             throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        // 보안 검증: 저장된 주문 ID와 요청 주문 ID가 일치하는지 확인
-        if (!payment.getOrderId().equals(request.getOrderId())) {
-            log.warn("[Payment] 주문 ID 불일치 - paymentId: {}, 저장된 주문 ID: {}, 요청 주문 ID: {}",
-                    payment.getId(), payment.getOrderId(), request.getOrderId());
-            throw new ServiceException(ErrorCode.PAYMENT_ORDER_ID_MISMATCH);
-        }
-
-        payment.markProcessing(); // 상태를 PROCESSING으로 변경 (게이트웨이 호출 전)
-        // 주의: request.getPaymentKey()는 토스페이먼츠에서 받은 임시 키 (승인 전 키)
+        payment.markProcessing();
         PaymentGatewayConfirmResponse gatewayResponse = paymentGateway.confirm(
-                request.getPaymentKey(), // 토스페이먼츠에서 받은 임시 결제 키
+                request.getPaymentKey(),
                 request.getOrderId(),
                 request.getAmount()
         );
@@ -117,7 +120,6 @@ public class PaymentService {
         if (gatewayResponse.isSuccess()) {
             LocalDateTime approvedAt = LocalDateTime.now();
             payment.approve(gatewayResponse.getPaymentKey(), approvedAt);
-            // Outbox 패턴: 결제 승인 이벤트를 DB에 저장 (같은 트랜잭션 내에서)
             saveOutboxEvent(payment.getId(), "PAYMENT_APPROVED", createApprovedPayload(payment, approvedAt));
             
             log.info("[Payment] 결제 승인 완료 - paymentId: {}, paymentKey: {}",
@@ -131,7 +133,6 @@ public class PaymentService {
                     .build();
         } else {
             payment.fail(gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
-            // Outbox 패턴: 결제 실패 이벤트를 DB에 저장
             saveOutboxEvent(payment.getId(), "PAYMENT_FAILED", createFailedPayload(payment, gatewayResponse));
             
             log.warn("[Payment] 결제 승인 실패 - paymentId: {}, failCode: {}, failMessage: {}",
@@ -146,20 +147,21 @@ public class PaymentService {
         Payment payment = paymentRepository.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
 
-        // 보안 검증: 요청한 사용자가 결제 소유자인지 확인
         if (!payment.getUserId().equals(userId)) {
             log.warn("[Payment] 사용자 불일치 - paymentId: {}, 저장된 userId: {}, 요청 userId: {}",
                     payment.getId(), payment.getUserId(), userId);
-            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND); // 보안상 구체적인 에러 메시지 노출 방지
+            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
         }
 
-        // 멱등성: 이미 취소된 결제는 중복 취소 방지
         if (payment.getStatus() == PaymentStatus.CANCELED) {
-            log.warn("[Payment] 이미 취소된 결제 - paymentId: {}, status: {}", payment.getId(), payment.getStatus());
-            throw new ServiceException(ErrorCode.PAYMENT_ALREADY_CANCELED);
+            log.info("[Payment] 이미 취소된 결제 반환 (멱등성) - paymentId: {}, status: {}", payment.getId(), payment.getStatus());
+            return PaymentCancelResponse.builder()
+                    .paymentId(payment.getId())
+                    .status(payment.getStatus())
+                    .canceledAt(payment.getCanceledAt())
+                    .build();
         }
-        
-        // 상태 검증: APPROVED 상태인 결제만 취소 가능
+
         if (payment.getStatus() != PaymentStatus.APPROVED) {
             log.warn("[Payment] 취소 불가능한 상태 - paymentId: {}, status: {}", payment.getId(), payment.getStatus());
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CANCEL);
@@ -173,7 +175,6 @@ public class PaymentService {
         if (gatewayResponse.isSuccess()) {
             LocalDateTime canceledAt = LocalDateTime.now();
             payment.cancel(canceledAt);
-            // Outbox 패턴: 결제 취소 이벤트를 DB에 저장
             saveOutboxEvent(payment.getId(), "PAYMENT_CANCELED", createCanceledPayload(payment, request.getReason(), canceledAt));
             
             log.info("[Payment] 결제 취소 완료 - paymentId: {}, paymentKey: {}, reason: {}",
