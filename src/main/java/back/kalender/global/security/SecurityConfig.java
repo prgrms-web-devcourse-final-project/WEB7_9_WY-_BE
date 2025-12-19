@@ -48,7 +48,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:3000",          // 로컬 개발용
                 "https://idol-kalendar.shop",     // 도메인
-                "https://*.vercel.app",  // Vercel 배포 주소
+                "https://fandom-app.vercel.app",  // Vercel 배포 주소
                 frontUrl                          // 기존 설정 파일 값도 포함
         ));
 
