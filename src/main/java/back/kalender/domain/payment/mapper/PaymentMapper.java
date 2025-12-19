@@ -14,16 +14,16 @@ public class PaymentMapper {
         // 인스턴스화 방지
     }
 
-    // PaymentCreateRequest + userId + idempotencyKey → Payment 엔티티 생성
-    public static Payment create(PaymentCreateRequest request, Long userId, String idempotencyKey) {
+    // reservationId + userId + idempotencyKey + amount + currency + method → Payment 엔티티 생성
+    public static Payment create(Long reservationId, Long userId, String idempotencyKey, Integer amount, String currency, String method) {
         return Payment.builder()
-                .orderId(request.getOrderId())
+                .reservationId(reservationId)
                 .userId(userId)
                 .provider(PaymentProvider.TOSS)
                 .idempotencyKey(idempotencyKey)
-                .amount(request.getAmount())
-                .currency(request.getCurrency())
-                .method(request.getMethod())
+                .amount(amount)
+                .currency(currency)
+                .method(method)
                 .build();
     }
 
@@ -31,7 +31,7 @@ public class PaymentMapper {
     public static PaymentCreateResponse toCreateResponse(Payment payment) {
         return PaymentCreateResponse.builder()
                 .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
+                .reservationId(payment.getReservationId())
                 .amount(payment.getAmount())
                 .status(payment.getStatus())
                 .build();
@@ -41,7 +41,7 @@ public class PaymentMapper {
     public static PaymentConfirmResponse toConfirmResponse(Payment payment) {
         return PaymentConfirmResponse.builder()
                 .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
+                .reservationId(payment.getReservationId())
                 .status(payment.getStatus())
                 .approvedAt(payment.getApprovedAt())
                 .build();

@@ -20,8 +20,8 @@ public class PaymentConfirmResponse {
     @Schema(description = "결제 ID", example = "1")
     private Long paymentId;
     
-    @Schema(description = "주문 ID", example = "ORDER-2025-001")
-    private String orderId;
+    @Schema(description = "예매 ID", example = "123")
+    private Long reservationId;
     
     @Schema(description = "결제 상태", example = "APPROVED")
     private PaymentStatus status;

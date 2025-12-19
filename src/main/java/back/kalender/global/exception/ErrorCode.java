@@ -69,6 +69,9 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
     PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
 
+    // Reservation 6000
+    RESERVATION_NOT_FOUND("6001", HttpStatus.NOT_FOUND, "예매를 찾을 수 없습니다."),
+    
     // Payment 8000
     PAYMENT_NOT_FOUND("8001", HttpStatus.NOT_FOUND, "결제를 찾을 수 없습니다."),
     PAYMENT_AMOUNT_MISMATCH("8002", HttpStatus.BAD_REQUEST, "결제 금액이 일치하지 않습니다."),

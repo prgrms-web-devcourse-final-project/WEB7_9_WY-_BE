@@ -22,8 +22,8 @@ public class PaymentResponse {
     @Schema(description = "결제 ID", example = "1")
     private Long paymentId;
     
-    @Schema(description = "주문 ID", example = "ORDER-2024-001")
-    private String orderId;
+    @Schema(description = "예매 ID", example = "123")
+    private Long reservationId;
     
     @Schema(description = "사용자 ID", example = "100")
     private Long userId;
@@ -67,7 +67,7 @@ public class PaymentResponse {
     public static PaymentResponse from(Payment payment) {
         return PaymentResponse.builder()
                 .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
+                .reservationId(payment.getReservationId())
                 .userId(payment.getUserId())
                 .provider(payment.getProvider())
                 .paymentKey(payment.getPaymentKey())

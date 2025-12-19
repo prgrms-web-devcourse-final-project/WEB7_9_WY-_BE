@@ -12,6 +12,8 @@ import back.kalender.domain.payment.enums.PaymentStatus;
 import back.kalender.domain.payment.mapper.PaymentMapper;
 import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
+import back.kalender.domain.booking.reservation.entity.Reservation;
+import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -34,39 +36,53 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentIdempotencyRepository paymentIdempotencyRepository;
+    private final ReservationRepository reservationRepository;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
     private final OutboxEventService outboxEventService;
 
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
-        return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
+        // Reservation 조회 및 검증
+        Reservation reservation = reservationRepository.findById(request.getReservationId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        
+        if (!reservation.getUserId().equals(userId)) {
+            log.warn("[Payment] 예매 소유자 불일치 - reservationId: {}, 저장된 userId: {}, 요청 userId: {}",
+                    request.getReservationId(), reservation.getUserId(), userId);
+            throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
+        }
+        
+        // Reservation의 totalAmount 사용 (클라이언트가 보낸 amount 무시)
+        Integer amount = reservation.getTotalAmount();
+        
+        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.getReservationId(), idempotencyKey)
                 .map(existingPayment -> {
-                    log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, orderId: {}, idempotencyKey: {}",
-                            existingPayment.getId(), userId, existingPayment.getOrderId(), idempotencyKey);
+                    log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, reservationId: {}, idempotencyKey: {}",
+                            existingPayment.getId(), userId, existingPayment.getReservationId(), idempotencyKey);
                     return PaymentMapper.toCreateResponse(existingPayment);
                 })
                 .orElseGet(() -> {
                     try {
-                        Payment payment = PaymentMapper.create(request, userId, idempotencyKey);
+                        Payment payment = PaymentMapper.create(request.getReservationId(), userId, idempotencyKey, amount, request.getCurrency(), request.getMethod());
 
                         Payment savedPayment = paymentRepository.save(payment);
-                        log.info("[Payment] 결제 생성 완료 - paymentId: {}, orderId: {}, amount: {}",
-                                savedPayment.getId(), savedPayment.getOrderId(), savedPayment.getAmount());
+                        log.info("[Payment] 결제 생성 완료 - paymentId: {}, reservationId: {}, amount: {}",
+                                savedPayment.getId(), savedPayment.getReservationId(), savedPayment.getAmount());
 
                         return PaymentMapper.toCreateResponse(savedPayment);
                     } catch (DataIntegrityViolationException e) {
                         // 동시 생성 경쟁 시 재조회하여 멱등성 보장
-                        log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, orderId: {}, idempotencyKey: {}",
-                                userId, request.getOrderId(), idempotencyKey);
-                        return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
+                        log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, reservationId: {}, idempotencyKey: {}",
+                                userId, request.getReservationId(), idempotencyKey);
+                        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.getReservationId(), idempotencyKey)
                                 .map(existingPayment -> {
                                     log.info("[Payment] 멱등성: 재조회 후 기존 결제 반환 - paymentId: {}", existingPayment.getId());
                                     return PaymentMapper.toCreateResponse(existingPayment);
                                 })
                                 .orElseThrow(() -> {
-                                    log.error("[Payment] 유니크 충돌 후 재조회 실패 - userId: {}, orderId: {}, idempotencyKey: {}",
-                                            userId, request.getOrderId(), idempotencyKey);
+                                    log.error("[Payment] 유니크 충돌 후 재조회 실패 - userId: {}, reservationId: {}, idempotencyKey: {}",
+                                            userId, request.getReservationId(), idempotencyKey);
                                     return new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
                                 });
                     }
@@ -81,8 +97,25 @@ public class PaymentService {
 
     @Transactional
     public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId, String idempotencyKey) {
-        Payment payment = paymentRepository.findByUserIdAndOrderId(userId, request.getOrderId())
+        Payment payment = paymentRepository.findByUserIdAndReservationId(userId, request.getReservationId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        // Reservation 조회 및 금액 검증 (클라이언트가 보낸 amount 무시, Reservation의 totalAmount 사용)
+        Reservation reservation = reservationRepository.findById(request.getReservationId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        
+        if (!reservation.getUserId().equals(userId)) {
+            log.warn("[Payment] 예매 소유자 불일치 - reservationId: {}, 저장된 userId: {}, 요청 userId: {}",
+                    request.getReservationId(), reservation.getUserId(), userId);
+            throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
+        }
+        
+        // Payment에 저장된 금액과 Reservation의 totalAmount 비교
+        if (!payment.getAmount().equals(reservation.getTotalAmount())) {
+            log.warn("[Payment] 결제 금액 불일치 - paymentId: {}, paymentAmount: {}, reservationTotalAmount: {}",
+                    payment.getId(), payment.getAmount(), reservation.getTotalAmount());
+            throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
 
         // 멱등성 검증: 기존 결과 반환
         Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
@@ -94,8 +127,8 @@ public class PaymentService {
             return parseConfirmResponse(existingIdempotency.get().getResultJson(), payment);
         }
 
-        // 조건부 UPDATE: CREATED → PROCESSING (금액 검증 포함)
-        int updated = paymentRepository.updateStatusToProcessing(payment.getId(), request.getAmount());
+        // 조건부 UPDATE: CREATED → PROCESSING (Payment에 저장된 금액 사용)
+        int updated = paymentRepository.updateStatusToProcessing(payment.getId(), payment.getAmount());
         if (updated == 0) {
             Payment currentPayment = paymentRepository.findById(payment.getId())
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
@@ -104,13 +137,13 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CONFIRM);
         }
 
-        // 게이트웨이 호출
+        // 게이트웨이 호출 (토스페이먼츠는 orderId를 String으로 요구하므로 변환, Payment에 저장된 금액 사용)
         PaymentGatewayConfirmResponse gatewayResponse;
         try {
             gatewayResponse = paymentGateway.confirm(
                 request.getPaymentKey(),
-                request.getOrderId(),
-                request.getAmount()
+                String.valueOf(request.getReservationId()),
+                payment.getAmount()
             );
         } catch (Exception e) {
             // 타임아웃 시 PROCESSING_TIMEOUT으로 전이
@@ -340,7 +373,7 @@ public class PaymentService {
     private Map<String, Object> createBasePayload(Payment payment) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("paymentId", payment.getId());
-        payload.put("orderId", payment.getOrderId());
+        payload.put("reservationId", payment.getReservationId());
         payload.put("userId", payment.getUserId());
         payload.put("amount", payment.getAmount());
         return payload;

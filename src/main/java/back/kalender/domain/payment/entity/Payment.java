@@ -14,18 +14,18 @@ import java.time.LocalDateTime;
 // 결제 엔티티
 @Entity
     @Table(name = "payments", indexes = {
-    @Index(name = "idx_payment_user_order_idempotency", columnList = "userId,orderId,idempotencyKey"), // 멱등성 조회용
-    @Index(name = "idx_payment_user_order", columnList = "userId,orderId") // confirm() 조회용
+    @Index(name = "idx_payment_user_reservation_idempotency", columnList = "userId,reservationId,idempotencyKey"), // 멱등성 조회용
+    @Index(name = "idx_payment_user_reservation", columnList = "userId,reservationId") // confirm() 조회용
 }, uniqueConstraints = {
-    @UniqueConstraint(name = "uk_payment_user_order_idempotency", columnNames = {"userId", "orderId", "idempotencyKey"}), // 멱등성 보장
+    @UniqueConstraint(name = "uk_payment_user_reservation_idempotency", columnNames = {"userId", "reservationId", "idempotencyKey"}), // 멱등성 보장
     @UniqueConstraint(name = "uk_payment_payment_key", columnNames = "paymentKey") // 토스페이먼츠 결제 키 중복 방지
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Payment extends BaseEntity {
 
-    @Column(nullable = false)
-    private String orderId;
+    @Column(name = "reservation_id", nullable = false)
+    private Long reservationId;
 
     @Column(nullable = false)
     private Long userId; // 멱등성 체크에 포함되어 필수값으로 변경
@@ -66,9 +66,9 @@ public class Payment extends BaseEntity {
     private LocalDateTime canceledAt;
 
     @Builder
-    public Payment(String orderId, Long userId, PaymentProvider provider, String idempotencyKey,
+    public Payment(Long reservationId, Long userId, PaymentProvider provider, String idempotencyKey,
                    Integer amount, String currency, String method) {
-        this.orderId = orderId;
+        this.reservationId = reservationId;
         this.userId = userId;
         this.provider = provider;
         this.idempotencyKey = idempotencyKey;
