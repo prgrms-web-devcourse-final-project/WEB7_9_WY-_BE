@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -36,11 +36,11 @@ public class PaymentService {
 
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
-        // 멱등성 보장: 같은 (orderId, idempotencyKey) 조합으로 이미 결제가 있으면 기존 결제 반환
-        return paymentRepository.findByOrderIdAndIdempotencyKey(request.getOrderId(), idempotencyKey)
+        // 멱등성 보장: 같은 (userId, orderId, idempotencyKey) 조합으로 이미 결제가 있으면 기존 결제 반환 (보안 강화)
+        return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
                 .map(existingPayment -> {
-                    log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, orderId: {}, idempotencyKey: {}",
-                            existingPayment.getId(), existingPayment.getOrderId(), idempotencyKey);
+                    log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, orderId: {}, idempotencyKey: {}",
+                            existingPayment.getId(), userId, existingPayment.getOrderId(), idempotencyKey);
                     return PaymentCreateResponse.builder()
                             .paymentId(existingPayment.getId())
                             .orderId(existingPayment.getOrderId())
@@ -49,9 +49,10 @@ public class PaymentService {
                             .build();
                 })
                 .orElseGet(() -> {
+                    // 새 결제 생성: userId를 포함하여 사용자별 멱등성 보장
                     Payment payment = Payment.builder()
                             .orderId(request.getOrderId())
-                            .userId(userId)
+                            .userId(userId) // 멱등성 체크에 포함
                             .provider(PaymentProvider.TOSS)
                             .idempotencyKey(idempotencyKey)
                             .amount(request.getAmount())
