@@ -1,6 +1,6 @@
 package back.kalender.domain.chat.dto.response;
 
-import back.kalender.domain.chat.entity.MessageType;
+import back.kalender.domain.chat.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 

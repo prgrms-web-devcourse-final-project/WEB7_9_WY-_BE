@@ -4,10 +4,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record CreatePartyResponse(
         @Schema(description = "파티 ID", example = "1")
-        long partyId,
+        Long partyId,
 
         @Schema(description = "파티장 ID", example = "1")
-        long leaderId,
+        Long leaderId,
 
         @Schema(description = "상태", example = "생성 완료")
         String status
