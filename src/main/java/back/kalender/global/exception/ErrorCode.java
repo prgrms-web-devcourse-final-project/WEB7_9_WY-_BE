@@ -75,7 +75,9 @@ public enum ErrorCode {
     PAYMENT_ORDER_ID_MISMATCH("8003", HttpStatus.BAD_REQUEST, "주문 ID가 일치하지 않습니다."),
     PAYMENT_CANNOT_CANCEL("8004", HttpStatus.BAD_REQUEST, "취소할 수 없는 결제 상태입니다."),
     PAYMENT_ALREADY_CANCELED("8005", HttpStatus.BAD_REQUEST, "이미 취소된 결제입니다."),
-    PAYMENT_GATEWAY_ERROR("8006", HttpStatus.BAD_GATEWAY, "결제 게이트웨이 오류가 발생했습니다.");
+    PAYMENT_GATEWAY_ERROR("8006", HttpStatus.BAD_GATEWAY, "결제 게이트웨이 오류가 발생했습니다."),
+    PAYMENT_CANNOT_CONFIRM("8007", HttpStatus.BAD_REQUEST, "승인할 수 없는 결제 상태입니다."),
+    PAYMENT_GATEWAY_TIMEOUT("8010", HttpStatus.REQUEST_TIMEOUT, "결제 게이트웨이 타임아웃이 발생했습니다.");
 
     private final String code;
     private final HttpStatus status;

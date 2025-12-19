@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// 결제 컨트롤러 - 모든 POST 요청은 Idempotency-Key 헤더 필수
 @RestController
 @RequestMapping("/api/v1/payments")
 @RequiredArgsConstructor
@@ -31,9 +30,9 @@ public class PaymentController implements PaymentControllerSpec {
     @PostMapping
     public ResponseEntity<PaymentCreateResponse> createPayment(
             @Valid @RequestBody PaymentCreateRequest request,
-            @RequestHeader("Idempotency-Key") String idempotencyKey // 멱등성 보장을 위한 필수 헤더
+            @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow(); // 인증된 사용자 ID 조회
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
         PaymentCreateResponse response = paymentService.create(request, idempotencyKey, userId);
         return ResponseEntity.ok(response);
     }
@@ -41,21 +40,21 @@ public class PaymentController implements PaymentControllerSpec {
     @PostMapping("/confirm")
     public ResponseEntity<PaymentConfirmResponse> confirmPayment(
             @Valid @RequestBody PaymentConfirmRequest request,
-            @RequestHeader("Idempotency-Key") String idempotencyKey // 멱등성 보장을 위한 필수 헤더
+            @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow(); // 인증된 사용자 ID 조회
-        PaymentConfirmResponse response = paymentService.confirm(request, userId);
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        PaymentConfirmResponse response = paymentService.confirm(request, userId, idempotencyKey);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{paymentKey}/cancel")
     public ResponseEntity<PaymentCancelResponse> cancelPayment(
-            @PathVariable String paymentKey, // 토스페이먼츠에서 발급한 결제 키
+            @PathVariable String paymentKey,
             @Valid @RequestBody PaymentCancelRequest request,
-            @RequestHeader("Idempotency-Key") String idempotencyKey // 멱등성 보장을 위한 필수 헤더
+            @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
-        Long userId = SecurityUtil.getCurrentUserIdOrThrow(); // 인증된 사용자 ID 조회
-        PaymentCancelResponse response = paymentService.cancel(paymentKey, request, userId);
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        PaymentCancelResponse response = paymentService.cancel(paymentKey, request, userId, idempotencyKey);
         return ResponseEntity.ok(response);
     }
 

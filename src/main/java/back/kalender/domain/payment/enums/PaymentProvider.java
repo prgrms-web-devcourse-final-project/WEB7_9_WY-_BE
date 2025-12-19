@@ -1,4 +1,4 @@
-package back.kalender.domain.payment.entity;
+package back.kalender.domain.payment.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -11,4 +11,3 @@ public enum PaymentProvider {
 
     private final String name;
 }
-

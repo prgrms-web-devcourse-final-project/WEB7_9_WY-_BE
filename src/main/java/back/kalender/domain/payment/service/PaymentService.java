@@ -4,11 +4,13 @@ import back.kalender.domain.payment.dto.request.PaymentCancelRequest;
 import back.kalender.domain.payment.dto.request.PaymentConfirmRequest;
 import back.kalender.domain.payment.dto.request.PaymentCreateRequest;
 import back.kalender.domain.payment.dto.response.*;
+import back.kalender.domain.payment.constants.PaymentEventType;
 import back.kalender.domain.payment.entity.Payment;
-import back.kalender.domain.payment.entity.PaymentOutbox;
-import back.kalender.domain.payment.entity.PaymentProvider;
-import back.kalender.domain.payment.entity.PaymentStatus;
-import back.kalender.domain.payment.repository.PaymentOutboxRepository;
+import back.kalender.domain.payment.entity.PaymentIdempotency;
+import back.kalender.domain.payment.enums.PaymentOperation;
+import back.kalender.domain.payment.enums.PaymentProvider;
+import back.kalender.domain.payment.enums.PaymentStatus;
+import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -22,8 +24,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
-// 결제 서비스 - 생성, 조회, 승인, 취소 처리
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,9 +33,10 @@ import java.util.Map;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final PaymentOutboxRepository paymentOutboxRepository;
+    private final PaymentIdempotencyRepository paymentIdempotencyRepository;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
+    private final OutboxEventService outboxEventService;
 
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
@@ -71,7 +74,7 @@ public class PaymentService {
                                 .status(savedPayment.getStatus())
                                 .build();
                     } catch (DataIntegrityViolationException e) {
-                        // 동시 생성 경쟁: 유니크 제약조건 위반 → 재조회하여 멱등성 보장
+                        // 동시 생성 경쟁 시 재조회하여 멱등성 보장
                         log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, orderId: {}, idempotencyKey: {}",
                                 userId, request.getOrderId(), idempotencyKey);
                         return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
@@ -100,50 +103,172 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId) {
+    public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId, String idempotencyKey) {
         Payment payment = paymentRepository.findByUserIdAndOrderId(userId, request.getOrderId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
 
-        if (!payment.getAmount().equals(request.getAmount())) {
-            log.warn("[Payment] 금액 불일치 - paymentId: {}, 저장된 금액: {}, 요청 금액: {}",
-                    payment.getId(), payment.getAmount(), request.getAmount());
-            throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        // 멱등성 검증: 기존 결과 반환
+        Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
+                .findByPaymentIdAndOperationAndIdempotencyKey(payment.getId(), PaymentOperation.CONFIRM.name(), idempotencyKey);
+        
+        if (existingIdempotency.isPresent()) {
+            log.info("[Payment] 멱등성: 기존 승인 결과 반환 - paymentId: {}, idempotencyKey: {}", 
+                    payment.getId(), idempotencyKey);
+            return parseConfirmResponse(existingIdempotency.get().getResultJson(), payment);
         }
 
-        payment.markProcessing();
-        PaymentGatewayConfirmResponse gatewayResponse = paymentGateway.confirm(
+        // 조건부 UPDATE: CREATED → PROCESSING (금액 검증 포함)
+        int updated = paymentRepository.updateStatusToProcessing(payment.getId(), request.getAmount());
+        if (updated == 0) {
+            Payment currentPayment = paymentRepository.findById(payment.getId())
+                    .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+            log.warn("[Payment] 상태 전이 실패 - paymentId: {}, 현재 상태: {}", 
+                    payment.getId(), currentPayment.getStatus());
+            throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CONFIRM);
+        }
+
+        // 게이트웨이 호출
+        PaymentGatewayConfirmResponse gatewayResponse;
+        try {
+            gatewayResponse = paymentGateway.confirm(
                 request.getPaymentKey(),
                 request.getOrderId(),
                 request.getAmount()
-        );
+            );
+        } catch (Exception e) {
+            // 타임아웃 시 PROCESSING_TIMEOUT으로 전이
+            if (e.getMessage() != null && (e.getMessage().contains("timeout") || 
+                e.getMessage().contains("Timeout") || 
+                e.getClass().getSimpleName().contains("Timeout"))) {
+                paymentRepository.updateStatusToTimeout(payment.getId());
+                log.warn("[Payment] 게이트웨이 타임아웃 - paymentId: {}", payment.getId());
+                throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_TIMEOUT);
+            }
+            // 게이트웨이 호출 실패 시 CREATED로 롤백 (재시도 가능)
+            paymentRepository.updateStatusToCreated(payment.getId());
+            log.error("[Payment] 게이트웨이 호출 실패 - paymentId: {}", payment.getId(), e);
+            throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
+        }
 
         if (gatewayResponse.isSuccess()) {
-            LocalDateTime approvedAt = LocalDateTime.now();
-            payment.approve(gatewayResponse.getPaymentKey(), approvedAt);
-            saveOutboxEvent(payment.getId(), "PAYMENT_APPROVED", createApprovedPayload(payment, approvedAt));
-            
-            log.info("[Payment] 결제 승인 완료 - paymentId: {}, paymentKey: {}",
-                    payment.getId(), gatewayResponse.getPaymentKey());
-
-            return PaymentConfirmResponse.builder()
-                    .paymentId(payment.getId())
-                    .orderId(payment.getOrderId())
-                    .status(payment.getStatus())
-                    .approvedAt(payment.getApprovedAt())
-                    .build();
+            return handleGatewaySuccess(payment.getId(), gatewayResponse, idempotencyKey);
         } else {
-            payment.fail(gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
-            saveOutboxEvent(payment.getId(), "PAYMENT_FAILED", createFailedPayload(payment, gatewayResponse));
-            
-            log.warn("[Payment] 결제 승인 실패 - paymentId: {}, failCode: {}, failMessage: {}",
-                    payment.getId(), gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
-
-            throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
+            return handleGatewayFailure(payment.getId(), gatewayResponse);
         }
     }
 
+    private PaymentConfirmResponse handleGatewaySuccess(
+            Long paymentId, 
+            PaymentGatewayConfirmResponse gatewayResponse, 
+            String idempotencyKey
+    ) {
+        LocalDateTime approvedAt = LocalDateTime.now();
+        
+        try {
+            // 조건부 UPDATE: PROCESSING → APPROVED
+            int approved = paymentRepository.updateStatusToApproved(
+                paymentId, gatewayResponse.getPaymentKey(), approvedAt);
+            
+            if (approved == 0) {
+                // 보상 트랜잭션: DB 업데이트 실패 시 게이트웨이 취소
+                log.error("[Payment] 승인 상태 전이 실패, 게이트웨이 취소 시도 - paymentId: {}", paymentId);
+                try {
+                    paymentGateway.cancel(gatewayResponse.getPaymentKey(), "DB 업데이트 실패");
+                } catch (Exception cancelException) {
+                    log.error("[Payment] 게이트웨이 취소 실패 - paymentId: {}, paymentKey: {}", 
+                            paymentId, gatewayResponse.getPaymentKey(), cancelException);
+                }
+                throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+
+            Payment approvedPayment = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+            
+            PaymentConfirmResponse response = PaymentConfirmResponse.builder()
+                    .paymentId(approvedPayment.getId())
+                    .orderId(approvedPayment.getOrderId())
+                    .status(approvedPayment.getStatus())
+                    .approvedAt(approvedPayment.getApprovedAt())
+                    .build();
+            
+            // 멱등성 저장 (같은 트랜잭션에서 원자성 보장)
+            saveIdempotency(paymentId, PaymentOperation.CONFIRM, idempotencyKey, response);
+            
+            // Outbox 이벤트 저장 (REQUIRES_NEW로 분리)
+            try {
+                outboxEventService.saveOutboxEvent(approvedPayment.getId(), PaymentEventType.APPROVED, 
+                        createApprovedPayload(approvedPayment, approvedAt));
+            } catch (Exception e) {
+                log.error("[Payment] Outbox 이벤트 저장 실패 (Payment 상태는 유지) - paymentId: {}", paymentId, e);
+            }
+            
+            log.info("[Payment] 결제 승인 완료 - paymentId: {}, paymentKey: {}", 
+                    approvedPayment.getId(), gatewayResponse.getPaymentKey());
+            
+            return response;
+        } catch (Exception e) {
+            // 보상 트랜잭션: 예외 발생 시 게이트웨이 취소
+            log.error("[Payment] 승인 처리 중 예외 발생, 게이트웨이 취소 시도 - paymentId: {}", paymentId, e);
+            try {
+                paymentGateway.cancel(gatewayResponse.getPaymentKey(), "시스템 에러");
+            } catch (Exception cancelException) {
+                log.error("[Payment] 게이트웨이 취소 실패 - paymentId: {}", paymentId, cancelException);
+            }
+            throw e;
+        }
+    }
+
+    private PaymentConfirmResponse handleGatewayFailure(
+            Long paymentId, 
+            PaymentGatewayConfirmResponse gatewayResponse
+    ) {
+        // 조건부 UPDATE: PROCESSING → FAILED
+        int failed = paymentRepository.updateStatusToFailed(
+                paymentId, gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
+        if (failed == 0) {
+            Payment currentPayment = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+            log.warn("[Payment] 실패 상태 전이 실패 - paymentId: {}, 현재 상태: {}", 
+                    paymentId, currentPayment.getStatus());
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        Payment failedPayment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+        
+        // Outbox 이벤트 저장
+        try {
+            outboxEventService.saveOutboxEvent(failedPayment.getId(), PaymentEventType.FAILED, 
+                    createFailedPayload(failedPayment, gatewayResponse));
+        } catch (Exception e) {
+            log.error("[Payment] Outbox 이벤트 저장 실패 - paymentId: {}", paymentId, e);
+        }
+        
+        log.warn("[Payment] 결제 승인 실패 - paymentId: {}, failCode: {}, failMessage: {}",
+                failedPayment.getId(), gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
+
+        throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
+    }
+
+    private PaymentConfirmResponse parseConfirmResponse(String resultJson, Payment payment) {
+        // 멱등성 결과 파싱: resultJson 우선 사용, 실패 시 Payment 엔티티에서 생성
+        try {
+            if (resultJson != null && !resultJson.isEmpty()) {
+                return objectMapper.readValue(resultJson, PaymentConfirmResponse.class);
+            }
+        } catch (Exception e) {
+            log.warn("[Payment] Idempotency 결과 파싱 실패, Payment 엔티티에서 생성 - paymentId: {}", payment.getId(), e);
+        }
+        return PaymentConfirmResponse.builder()
+                .paymentId(payment.getId())
+                .orderId(payment.getOrderId())
+                .status(payment.getStatus())
+                .approvedAt(payment.getApprovedAt())
+                .build();
+    }
+
     @Transactional
-    public PaymentCancelResponse cancel(String paymentKey, PaymentCancelRequest request, Long userId) {
+    public PaymentCancelResponse cancel(String paymentKey, PaymentCancelRequest request, Long userId, String idempotencyKey) {
         Payment payment = paymentRepository.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
 
@@ -153,13 +278,25 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
         }
 
+        // 멱등성 검증: 기존 결과 반환
+        Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
+                .findByPaymentIdAndOperationAndIdempotencyKey(payment.getId(), PaymentOperation.CANCEL.name(), idempotencyKey);
+        
+        if (existingIdempotency.isPresent()) {
+            log.info("[Payment] 멱등성: 기존 취소 결과 반환 - paymentId: {}, idempotencyKey: {}", 
+                    payment.getId(), idempotencyKey);
+            return parseCancelResponse(existingIdempotency.get().getResultJson(), payment);
+        }
+
         if (payment.getStatus() == PaymentStatus.CANCELED) {
-            log.info("[Payment] 이미 취소된 결제 반환 (멱등성) - paymentId: {}, status: {}", payment.getId(), payment.getStatus());
-            return PaymentCancelResponse.builder()
+            // 이미 취소됨: 멱등성 저장 후 반환
+            PaymentCancelResponse response = PaymentCancelResponse.builder()
                     .paymentId(payment.getId())
                     .status(payment.getStatus())
                     .canceledAt(payment.getCanceledAt())
                     .build();
+            saveIdempotency(payment.getId(), PaymentOperation.CANCEL, idempotencyKey, response);
+            return response;
         }
 
         if (payment.getStatus() != PaymentStatus.APPROVED) {
@@ -167,24 +304,43 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CANCEL);
         }
 
-        PaymentGatewayCancelResponse gatewayResponse = paymentGateway.cancel(
-                paymentKey,
-                request.getReason()
-        );
+        PaymentGatewayCancelResponse gatewayResponse = paymentGateway.cancel(paymentKey, request.getReason());
 
         if (gatewayResponse.isSuccess()) {
             LocalDateTime canceledAt = LocalDateTime.now();
-            payment.cancel(canceledAt);
-            saveOutboxEvent(payment.getId(), "PAYMENT_CANCELED", createCanceledPayload(payment, request.getReason(), canceledAt));
+            int canceled = paymentRepository.updateStatusToCanceled(payment.getId(), canceledAt);
+            if (canceled == 0) {
+                Payment currentPayment = paymentRepository.findById(payment.getId())
+                        .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+                log.warn("[Payment] 취소 상태 전이 실패 - paymentId: {}, 현재 상태: {}", 
+                        payment.getId(), currentPayment.getStatus());
+                throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CANCEL);
+            }
+
+            Payment canceledPayment = paymentRepository.findById(payment.getId())
+                    .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+            
+            PaymentCancelResponse response = PaymentCancelResponse.builder()
+                    .paymentId(canceledPayment.getId())
+                    .status(canceledPayment.getStatus())
+                    .canceledAt(canceledPayment.getCanceledAt())
+                    .build();
+            
+            // 멱등성 저장
+            saveIdempotency(canceledPayment.getId(), PaymentOperation.CANCEL, idempotencyKey, response);
+            
+            // Outbox 이벤트 저장
+            try {
+                outboxEventService.saveOutboxEvent(canceledPayment.getId(), PaymentEventType.CANCELED, 
+                        createCanceledPayload(canceledPayment, request.getReason(), canceledAt));
+            } catch (Exception e) {
+                log.error("[Payment] Outbox 이벤트 저장 실패 - paymentId: {}", canceledPayment.getId(), e);
+            }
             
             log.info("[Payment] 결제 취소 완료 - paymentId: {}, paymentKey: {}, reason: {}",
-                    payment.getId(), paymentKey, request.getReason());
-
-            return PaymentCancelResponse.builder()
-                    .paymentId(payment.getId())
-                    .status(payment.getStatus())
-                    .canceledAt(payment.getCanceledAt())
-                    .build();
+                    canceledPayment.getId(), paymentKey, request.getReason());
+            
+            return response;
         } else {
             log.warn("[Payment] 결제 취소 실패 - paymentId: {}, failCode: {}, failMessage: {}",
                     payment.getId(), gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
@@ -192,47 +348,65 @@ public class PaymentService {
         }
     }
 
-    // Outbox 패턴: 이벤트를 DB에 저장하고, 별도 워커가 MQ로 발행 (트랜잭션 안전성 보장)
-    // 중요: 예외를 잡지 않아서 실패 시 트랜잭션이 롤백되도록 함 (Outbox 패턴의 핵심)
-    private void saveOutboxEvent(Long paymentId, String eventType, Map<String, Object> payload) {
-        String payloadJson = objectMapper.writeValueAsString(payload);
-        PaymentOutbox outbox = PaymentOutbox.builder()
-                .paymentId(paymentId)
-                .eventType(eventType)
-                .payloadJson(payloadJson)
+    private PaymentCancelResponse parseCancelResponse(String resultJson, Payment payment) {
+        // 멱등성 결과 파싱: resultJson 우선 사용, 실패 시 Payment 엔티티에서 생성
+        try {
+            if (resultJson != null && !resultJson.isEmpty()) {
+                return objectMapper.readValue(resultJson, PaymentCancelResponse.class);
+            }
+        } catch (Exception e) {
+            log.warn("[Payment] Idempotency 결과 파싱 실패, Payment 엔티티에서 생성 - paymentId: {}", payment.getId(), e);
+        }
+        return PaymentCancelResponse.builder()
+                .paymentId(payment.getId())
+                .status(payment.getStatus())
+                .canceledAt(payment.getCanceledAt())
                 .build();
-        paymentOutboxRepository.save(outbox);
-        log.debug("[Payment] Outbox 이벤트 저장 - paymentId: {}, eventType: {}", paymentId, eventType);
     }
 
-    private Map<String, Object> createApprovedPayload(Payment payment, LocalDateTime approvedAt) {
+    // 멱등성 저장
+    private void saveIdempotency(Long paymentId, PaymentOperation operation, String idempotencyKey, Object result) {
+        try {
+            String resultJson = objectMapper.writeValueAsString(result);
+            PaymentIdempotency idempotency = PaymentIdempotency.builder()
+                    .paymentId(paymentId)
+                    .operation(operation.name())
+                    .idempotencyKey(idempotencyKey)
+                    .resultJson(resultJson)
+                    .build();
+            paymentIdempotencyRepository.save(idempotency);
+        } catch (Exception e) {
+            log.error("[Payment] Idempotency 저장 실패 - paymentId: {}, operation: {}", 
+                    paymentId, operation, e);
+            throw new RuntimeException("Idempotency 저장 실패", e);
+        }
+    }
+
+    private Map<String, Object> createBasePayload(Payment payment) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("paymentId", payment.getId());
         payload.put("orderId", payment.getOrderId());
         payload.put("userId", payment.getUserId());
         payload.put("amount", payment.getAmount());
+        return payload;
+    }
+
+    private Map<String, Object> createApprovedPayload(Payment payment, LocalDateTime approvedAt) {
+        Map<String, Object> payload = createBasePayload(payment);
         payload.put("paymentKey", payment.getPaymentKey());
         payload.put("approvedAt", approvedAt.toString());
         return payload;
     }
 
     private Map<String, Object> createFailedPayload(Payment payment, PaymentGatewayConfirmResponse gatewayResponse) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("paymentId", payment.getId());
-        payload.put("orderId", payment.getOrderId());
-        payload.put("userId", payment.getUserId());
-        payload.put("amount", payment.getAmount());
+        Map<String, Object> payload = createBasePayload(payment);
         payload.put("failCode", gatewayResponse.getFailCode());
         payload.put("failMessage", gatewayResponse.getFailMessage());
         return payload;
     }
 
     private Map<String, Object> createCanceledPayload(Payment payment, String reason, LocalDateTime canceledAt) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("paymentId", payment.getId());
-        payload.put("orderId", payment.getOrderId());
-        payload.put("userId", payment.getUserId());
-        payload.put("amount", payment.getAmount());
+        Map<String, Object> payload = createBasePayload(payment);
         payload.put("paymentKey", payment.getPaymentKey());
         payload.put("cancelReason", reason);
         payload.put("canceledAt", canceledAt.toString());

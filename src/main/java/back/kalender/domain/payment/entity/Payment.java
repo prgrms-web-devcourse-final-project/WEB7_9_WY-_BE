@@ -1,5 +1,7 @@
 package back.kalender.domain.payment.entity;
 
+import back.kalender.domain.payment.enums.PaymentProvider;
+import back.kalender.domain.payment.enums.PaymentStatus;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -13,7 +15,7 @@ import java.time.LocalDateTime;
 @Entity
     @Table(name = "payments", indexes = {
     @Index(name = "idx_payment_user_order_idempotency", columnList = "userId,orderId,idempotencyKey"), // 멱등성 조회용
-    @Index(name = "idx_payment_user_order", columnList = "userId,orderId") // confirm() 조회용 (비관적 락 효율성)
+    @Index(name = "idx_payment_user_order", columnList = "userId,orderId") // confirm() 조회용
 }, uniqueConstraints = {
     @UniqueConstraint(name = "uk_payment_user_order_idempotency", columnNames = {"userId", "orderId", "idempotencyKey"}), // 멱등성 보장
     @UniqueConstraint(name = "uk_payment_payment_key", columnNames = "paymentKey") // 토스페이먼츠 결제 키 중복 방지
@@ -76,7 +78,11 @@ public class Payment extends BaseEntity {
         this.status = PaymentStatus.CREATED;
     }
 
-    // 상태 전이: CREATED → PROCESSING (게이트웨이 호출 전 상태 변경)
+    // 상태 전이 메서드들 (참고용)
+    // 주의: 현재는 조건부 UPDATE를 사용하므로 이 메서드들은 사용되지 않음
+    // 동시성 안전성을 위해 PaymentRepository의 조건부 UPDATE 메서드 사용 권장
+    
+    @Deprecated
     public void markProcessing() {
         if (this.status != PaymentStatus.CREATED) {
             throw new IllegalStateException("Only CREATED payments can be marked as PROCESSING");
@@ -84,10 +90,10 @@ public class Payment extends BaseEntity {
         this.status = PaymentStatus.PROCESSING;
     }
 
-    // 상태 전이: PROCESSING/CREATED → APPROVED (멱등성: 이미 APPROVED면 아무것도 안 함)
+    @Deprecated
     public void approve(String paymentKey, LocalDateTime approvedAt) {
         if (this.status == PaymentStatus.APPROVED) {
-            return; // 멱등성 보장: 중복 승인 방지
+            return;
         }
         if (this.status != PaymentStatus.PROCESSING && this.status != PaymentStatus.CREATED) {
             throw new IllegalStateException("Only PROCESSING or CREATED payments can be approved");
@@ -97,16 +103,17 @@ public class Payment extends BaseEntity {
         this.approvedAt = approvedAt;
     }
 
+    @Deprecated
     public void fail(String code, String message) {
         this.status = PaymentStatus.FAILED;
         this.failCode = code;
         this.failMessage = message;
     }
 
-    // 상태 전이: APPROVED → CANCELED (멱등성: 이미 CANCELED면 아무것도 안 함)
+    @Deprecated
     public void cancel(LocalDateTime canceledAt) {
         if (this.status == PaymentStatus.CANCELED) {
-            return; // 멱등성 보장: 중복 취소 방지
+            return;
         }
         if (this.status != PaymentStatus.APPROVED) {
             throw new IllegalStateException("Only APPROVED payments can be canceled");

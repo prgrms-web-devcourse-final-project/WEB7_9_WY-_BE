@@ -1,5 +1,6 @@
 package back.kalender.domain.payment.entity;
 
+import back.kalender.domain.payment.enums.OutboxStatus;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -68,22 +69,23 @@ public class PaymentOutbox extends BaseEntity {
         this.retryCount = 0;
     }
 
-    // PENDING → SENT (MQ 발행 성공 시)
+    // PROCESSING → SENT (MQ 발행 성공 시)
     public void markSent() {
         this.status = OutboxStatus.SENT;
         this.sentAt = LocalDateTime.now();
     }
 
-    // PENDING → FAILED (MQ 발행 실패 시, 재시도 시간 설정)
+    // PROCESSING → FAILED (MQ 발행 실패 시, 재시도 시간 설정)
     public void markFailed(LocalDateTime nextRetryAt) {
         this.status = OutboxStatus.FAILED;
         this.retryCount++;
         this.nextRetryAt = nextRetryAt;
     }
 
-    // FAILED → PENDING (재시도 시)
-    public void resetToPending() {
-        this.status = OutboxStatus.PENDING;
+    // 최대 재시도 초과 시 최종 포기 상태로 변경 (무한 루프 방지)
+    public void markAbandoned() {
+        this.status = OutboxStatus.ABANDONED;
+        this.nextRetryAt = null;
     }
 }
 

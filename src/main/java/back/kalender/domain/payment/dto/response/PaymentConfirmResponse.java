@@ -1,6 +1,6 @@
 package back.kalender.domain.payment.dto.response;
 
-import back.kalender.domain.payment.entity.PaymentStatus;
+import back.kalender.domain.payment.enums.PaymentStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
