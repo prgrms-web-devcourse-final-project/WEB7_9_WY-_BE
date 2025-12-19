@@ -17,8 +17,8 @@ public class PaymentOutboxRepositoryImpl implements PaymentOutboxRepositoryCusto
     @Override
     public List<Long> claimPendingOutboxes(int limit) {
         // 선점 업데이트: PENDING/FAILED → PROCESSING으로 변경하여 클레임한 ID 목록 반환
-        // FOR UPDATE SKIP LOCKED: 이미 다른 트랜잭션이 잠근 row는 건너뜀
-        // RETURNING id: 업데이트된 row의 id를 반환
+        // FOR UPDATE SKIP LOCKED -> 이미 다른 트랜잭션이 잠근 row는 건너뜀
+        // RETURNING id -> 업데이트된 row의 id를 반환
         String sql = "UPDATE payment_outbox o " +
                 "SET status = 'PROCESSING' " +
                 "FROM (" +

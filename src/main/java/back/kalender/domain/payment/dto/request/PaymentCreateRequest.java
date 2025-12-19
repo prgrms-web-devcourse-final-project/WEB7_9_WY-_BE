@@ -15,7 +15,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class PaymentCreateRequest {
 
-    @Schema(description = "주문 ID", example = "ORDER-2024-001", required = true)
+    @Schema(description = "주문 ID", example = "ORDER-2025-001", required = true)
     @NotBlank(message = "orderId is required")
     private String orderId;
 

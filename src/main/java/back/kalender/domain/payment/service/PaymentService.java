@@ -8,8 +8,8 @@ import back.kalender.domain.payment.constants.PaymentEventType;
 import back.kalender.domain.payment.entity.Payment;
 import back.kalender.domain.payment.entity.PaymentIdempotency;
 import back.kalender.domain.payment.enums.PaymentOperation;
-import back.kalender.domain.payment.enums.PaymentProvider;
 import back.kalender.domain.payment.enums.PaymentStatus;
+import back.kalender.domain.payment.mapper.PaymentMapper;
 import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -44,35 +44,17 @@ public class PaymentService {
                 .map(existingPayment -> {
                     log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, orderId: {}, idempotencyKey: {}",
                             existingPayment.getId(), userId, existingPayment.getOrderId(), idempotencyKey);
-                    return PaymentCreateResponse.builder()
-                            .paymentId(existingPayment.getId())
-                            .orderId(existingPayment.getOrderId())
-                            .amount(existingPayment.getAmount())
-                            .status(existingPayment.getStatus())
-                            .build();
+                    return PaymentMapper.toCreateResponse(existingPayment);
                 })
                 .orElseGet(() -> {
                     try {
-                        Payment payment = Payment.builder()
-                                .orderId(request.getOrderId())
-                                .userId(userId)
-                                .provider(PaymentProvider.TOSS)
-                                .idempotencyKey(idempotencyKey)
-                                .amount(request.getAmount())
-                                .currency(request.getCurrency())
-                                .method(request.getMethod())
-                                .build();
+                        Payment payment = PaymentMapper.create(request, userId, idempotencyKey);
 
                         Payment savedPayment = paymentRepository.save(payment);
                         log.info("[Payment] 결제 생성 완료 - paymentId: {}, orderId: {}, amount: {}",
                                 savedPayment.getId(), savedPayment.getOrderId(), savedPayment.getAmount());
 
-                        return PaymentCreateResponse.builder()
-                                .paymentId(savedPayment.getId())
-                                .orderId(savedPayment.getOrderId())
-                                .amount(savedPayment.getAmount())
-                                .status(savedPayment.getStatus())
-                                .build();
+                        return PaymentMapper.toCreateResponse(savedPayment);
                     } catch (DataIntegrityViolationException e) {
                         // 동시 생성 경쟁 시 재조회하여 멱등성 보장
                         log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, orderId: {}, idempotencyKey: {}",
@@ -80,12 +62,7 @@ public class PaymentService {
                         return paymentRepository.findByUserIdAndOrderIdAndIdempotencyKey(userId, request.getOrderId(), idempotencyKey)
                                 .map(existingPayment -> {
                                     log.info("[Payment] 멱등성: 재조회 후 기존 결제 반환 - paymentId: {}", existingPayment.getId());
-                                    return PaymentCreateResponse.builder()
-                                            .paymentId(existingPayment.getId())
-                                            .orderId(existingPayment.getOrderId())
-                                            .amount(existingPayment.getAmount())
-                                            .status(existingPayment.getStatus())
-                                            .build();
+                                    return PaymentMapper.toCreateResponse(existingPayment);
                                 })
                                 .orElseThrow(() -> {
                                     log.error("[Payment] 유니크 충돌 후 재조회 실패 - userId: {}, orderId: {}, idempotencyKey: {}",
@@ -184,12 +161,7 @@ public class PaymentService {
             Payment approvedPayment = paymentRepository.findById(paymentId)
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
             
-            PaymentConfirmResponse response = PaymentConfirmResponse.builder()
-                    .paymentId(approvedPayment.getId())
-                    .orderId(approvedPayment.getOrderId())
-                    .status(approvedPayment.getStatus())
-                    .approvedAt(approvedPayment.getApprovedAt())
-                    .build();
+            PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(approvedPayment);
             
             // 멱등성 저장 (같은 트랜잭션에서 원자성 보장)
             saveIdempotency(paymentId, PaymentOperation.CONFIRM, idempotencyKey, response);
@@ -259,12 +231,7 @@ public class PaymentService {
         } catch (Exception e) {
             log.warn("[Payment] Idempotency 결과 파싱 실패, Payment 엔티티에서 생성 - paymentId: {}", payment.getId(), e);
         }
-        return PaymentConfirmResponse.builder()
-                .paymentId(payment.getId())
-                .orderId(payment.getOrderId())
-                .status(payment.getStatus())
-                .approvedAt(payment.getApprovedAt())
-                .build();
+        return PaymentMapper.toConfirmResponse(payment);
     }
 
     @Transactional
@@ -290,11 +257,7 @@ public class PaymentService {
 
         if (payment.getStatus() == PaymentStatus.CANCELED) {
             // 이미 취소됨: 멱등성 저장 후 반환
-            PaymentCancelResponse response = PaymentCancelResponse.builder()
-                    .paymentId(payment.getId())
-                    .status(payment.getStatus())
-                    .canceledAt(payment.getCanceledAt())
-                    .build();
+            PaymentCancelResponse response = PaymentMapper.toCancelResponse(payment);
             saveIdempotency(payment.getId(), PaymentOperation.CANCEL, idempotencyKey, response);
             return response;
         }
@@ -320,11 +283,7 @@ public class PaymentService {
             Payment canceledPayment = paymentRepository.findById(payment.getId())
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
             
-            PaymentCancelResponse response = PaymentCancelResponse.builder()
-                    .paymentId(canceledPayment.getId())
-                    .status(canceledPayment.getStatus())
-                    .canceledAt(canceledPayment.getCanceledAt())
-                    .build();
+            PaymentCancelResponse response = PaymentMapper.toCancelResponse(canceledPayment);
             
             // 멱등성 저장
             saveIdempotency(canceledPayment.getId(), PaymentOperation.CANCEL, idempotencyKey, response);
@@ -357,11 +316,7 @@ public class PaymentService {
         } catch (Exception e) {
             log.warn("[Payment] Idempotency 결과 파싱 실패, Payment 엔티티에서 생성 - paymentId: {}", payment.getId(), e);
         }
-        return PaymentCancelResponse.builder()
-                .paymentId(payment.getId())
-                .status(payment.getStatus())
-                .canceledAt(payment.getCanceledAt())
-                .build();
+        return PaymentMapper.toCancelResponse(payment);
     }
 
     // 멱등성 저장

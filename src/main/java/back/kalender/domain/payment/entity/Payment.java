@@ -77,49 +77,5 @@ public class Payment extends BaseEntity {
         this.method = method;
         this.status = PaymentStatus.CREATED;
     }
-
-    // 상태 전이 메서드들 (참고용)
-    // 주의: 현재는 조건부 UPDATE를 사용하므로 이 메서드들은 사용되지 않음
-    // 동시성 안전성을 위해 PaymentRepository의 조건부 UPDATE 메서드 사용 권장
-    
-    @Deprecated
-    public void markProcessing() {
-        if (this.status != PaymentStatus.CREATED) {
-            throw new IllegalStateException("Only CREATED payments can be marked as PROCESSING");
-        }
-        this.status = PaymentStatus.PROCESSING;
-    }
-
-    @Deprecated
-    public void approve(String paymentKey, LocalDateTime approvedAt) {
-        if (this.status == PaymentStatus.APPROVED) {
-            return;
-        }
-        if (this.status != PaymentStatus.PROCESSING && this.status != PaymentStatus.CREATED) {
-            throw new IllegalStateException("Only PROCESSING or CREATED payments can be approved");
-        }
-        this.paymentKey = paymentKey;
-        this.status = PaymentStatus.APPROVED;
-        this.approvedAt = approvedAt;
-    }
-
-    @Deprecated
-    public void fail(String code, String message) {
-        this.status = PaymentStatus.FAILED;
-        this.failCode = code;
-        this.failMessage = message;
-    }
-
-    @Deprecated
-    public void cancel(LocalDateTime canceledAt) {
-        if (this.status == PaymentStatus.CANCELED) {
-            return;
-        }
-        if (this.status != PaymentStatus.APPROVED) {
-            throw new IllegalStateException("Only APPROVED payments can be canceled");
-        }
-        this.status = PaymentStatus.CANCELED;
-        this.canceledAt = canceledAt;
-    }
 }
 

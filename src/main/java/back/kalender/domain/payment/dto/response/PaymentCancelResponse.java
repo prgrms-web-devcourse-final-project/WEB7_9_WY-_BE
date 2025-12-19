@@ -23,6 +23,6 @@ public class PaymentCancelResponse {
     @Schema(description = "결제 상태", example = "CANCELED")
     private PaymentStatus status;
     
-    @Schema(description = "취소 시간", example = "2024-01-01T13:00:00")
+    @Schema(description = "취소 시간", example = "2025-01-01T13:00:00")
     private LocalDateTime canceledAt;
 }

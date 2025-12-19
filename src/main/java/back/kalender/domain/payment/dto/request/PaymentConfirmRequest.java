@@ -15,11 +15,11 @@ import lombok.Setter;
 @NoArgsConstructor
 public class PaymentConfirmRequest {
 
-    @Schema(description = "토스페이먼츠 결제 키", example = "tgen_20240101_abc123", required = true)
+    @Schema(description = "토스페이먼츠 결제 키", example = "tgen_20250101_abc123", required = true)
     @NotBlank(message = "paymentKey is required")
     private String paymentKey;
 
-    @Schema(description = "주문 ID", example = "ORDER-2024-001", required = true)
+    @Schema(description = "주문 ID", example = "ORDER-2025-001", required = true)
     @NotBlank(message = "orderId is required")
     private String orderId;
 

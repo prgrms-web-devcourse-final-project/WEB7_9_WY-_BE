@@ -52,16 +52,16 @@ public class PaymentResponse {
     @Schema(description = "실패 메시지", example = "카드 인증에 실패했습니다")
     private String failMessage;
     
-    @Schema(description = "승인 시간", example = "2024-01-01T12:00:00")
+    @Schema(description = "승인 시간", example = "2025-01-01T12:00:00")
     private LocalDateTime approvedAt;
     
-    @Schema(description = "취소 시간", example = "2024-01-01T13:00:00")
+    @Schema(description = "취소 시간", example = "2025-01-01T13:00:00")
     private LocalDateTime canceledAt;
     
-    @Schema(description = "생성 시간", example = "2024-01-01T11:00:00")
+    @Schema(description = "생성 시간", example = "2025-01-01T11:00:00")
     private LocalDateTime createdAt;
     
-    @Schema(description = "수정 시간", example = "2024-01-01T12:00:00")
+    @Schema(description = "수정 시간", example = "2025-01-01T12:00:00")
     private LocalDateTime updatedAt;
 
     public static PaymentResponse from(Payment payment) {
