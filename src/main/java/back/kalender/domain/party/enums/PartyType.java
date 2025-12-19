@@ -1,4 +1,4 @@
-package back.kalender.domain.party.entity;
+package back.kalender.domain.party.enums;
 
 import lombok.Getter;
 

@@ -1,6 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.MemberRole;
+import back.kalender.domain.party.enums.MemberRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
