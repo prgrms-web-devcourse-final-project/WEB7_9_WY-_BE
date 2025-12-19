@@ -55,8 +55,13 @@ dependencies {
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
 
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+<<<<<<< HEAD
     implementation 'org.webjars:sockjs-client:1.5.1'
     implementation 'org.webjars:stomp-websocket:2.3.4'
+=======
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+>>>>>>> dev
 }
 
 tasks.named('test') {
