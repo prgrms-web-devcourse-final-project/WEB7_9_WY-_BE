@@ -43,7 +43,8 @@ public class PaymentController implements PaymentControllerSpec {
             @Valid @RequestBody PaymentConfirmRequest request,
             @RequestHeader("Idempotency-Key") String idempotencyKey // 멱등성 보장을 위한 필수 헤더
     ) {
-        PaymentConfirmResponse response = paymentService.confirm(request);
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow(); // 인증된 사용자 ID 조회
+        PaymentConfirmResponse response = paymentService.confirm(request, userId);
         return ResponseEntity.ok(response);
     }
 
@@ -53,7 +54,8 @@ public class PaymentController implements PaymentControllerSpec {
             @Valid @RequestBody PaymentCancelRequest request,
             @RequestHeader("Idempotency-Key") String idempotencyKey // 멱등성 보장을 위한 필수 헤더
     ) {
-        PaymentCancelResponse response = paymentService.cancel(paymentKey, request);
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow(); // 인증된 사용자 ID 조회
+        PaymentCancelResponse response = paymentService.cancel(paymentKey, request, userId);
         return ResponseEntity.ok(response);
     }
 

@@ -11,6 +11,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // 멱등성 체크: userId, orderId, idempotencyKey 조합으로 조회 (보안 강화)
     Optional<Payment> findByUserIdAndOrderIdAndIdempotencyKey(Long userId, String orderId, String idempotencyKey);
 
+    // 결제 승인 조회: userId, orderId 조합으로 조회 (paymentKey는 승인 전에는 없음)
+    Optional<Payment> findByUserIdAndOrderId(Long userId, String orderId);
+
     Optional<Payment> findByPaymentKey(String paymentKey);
 }
 

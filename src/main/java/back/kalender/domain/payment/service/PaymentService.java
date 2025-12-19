@@ -80,9 +80,17 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentConfirmResponse confirm(PaymentConfirmRequest request) {
-        Payment payment = paymentRepository.findByPaymentKey(request.getPaymentKey())
+    public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId) {
+        // 논리적 수정: paymentKey는 승인 전에는 없으므로 userId + orderId로 조회
+        Payment payment = paymentRepository.findByUserIdAndOrderId(userId, request.getOrderId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        // 보안 검증: 요청한 사용자가 결제 소유자인지 확인
+        if (!payment.getUserId().equals(userId)) {
+            log.warn("[Payment] 사용자 불일치 - paymentId: {}, 저장된 userId: {}, 요청 userId: {}",
+                    payment.getId(), payment.getUserId(), userId);
+            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND); // 보안상 구체적인 에러 메시지 노출 방지
+        }
 
         // 보안 검증: 저장된 금액과 요청 금액이 일치하는지 확인 (중간 변조 방지)
         if (!payment.getAmount().equals(request.getAmount())) {
@@ -99,8 +107,9 @@ public class PaymentService {
         }
 
         payment.markProcessing(); // 상태를 PROCESSING으로 변경 (게이트웨이 호출 전)
+        // 주의: request.getPaymentKey()는 토스페이먼츠에서 받은 임시 키 (승인 전 키)
         PaymentGatewayConfirmResponse gatewayResponse = paymentGateway.confirm(
-                request.getPaymentKey(),
+                request.getPaymentKey(), // 토스페이먼츠에서 받은 임시 결제 키
                 request.getOrderId(),
                 request.getAmount()
         );
@@ -133,9 +142,16 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentCancelResponse cancel(String paymentKey, PaymentCancelRequest request) {
+    public PaymentCancelResponse cancel(String paymentKey, PaymentCancelRequest request, Long userId) {
         Payment payment = paymentRepository.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+
+        // 보안 검증: 요청한 사용자가 결제 소유자인지 확인
+        if (!payment.getUserId().equals(userId)) {
+            log.warn("[Payment] 사용자 불일치 - paymentId: {}, 저장된 userId: {}, 요청 userId: {}",
+                    payment.getId(), payment.getUserId(), userId);
+            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND); // 보안상 구체적인 에러 메시지 노출 방지
+        }
 
         // 멱등성: 이미 취소된 결제는 중복 취소 방지
         if (payment.getStatus() == PaymentStatus.CANCELED) {
@@ -176,20 +192,16 @@ public class PaymentService {
     }
 
     // Outbox 패턴: 이벤트를 DB에 저장하고, 별도 워커가 MQ로 발행 (트랜잭션 안전성 보장)
+    // 중요: 예외를 잡지 않아서 실패 시 트랜잭션이 롤백되도록 함 (Outbox 패턴의 핵심)
     private void saveOutboxEvent(Long paymentId, String eventType, Map<String, Object> payload) {
-        try {
-            String payloadJson = objectMapper.writeValueAsString(payload);
-            PaymentOutbox outbox = PaymentOutbox.builder()
-                    .paymentId(paymentId)
-                    .eventType(eventType)
-                    .payloadJson(payloadJson)
-                    .build();
-            paymentOutboxRepository.save(outbox);
-            log.debug("[Payment] Outbox 이벤트 저장 - paymentId: {}, eventType: {}", paymentId, eventType);
-        } catch (Exception e) {
-            // Outbox 저장 실패해도 결제 처리는 계속 진행 (로깅만)
-            log.error("[Payment] Outbox 이벤트 저장 실패 - paymentId: {}, eventType: {}", paymentId, eventType, e);
-        }
+        String payloadJson = objectMapper.writeValueAsString(payload);
+        PaymentOutbox outbox = PaymentOutbox.builder()
+                .paymentId(paymentId)
+                .eventType(eventType)
+                .payloadJson(payloadJson)
+                .build();
+        paymentOutboxRepository.save(outbox);
+        log.debug("[Payment] Outbox 이벤트 저장 - paymentId: {}, eventType: {}", paymentId, eventType);
     }
 
     private Map<String, Object> createApprovedPayload(Payment payment, LocalDateTime approvedAt) {

@@ -20,7 +20,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PaymentOutbox extends BaseEntity {
 
-    @Column(columnDefinition = "BINARY(16)", nullable = false, unique = true)
+    @Column(columnDefinition = "UUID", nullable = false, unique = true)
     private UUID eventId; // 이벤트 고유 id (비즈니스용, pk 아님) - 메시지 키/트레이싱에 사용
 
     @Column(nullable = false)
