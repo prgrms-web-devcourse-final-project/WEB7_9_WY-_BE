@@ -45,8 +45,13 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 프론트엔드 URL 허용
-        configuration.setAllowedOrigins(List.of(frontUrl));
-        
+        configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",          // 로컬 개발용
+                "https://idol-kalendar.shop",     // 도메인
+                "https://*.vercel.app",  // Vercel 배포 주소
+                frontUrl                          // 기존 설정 파일 값도 포함
+        ));
+
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         
