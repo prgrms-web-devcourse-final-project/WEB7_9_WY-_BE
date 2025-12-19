@@ -1,0 +1,116 @@
+package back.kalender.domain.payment.entity;
+
+import back.kalender.global.common.entity.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+// 결제 엔티티
+@Entity
+    @Table(name = "payments", indexes = {
+    @Index(name = "idx_payment_order_idempotency", columnList = "orderId,idempotencyKey", unique = true) // 멱등성 조회용
+}, uniqueConstraints = {
+    @UniqueConstraint(name = "uk_payment_payment_key", columnNames = "paymentKey") // 토스페이먼츠 결제 키 중복 방지
+})
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Payment extends BaseEntity {
+
+    @Column(nullable = false)
+    private String orderId;
+
+    @Column(nullable = true)
+    private Long userId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentProvider provider;
+
+    @Column(nullable = false)
+    private String idempotencyKey; // 멱등성 보장을 위한 키 (같은 요청 중복 방지)
+
+    @Column(unique = true, nullable = true)
+    private String paymentKey;
+
+    @Column(nullable = false)
+    private Integer amount;
+
+    @Column(nullable = false)
+    private String currency;
+
+    @Column(nullable = false)
+    private String method;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus status;
+
+    @Column(nullable = true)
+    private String failCode;
+
+    @Column(nullable = true)
+    private String failMessage;
+
+    @Column(nullable = true)
+    private LocalDateTime approvedAt;
+
+    @Column(nullable = true)
+    private LocalDateTime canceledAt;
+
+    @Builder
+    public Payment(String orderId, Long userId, PaymentProvider provider, String idempotencyKey,
+                   Integer amount, String currency, String method) {
+        this.orderId = orderId;
+        this.userId = userId;
+        this.provider = provider;
+        this.idempotencyKey = idempotencyKey;
+        this.amount = amount;
+        this.currency = currency;
+        this.method = method;
+        this.status = PaymentStatus.CREATED;
+    }
+
+    // 상태 전이: CREATED → PROCESSING (게이트웨이 호출 전 상태 변경)
+    public void markProcessing() {
+        if (this.status != PaymentStatus.CREATED) {
+            throw new IllegalStateException("Only CREATED payments can be marked as PROCESSING");
+        }
+        this.status = PaymentStatus.PROCESSING;
+    }
+
+    // 상태 전이: PROCESSING/CREATED → APPROVED (멱등성: 이미 APPROVED면 아무것도 안 함)
+    public void approve(String paymentKey, LocalDateTime approvedAt) {
+        if (this.status == PaymentStatus.APPROVED) {
+            return; // 멱등성 보장: 중복 승인 방지
+        }
+        if (this.status != PaymentStatus.PROCESSING && this.status != PaymentStatus.CREATED) {
+            throw new IllegalStateException("Only PROCESSING or CREATED payments can be approved");
+        }
+        this.paymentKey = paymentKey;
+        this.status = PaymentStatus.APPROVED;
+        this.approvedAt = approvedAt;
+    }
+
+    public void fail(String code, String message) {
+        this.status = PaymentStatus.FAILED;
+        this.failCode = code;
+        this.failMessage = message;
+    }
+
+    // 상태 전이: APPROVED → CANCELED (멱등성: 이미 CANCELED면 아무것도 안 함)
+    public void cancel(LocalDateTime canceledAt) {
+        if (this.status == PaymentStatus.CANCELED) {
+            return; // 멱등성 보장: 중복 취소 방지
+        }
+        if (this.status != PaymentStatus.APPROVED) {
+            throw new IllegalStateException("Only APPROVED payments can be canceled");
+        }
+        this.status = PaymentStatus.CANCELED;
+        this.canceledAt = canceledAt;
+    }
+}
+

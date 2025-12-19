@@ -67,7 +67,15 @@ public enum ErrorCode {
     EXPIRED_PASSWORD_RESET_TOKEN("7010", HttpStatus.UNAUTHORIZED, "만료된 비밀번호 재설정 토큰입니다."),
     PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
-    PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다.");
+    PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+
+    // Payment 8000
+    PAYMENT_NOT_FOUND("8001", HttpStatus.NOT_FOUND, "결제를 찾을 수 없습니다."),
+    PAYMENT_AMOUNT_MISMATCH("8002", HttpStatus.BAD_REQUEST, "결제 금액이 일치하지 않습니다."),
+    PAYMENT_ORDER_ID_MISMATCH("8003", HttpStatus.BAD_REQUEST, "주문 ID가 일치하지 않습니다."),
+    PAYMENT_CANNOT_CANCEL("8004", HttpStatus.BAD_REQUEST, "취소할 수 없는 결제 상태입니다."),
+    PAYMENT_ALREADY_CANCELED("8005", HttpStatus.BAD_REQUEST, "이미 취소된 결제입니다."),
+    PAYMENT_GATEWAY_ERROR("8006", HttpStatus.BAD_GATEWAY, "결제 게이트웨이 오류가 발생했습니다.");
 
     private final String code;
     private final HttpStatus status;
