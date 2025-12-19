@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PartyMemberRepository extends JpaRepository<PartyMember, Long> {
 
@@ -21,6 +22,8 @@ public interface PartyMemberRepository extends JpaRepository<PartyMember, Long> 
     @Query("SELECT pm FROM PartyMember pm " +
             "WHERE pm.partyId = :partyId AND pm.leftAt IS NULL")
     List<PartyMember> findActiveMembers(@Param("partyId") Long partyId);
+
+    Optional<PartyMember> findByPartyIdAndUserIdAndLeftAtIsNull(Long partyId, Long userId);
 
     @Query("SELECT CASE WHEN COUNT(pm) > 0 THEN true ELSE false END FROM PartyMember pm WHERE pm.partyId = :partyId AND pm.userId = :userId AND pm.leftAt IS NULL")
     boolean existsActiveMember(@Param("partyId") Long partyId, @Param("userId") Long userId);

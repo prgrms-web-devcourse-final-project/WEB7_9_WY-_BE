@@ -29,6 +29,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -369,20 +371,55 @@ public class PartyService {
                 })
                 .toList();
 
-        Long pendingCount = partyApplicationRepository.countPendingApplications(partyId);
-        Long approvedCount = partyApplicationRepository.countApprovedApplications(partyId);
-        Long rejectedCount = partyApplicationRepository.countRejectedApplications(partyId);
+        ApplicationCounts counts = getApplicationCounts(List.of(partyId)).get(partyId);
+        if (counts == null) {
+            counts = new ApplicationCounts(0, 0, 0);
+        }
 
         return new GetApplicantsResponse(
                 partyId,
                 applicationInfos,
                 new GetApplicantsResponse.ApplicationSummary(
                         applications.size(),
-                        pendingCount.intValue(),
-                        approvedCount.intValue(),
-                        rejectedCount.intValue()
+                        counts.pendingCount(),
+                        counts.approvedCount(),
+                        counts.rejectedCount()
                 )
         );
+    }
+
+    private Map<Long, ApplicationCounts> getApplicationCounts(List<Long> partyIds) {
+        if (partyIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<PartyApplicationRepository.ApplicationCountProjection> projections =
+                partyApplicationRepository.countByPartyIdsGroupByStatus(partyIds);
+
+        // 파티별로 그룹화
+        Map<Long, Map<ApplicationStatus, Long>> groupedByParty = new HashMap<>();
+
+        for (var projection : projections) {
+            groupedByParty
+                    .computeIfAbsent(projection.getPartyId(), k -> new HashMap<>())
+                    .put(projection.getStatus(), projection.getCount());
+        }
+
+        // ApplicationCounts로 변환
+        Map<Long, ApplicationCounts> result = new HashMap<>();
+
+        for (var entry : groupedByParty.entrySet()) {
+            Long partyId = entry.getKey();
+            Map<ApplicationStatus, Long> statusCounts = entry.getValue();
+
+            int pending = statusCounts.getOrDefault(ApplicationStatus.PENDING, 0L).intValue();
+            int approved = statusCounts.getOrDefault(ApplicationStatus.APPROVED, 0L).intValue();
+            int rejected = statusCounts.getOrDefault(ApplicationStatus.REJECTED, 0L).intValue();
+
+            result.put(partyId, new ApplicationCounts(pending, approved, rejected));
+        }
+
+        return result;
     }
 
     public GetPartyMembersResponse getPartyMembers(Long partyId) {
@@ -520,6 +557,12 @@ public class PartyService {
         Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
                 .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
 
+        List<Long> partyIds = parties.stream()
+                .map(Party::getId)
+                .toList();
+
+        Map<Long, ApplicationCounts> countsMap = getApplicationCounts(partyIds);
+
         List<GetMyCreatedPartiesResponse.CreatedPartyItem> partyItems = parties.stream()
                 .map(party -> {
                     Schedule schedule = scheduleMap.get(party.getScheduleId());
@@ -527,9 +570,10 @@ public class PartyService {
                         throw new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND);
                     }
 
-                    Long pendingCount = partyApplicationRepository.countPendingApplications(party.getId());
-                    Long approvedCount = partyApplicationRepository.countApprovedApplications(party.getId());
-                    Long rejectedCount = partyApplicationRepository.countRejectedApplications(party.getId());
+                    ApplicationCounts counts = countsMap.getOrDefault(
+                            party.getId(),
+                            new ApplicationCounts(0, 0, 0)
+                    );
 
                     return new GetMyCreatedPartiesResponse.CreatedPartyItem(
                             party.getId(),
@@ -549,9 +593,9 @@ public class PartyService {
                                     party.getStatus()
                             ),
                             new GetMyCreatedPartiesResponse.ApplicationStatistics(
-                                    pendingCount.intValue(),
-                                    approvedCount.intValue(),
-                                    rejectedCount.intValue()
+                                    counts.pendingCount(),
+                                    counts.approvedCount(),
+                                    counts.rejectedCount()
                             ),
                             party.getDescription(),
                             null,
@@ -661,5 +705,31 @@ public class PartyService {
                 completedPage.getTotalPages(),
                 completedPage.getNumber()
         );
+    }
+
+    @Transactional
+    public void removePartyMember(Long partyId, Long userId) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+
+        PartyMember member = partyMemberRepository
+                .findByPartyIdAndUserIdAndLeftAtIsNull(partyId, userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
+
+        member.leave(LocalDateTime.now());
+        party.decrementCurrentMembers();
+    }
+
+    @Transactional
+    public void kickPartyMember(Long partyId, Long targetMemberId) {
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+
+        PartyMember member = partyMemberRepository
+                .findByPartyIdAndUserIdAndLeftAtIsNull(partyId, targetMemberId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
+
+        member.kick(LocalDateTime.now());
+        party.decrementCurrentMembers();
     }
 }

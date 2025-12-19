@@ -13,6 +13,7 @@ import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyMember;
 import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
+import back.kalender.domain.party.service.PartyService;
 import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.exception.ErrorCode;
@@ -21,8 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -35,6 +34,7 @@ public class ChatService {
     private final PartyRepository partyRepository;
     private final PartyMemberRepository partyMemberRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final PartyService partyService;
 
     private User validateUserAndPartyMember(Long partyId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
@@ -53,9 +53,8 @@ public class ChatService {
     }
 
     private PartyMember getActiveMember(Long partyId, Long userId) {
-        return partyMemberRepository.findActiveMembers(partyId).stream()
-                .filter(member -> member.getUserId().equals(userId))
-                .findFirst()
+        return partyMemberRepository
+                .findByPartyIdAndUserIdAndLeftAtIsNull(partyId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
     }
 
@@ -110,13 +109,12 @@ public class ChatService {
             throw new ServiceException(ErrorCode.LEADER_CANNOT_LEAVE);
         }
 
-        PartyMember member = getActiveMember(partyId, user.getId());
-        member.leave(LocalDateTime.now());
-
-        party.decrementCurrentMembers();
+        partyService.removePartyMember(partyId, user.getId());
 
         ChatMessage leaveMessage = ChatMessage.createLeaveMessage(partyId, user.getId());
         chatMessageRepository.save(leaveMessage);
+
+        Party updatedParty = validateParty(partyId);
 
         return new LeaveRoomResponse(
                 MessageType.LEAVE,
@@ -125,7 +123,7 @@ public class ChatService {
                 user.getNickname(),
                 user.getNickname() + "님이 퇴장하셨습니다",
                 leaveMessage.getCreatedAt(),
-                party.getCurrentMembers()
+                updatedParty.getCurrentMembers()
         );
     }
 
@@ -149,14 +147,13 @@ public class ChatService {
             throw new ServiceException(ErrorCode.USER_NOT_IN_PARTY);
         }
 
-        PartyMember member = getActiveMember(partyId, targetMemberId);
-        member.kick(LocalDateTime.now());
-
-        party.decrementCurrentMembers();
+        partyService.kickPartyMember(partyId, targetMemberId);
 
         ChatMessage kickMessage = ChatMessage.createKickMessage(
                 partyId, targetMemberId, leader.getId());
         chatMessageRepository.save(kickMessage);
+
+        Party updatedParty = validateParty(partyId);
 
         return new KickMemberResponse(
                 MessageType.KICK,
@@ -167,7 +164,7 @@ public class ChatService {
                 leader.getNickname(),
                 targetMember.getNickname() + "님이 강퇴되었습니다",
                 kickMessage.getCreatedAt(),
-                party.getCurrentMembers()
+                updatedParty.getCurrentMembers()
         );
     }
 }

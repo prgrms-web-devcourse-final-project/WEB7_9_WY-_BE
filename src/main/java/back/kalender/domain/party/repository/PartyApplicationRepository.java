@@ -29,4 +29,16 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
 
     @Query("SELECT pa.partyId FROM PartyApplication pa WHERE pa.partyId IN :partyIds AND pa.applicantId = :applicantId")
     List<Long> findAppliedPartyIds(@Param("partyIds") List<Long> partyIds, @Param("applicantId") Long applicantId);
+
+    @Query("SELECT pa.partyId as partyId, pa.status as status, COUNT(pa) as count " +
+            "FROM PartyApplication pa " +
+            "WHERE pa.partyId IN :partyIds " +
+            "GROUP BY pa.partyId, pa.status")
+    List<ApplicationCountProjection> countByPartyIdsGroupByStatus(@Param("partyIds") List<Long> partyIds);
+
+    interface ApplicationCountProjection {
+        Long getPartyId();
+        ApplicationStatus getStatus();
+        Long getCount();
+    }
 }

@@ -44,7 +44,6 @@ public class ChatRoomService {
     private final PartyMemberRepository partyMemberRepository;
     private final ObjectMapper objectMapper;
 
-    //채팅방 생성 (파티 생성 시 자동 호출)
     @Transactional
     public void createChatRoom(Long partyId, String partyName) {
         if (chatRoomRepository.existsByPartyId(partyId)) {
@@ -58,7 +57,6 @@ public class ChatRoomService {
         log.info("채팅방 생성 완료 - partyId: {}, roomName: {}", partyId, partyName);
     }
 
-    //채팅방 종료 (파티 종료 시 자동 호출)
     @Transactional
     public void closeChatRoom(Long partyId) {
         ChatRoom chatRoom = chatRoomRepository.findByPartyId(partyId)
@@ -68,7 +66,6 @@ public class ChatRoomService {
         log.info("채팅방 종료 - partyId: {}", partyId);
     }
 
-    //채팅방 정보 조회
     public ChatRoomInfoResponse getChatRoomInfo(Long partyId, String userEmail) {
         log.info("채팅방 정보 조회 - partyId: {}, userEmail: {}", partyId, userEmail);
 
@@ -95,7 +92,6 @@ public class ChatRoomService {
         );
     }
 
-    //참여자 목록 조회
     public ParticipantListResponse getParticipants(Long partyId, String userEmail) {
         log.info("참여자 목록 조회 - partyId: {}, userEmail: {}", partyId, userEmail);
 
@@ -133,10 +129,9 @@ public class ChatRoomService {
                             memberUser.getNickname(),
                             memberUser.getProfileImage(),
                             isLeader,
-                            false // TODO: WebSocket 연결 상태 추후 구현
+                            false
                     );
                 })
-                // 파티장을 맨 위로 정렬
                 .sorted((a, b) -> {
                     if (a.isLeader() && !b.isLeader()) return -1;
                     if (!a.isLeader() && b.isLeader()) return 1;
@@ -147,7 +142,6 @@ public class ChatRoomService {
         return new ParticipantListResponse(partyId, participantInfos);
     }
 
-    //채팅 히스토리 조회
     @Transactional(readOnly = true)
     public ChatHistoryResponse getChatHistory(
             Long partyId, int page, int size, String userEmail) {
@@ -214,7 +208,6 @@ public class ChatRoomService {
         );
     }
 
-    //ChatMessage를 ChatMessageDto로 변환
     private ChatHistoryResponse.ChatMessageDto convertToDto(
             ChatMessage message, Map<Long, User> userMap) {
 
@@ -224,7 +217,6 @@ public class ChatRoomService {
             throw new ServiceException(ErrorCode.USER_NOT_FOUND);
         }
 
-        // KICK 타입인 경우 강퇴한 파티장 정보 추가
         Long kickedByLeaderId = null;
         String kickedByLeaderNickname = null;
 
@@ -251,7 +243,6 @@ public class ChatRoomService {
         );
     }
 
-    //metadata JSON에서 파티장 ID 추출
     private Long extractLeaderIdFromMetadata(ChatMessage message) {
         if (message.getMetadata() == null) {
             return null;
@@ -298,13 +289,20 @@ public class ChatRoomService {
             return new MyChatRoomsResponse(Collections.emptyList(), 0);
         }
 
+        List<ChatMessage> lastMessages = chatMessageRepository
+                .findLastMessagesByPartyIds(validPartyIds);
+
+        Map<Long, ChatMessage> lastMessageMap = lastMessages.stream()
+                .collect(Collectors.toMap(
+                        ChatMessage::getPartyId,
+                        msg -> msg
+                ));
+
         List<MyChatRoomsResponse.ChatRoomItem> chatRoomItems = validPartyIds.stream()
                 .map(partyId -> {
                     Party party = partyMap.get(partyId);
 
-                    ChatMessage lastMessage = chatMessageRepository
-                            .findTopByPartyIdOrderByCreatedAtDesc(partyId)
-                            .orElse(null);
+                    ChatMessage lastMessage = lastMessageMap.get(partyId);
 
                     String lastMessageText = "";
                     LocalDateTime lastMessageTime = party.getCreatedAt();
@@ -320,7 +318,7 @@ public class ChatRoomService {
                             party.getCurrentMembers(),
                             lastMessageText,
                             lastMessageTime,
-                            0  // TODO: 읽지 않은 메시지 수 추후 구현
+                            0
                     );
                 })
                 .sorted((a, b) -> b.lastMessageTime().compareTo(a.lastMessageTime()))
@@ -329,7 +327,6 @@ public class ChatRoomService {
         return new MyChatRoomsResponse(chatRoomItems, chatRoomItems.size());
     }
 
-    //메시지 포맷팅
     private String formatLastMessage(ChatMessage message) {
         return switch (message.getMessageType()) {
             case CHAT -> message.getContent();
