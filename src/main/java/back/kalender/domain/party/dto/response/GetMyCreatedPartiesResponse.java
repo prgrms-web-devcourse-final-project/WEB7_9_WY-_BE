@@ -70,7 +70,7 @@ public record GetMyCreatedPartiesResponse(
     @Schema(description = "파티 상세 정보")
     public record PartyDetailInfo(
 
-            @Schema(description = "파티 타입", example = "출발팟", allowableValues = {"출발팟", "복귀팟"})
+            @Schema(description = "파티 타입", example = "LEAVE", allowableValues = {"LEAVE", "ARRIVE"})
             String partyType,
 
             @Schema(description = "출발 위치", example = "강남역")

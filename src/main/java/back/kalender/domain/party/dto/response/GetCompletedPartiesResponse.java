@@ -70,7 +70,7 @@ public record GetCompletedPartiesResponse(
             @Schema(description = "파티 이름", example = "즐거운 BTS 콘서트")
             String partyName,
 
-            @Schema(description = "파티 타입", example = "출발")
+            @Schema(description = "파티 타입", example = "LEAVE")
             String partyType,
 
             @Schema(description = "출발지", example = "강남역")

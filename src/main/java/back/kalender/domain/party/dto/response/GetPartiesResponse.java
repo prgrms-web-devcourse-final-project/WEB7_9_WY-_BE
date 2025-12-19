@@ -81,7 +81,7 @@ public record GetPartiesResponse(
     @Schema(description = "파티 상세 정보")
     public record PartyInfo(
 
-            @Schema(description = "파티 타입", implementation = PartyType.class)
+            @Schema(description = "파티 타입", example = "LEAVE", implementation = PartyType.class)
             PartyType partyType,
 
             @Schema(description = "파티 이름", example = "지민이 최애")
