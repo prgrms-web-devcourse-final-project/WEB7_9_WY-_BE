@@ -39,13 +39,15 @@ spring:
   jpa:
     properties:
       hibernate:
-        format_sql: true
-        highlight_sql: true
-        use_sql_comments: true
+        format_sql: false
+        highlight_sql: false
+        use_sql_comments: false
         default_batch_fetch_size: 100
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
+  cache:
+    type: redis
 
 springdoc:
   default-produces-media-type: application/json
@@ -54,10 +56,10 @@ logging:
   level:
     org.hibernate.orm.jdbc.bind: OFF
     org.hibernate.orm.jdbc.extract: OFF
-    org.springframework.transaction.interceptor: TRACE
-    com.rest1: DEBUG
-    org.apache.tomcat.util.threads: DEBUG
-    com.zaxxer.hikari: INFO
+    org.springframework.transaction.interceptor: INFO
+    com.rest1: INFO
+    org.apache.tomcat.util.threads: WARN
+    com.zaxxer.hikari: WARN
 
 custom:
   dev:

@@ -3,6 +3,7 @@ package back.kalender.domain.booking.waitingRoom.service;
 import back.kalender.domain.booking.waitingRoom.dto.QueueJoinResponse;
 import back.kalender.domain.booking.waitingRoom.dto.QueueStatusResponse;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -14,9 +15,9 @@ public class QueueService {
     private static final Duration JOIN_TTL = Duration.ofMinutes(30);     // 대기열 데이터 유지(원하면 조절)
     private static final Duration WAITING_TOKEN_TTL = Duration.ofMinutes(3); // 통과 토큰 유효시간
 
-    private final RedisTemplate<String, String> redis;
+    private final StringRedisTemplate redis;
 
-    public QueueService(RedisTemplate<String, String> redis) {
+    public QueueService(StringRedisTemplate redis) {
         this.redis = redis;
     }
 
@@ -24,13 +25,10 @@ public class QueueService {
         return "queue:" + scheduleId;
     }
 
-    private String membersKey(Long scheduleId) {
-        return "queue:members:" + scheduleId;
-    }
-
     private String admittedKey(Long scheduleId) {
         return "admitted:" + scheduleId;
     }
+
     private String activeKey(Long scheduleId) {
         return "active:" + scheduleId;
     }
@@ -45,7 +43,7 @@ public class QueueService {
         String qKey = queueKey(scheduleId);
         String qsidKey = "qsid:" + qsid;
 
-        redis.opsForZSet().add(qKey, qsid, System.currentTimeMillis());
+        redis.opsForZSet().add(qKey, qsid, System.currentTimeMillis());//1회차방 [ member : score]
         redis.expire(qKey, JOIN_TTL);
 
         redis.opsForValue().set(
@@ -81,7 +79,6 @@ public class QueueService {
 
     public String issueWaitingToken(Long scheduleId, String qsid) {
         String token = "wt_" + UUID.randomUUID().toString().replace("-", "");
-
         redis.opsForValue().set(
                 waitingTokenKey(token),
                 qsid + ":" + scheduleId,

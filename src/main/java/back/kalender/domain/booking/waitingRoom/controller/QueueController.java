@@ -2,6 +2,7 @@ package back.kalender.domain.booking.waitingRoom.controller;
 
 import back.kalender.domain.booking.waitingRoom.dto.QueueJoinResponse;
 import back.kalender.domain.booking.waitingRoom.dto.QueueStatusResponse;
+import back.kalender.domain.booking.waitingRoom.service.QueueAccessService;
 import back.kalender.domain.booking.waitingRoom.service.QueueService;
 import back.kalender.global.security.user.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class QueueController implements QueueControllerSpec {
 
     private final QueueService queueService;
+    private final QueueAccessService  queueAccessService;
 
     @PostMapping("/join/{scheduleId}")
     public ResponseEntity<QueueJoinResponse> join(
@@ -35,5 +37,13 @@ public class QueueController implements QueueControllerSpec {
         return ResponseEntity.ok(
                 queueService.status(scheduleId, qsid)
         );
+    }
+
+    @PostMapping("/ping/{scheduleId}")
+    public void ping(
+            @PathVariable Long scheduleId,
+            @RequestHeader("X-QSID") String qsid
+    ) {
+        queueAccessService.ping(scheduleId, qsid);
     }
 }

@@ -12,15 +12,12 @@ public class QueueAccessService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public void checkSeatAccess(Long scheduleId, String deviceId) {
-        Double score = redisTemplate.opsForZSet()
-                .score(activeKey(scheduleId), deviceId);
+    public void checkSeatAccess(Long scheduleId, String qsid) {
+        Boolean allowed = redisTemplate.opsForZSet()
+                .score(activeKey(scheduleId), qsid) != null;
 
-        if (score == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.TOO_MANY_REQUESTS,
-                    "대기열을 통과하지 않았습니다."
-            );
+        if (!allowed) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
         }
     }
 
@@ -28,21 +25,20 @@ public class QueueAccessService {
         return "active:" + scheduleId;
     }
 
-    /** 핑(heartbeat) */
-    public void ping(Long scheduleId, String deviceId) {
+    public void ping(Long scheduleId, String qsid) {
         redisTemplate.opsForZSet().add(
                 activeKey(scheduleId),
-                deviceId,
+                qsid,
                 System.currentTimeMillis()
         );
     }
 
-    /** 좌석 선택 완료 시 active 제거 */
-    public void removeActive(Long scheduleId, String deviceId) {
-        redisTemplate.opsForZSet().remove(activeKey(scheduleId), deviceId);
+    // B개발자 담당
+    public void removeActive(Long scheduleId, String qsid) {
+        redisTemplate.opsForZSet().remove(activeKey(scheduleId), qsid);
     }
 
-    /** 현재 active 수 */
+    //관리자 대시보드에서 사용할 예정
     public long activeCount(Long scheduleId) {
         Long size = redisTemplate.opsForZSet().size(activeKey(scheduleId));
         return size == null ? 0 : size;

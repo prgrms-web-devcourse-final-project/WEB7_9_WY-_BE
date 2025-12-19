@@ -18,10 +18,11 @@ public class QueueAdmitScheduler {
 
     @Scheduled(fixedDelay = 1000)
     public void admit() {
+
         List<Long> openScheduleIds = scheduleService.getOpenScheduleIds();
 
         for (Long scheduleId : openScheduleIds) {
-            queueService.admitIfCapacity(scheduleId, 50);
+            int admitted = queueService.admitIfCapacity(scheduleId, 50);
         }
     }
 }
