@@ -504,7 +504,7 @@ public interface PartyControllerSpec {
                                       },
                                       "partyDetail": {
                                         "partyName": "즐거운 BTS 콘서트",
-                                        "partyType": "출발",
+                                        "partyType": "LEAVE",
                                         "departureLocation": "강남역",
                                         "arrivalLocation": "잠실종합운동장",
                                         "maxMembers": 4,
@@ -530,7 +530,7 @@ public interface PartyControllerSpec {
                                       },
                                       "partyDetail": {
                                         "partyName": "블핑 콘서트 같이 가요",
-                                        "partyType": "출발",
+                                        "partyType": "LEAVE",
                                         "departureLocation": "신림역",
                                         "arrivalLocation": "고척스카이돔",
                                         "maxMembers": 5,
