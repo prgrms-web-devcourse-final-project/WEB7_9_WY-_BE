@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -23,7 +24,6 @@ public class PaymentRecoveryWorker {
     private static final int BATCH_SIZE = 10;
 
     @Scheduled(fixedDelay = 60000)
-    @Transactional
     public void recoverStuckProcessingPayments() {
         LocalDateTime thresholdTime = LocalDateTime.now().minusMinutes(RECOVERY_THRESHOLD_MINUTES);
         List<Payment> stuckPayments = paymentRepository.findStuckProcessingPayments(thresholdTime);
@@ -38,6 +38,9 @@ public class PaymentRecoveryWorker {
 
         log.info("[PaymentRecoveryWorker] 복구 대상 결제 {}건 발견 (배치: {}건)", stuckPayments.size(), batchPayments.size());
 
+        // 개별 트랜잭션으로 처리 (REQUIRES_NEW)
+        // 각 결제 복구가 독립적인 트랜잭션으로 실행되어,
+        // 하나의 실패가 다른 결제 복구에 영향을 주지 않음
         for (Payment payment : batchPayments) {
             try {
                 recoverPayment(payment);
@@ -47,6 +50,7 @@ public class PaymentRecoveryWorker {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     private void recoverPayment(Payment payment) {
         if (payment.getStatus() == PaymentStatus.PROCESSING_TIMEOUT) {
             // PROCESSING_TIMEOUT → CREATED 롤백 (재시도 가능)
