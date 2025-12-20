@@ -1,5 +1,6 @@
 package back.kalender.domain.chat.dto.response;
 
+import back.kalender.domain.chat.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -9,7 +10,7 @@ import java.time.LocalDateTime;
 public record RoomJoinedResponse(
 
         @Schema(description = "메시지 타입 (항상 JOIN)", example = "JOIN")
-        String type,
+        MessageType type,
 
         @Schema(description = "파티 ID", example = "1")
         Long partyId,

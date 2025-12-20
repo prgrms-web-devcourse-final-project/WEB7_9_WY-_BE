@@ -1,7 +1,7 @@
 package back.kalender.domain.user.entity;
 
 import back.kalender.global.common.entity.BaseEntity;
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.global.common.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 

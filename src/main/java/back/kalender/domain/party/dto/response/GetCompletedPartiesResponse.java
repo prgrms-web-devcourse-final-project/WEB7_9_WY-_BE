@@ -1,6 +1,7 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.domain.party.entity.PartyStatus;
+import back.kalender.domain.party.enums.PartyStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -12,13 +13,13 @@ public record GetCompletedPartiesResponse(
         List<CompletedPartyItem> parties,
 
         @Schema(description = "전체 개수")
-        int totalElements,
+        Integer totalElements,
 
         @Schema(description = "전체 페이지 수")
-        int totalPages,
+        Integer totalPages,
 
         @Schema(description = "현재 페이지 번호")
-        int pageNumber
+        Integer pageNumber
 ) {
     @Schema(description = "종료된 파티 정보")
     public record CompletedPartyItem(
@@ -41,9 +42,11 @@ public record GetCompletedPartiesResponse(
             PartyStatus status,
 
             @Schema(description = "종료 시간")
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime completedAt,
 
             @Schema(description = "생성 시간")
+            @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
             LocalDateTime createdAt
     ) {}
 
@@ -67,7 +70,7 @@ public record GetCompletedPartiesResponse(
             @Schema(description = "파티 이름", example = "즐거운 BTS 콘서트")
             String partyName,
 
-            @Schema(description = "파티 타입", example = "출발")
+            @Schema(description = "파티 타입", example = "LEAVE")
             String partyType,
 
             @Schema(description = "출발지", example = "강남역")
