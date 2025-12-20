@@ -1,6 +1,10 @@
 package back.kalender.domain.party.entity;
 
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.domain.party.enums.PartyStatus;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.PreferredAge;
+import back.kalender.domain.party.enums.TransportType;
+import back.kalender.global.common.enums.Gender;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -20,23 +24,20 @@ public class Party extends BaseEntity {
     @Column(name = "leader_id", nullable = false)
     private Long leaderId;
 
-    @Column(name = "chat_room_id")
-    private Long chatRoomId;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "party_type", nullable = false)
     private PartyType partyType;
 
-    @Column(name = "party_name", nullable = false, length = 255)
+    @Column(name = "party_name", nullable = false, length = 100)
     private String partyName;
 
-    @Column(name = "description", length = 255)
+    @Column(name = "description")
     private String description;
 
-    @Column(name = "departure_location", nullable = false, length = 255)
+    @Column(name = "departure_location", nullable = false)
     private String departureLocation;
 
-    @Column(name = "arrival_location", nullable = false, length = 255)
+    @Column(name = "arrival_location", nullable = false)
     private String arrivalLocation;
 
     @Enumerated(EnumType.STRING)
@@ -75,42 +76,25 @@ public class Party extends BaseEntity {
         this.arrivalLocation = arrivalLocation;
         this.transportType = transportType;
         this.maxMembers = maxMembers;
-        this.currentMembers = 1; // 파티장 포함
+        this.currentMembers = 1;
         this.preferredGender = preferredGender;
         this.preferredAge = preferredAge;
-        this.status = PartyStatus.RECRUITING; // 기본값: 모집중
+        this.status = PartyStatus.RECRUITING;
     }
 
     public Party update(String partyName, String description, String departureLocation,
-                       String arrivalLocation, TransportType transportType, Integer maxMembers,
-                       Gender preferredGender, PreferredAge preferredAge) {
-        if (partyName != null) {
-            this.partyName = partyName;
-        }
-        if (description != null) {
-            this.description = description;
-        }
-        if (departureLocation != null) {
-            this.departureLocation = departureLocation;
-        }
-        if (arrivalLocation != null) {
-            this.arrivalLocation = arrivalLocation;
-        }
-        if (transportType != null) {
-            this.transportType = transportType;
-        }
-        if (maxMembers != null) {
-            this.maxMembers = maxMembers;
-        }
-        if (preferredGender != null) {
-            this.preferredGender = preferredGender;
-        }
-        if (preferredAge != null) {
-            this.preferredAge = preferredAge;
-        }
+                        String arrivalLocation, TransportType transportType, Integer maxMembers,
+                        Gender preferredGender, PreferredAge preferredAge) {
+        this.partyName = partyName != null ? partyName : this.partyName;
+        this.description = description != null ? description : this.description;
+        this.departureLocation = departureLocation != null ? departureLocation : this.departureLocation;
+        this.arrivalLocation = arrivalLocation != null ? arrivalLocation : this.arrivalLocation;
+        this.transportType = transportType != null ? transportType : this.transportType;
+        this.maxMembers = maxMembers != null ? maxMembers : this.maxMembers;
+        this.preferredGender = preferredGender != null ? preferredGender : this.preferredGender;
+        this.preferredAge = preferredAge != null ? preferredAge : this.preferredAge;
         return this;
     }
-
 
     public void changeStatus(PartyStatus status) {
         this.status = status;
@@ -136,9 +120,5 @@ public class Party extends BaseEntity {
 
     public boolean isRecruiting() {
         return this.status == PartyStatus.RECRUITING;
-    }
-
-    public void assignChatRoom(Long chatRoomId) {
-        this.chatRoomId = chatRoomId;
     }
 }

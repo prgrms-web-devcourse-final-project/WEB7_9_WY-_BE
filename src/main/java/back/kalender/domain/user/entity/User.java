@@ -1,14 +1,17 @@
 package back.kalender.domain.user.entity;
 
 import back.kalender.global.common.entity.BaseEntity;
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.global.common.enums.Gender;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+        indexes = {
+                @Index(name = "idx_nickname", columnList = "nickname")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

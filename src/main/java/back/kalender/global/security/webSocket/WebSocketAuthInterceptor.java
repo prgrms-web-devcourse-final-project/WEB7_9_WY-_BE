@@ -1,0 +1,72 @@
+package back.kalender.domain.chat.config;
+
+import back.kalender.global.security.jwt.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
+
+/**
+ * WebSocket 연결 시 JWT 인증을 처리하는 인터셉터
+ * STOMP CONNECT 명령 시 Authorization 헤더에서 JWT 토큰을 추출하여 검증
+ */
+@Slf4j
+@RequiredArgsConstructor
+public class WebSocketAuthInterceptor implements ChannelInterceptor {
+
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+
+    @Override
+    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(
+                message, StompHeaderAccessor.class);
+
+        // CONNECT 명령일 때만 인증 처리
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+            String token = resolveToken(accessor);
+
+            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+                try {
+                    // JWT에서 Authentication 객체 생성
+                    Authentication authentication = jwtTokenProvider.getAuthentication(token);
+
+                    // WebSocket 세션에 인증 정보 설정
+                    accessor.setUser(authentication);
+
+                    log.info("WebSocket 인증 성공 - user: {}", authentication.getName());
+                } catch (Exception e) {
+                    log.error("WebSocket 인증 실패 - token: {}, error: {}",
+                            token, e.getMessage());
+                    throw new IllegalArgumentException("유효하지 않은 JWT 토큰입니다");
+                }
+            } else {
+                log.warn("WebSocket 인증 실패 - 유효하지 않은 토큰");
+                throw new IllegalArgumentException("JWT 토큰이 필요합니다");
+            }
+        }
+
+        return message;
+    }
+
+    /**
+     * STOMP 헤더에서 JWT 토큰 추출
+     */
+    private String resolveToken(StompHeaderAccessor accessor) {
+        String authHeader = accessor.getFirstNativeHeader(AUTHORIZATION_HEADER);
+
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length());
+        }
+
+        return null;
+    }
+}

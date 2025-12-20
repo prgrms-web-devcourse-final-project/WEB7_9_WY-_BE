@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public record AcceptApplicationResponse(
         @Schema(description = "신청자 ID", example = "1")
-        long applicantId,
+        Long applicantId,
 
         @Schema(description = "파티 이름", example = "BTS 공연")
         String partyTitle,

@@ -1,6 +1,6 @@
 package back.kalender.domain.performance.schedule.entity;
 
-import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -17,10 +17,7 @@ import java.time.LocalTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class PerformanceSchedule extends BaseEntity {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_id", nullable = false)
-    private Performance performance;
+    private Long performanceId;
 
     @Column(name = "performance_date", nullable = false)
     private LocalDate performanceDate;

@@ -1,8 +1,8 @@
 package back.kalender.domain.party.dto.request;
 
-import back.kalender.domain.party.entity.PreferredAge;
-import back.kalender.domain.party.entity.TransportType;
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.domain.party.enums.PreferredAge;
+import back.kalender.domain.party.enums.TransportType;
+import back.kalender.global.common.enums.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "파티 수정 요청")
 public record UpdatePartyRequest(
 
-        @Size(min = 2, max = 50, message = "파티 이름은 2자 이상 50자 이하여야 합니다")
+        @Size(min = 2, max = 100, message = "파티 이름은 2자 이상 100자 이하여야 합니다")
         @Schema(description = "파티 이름", example = "지민이 최애")
         String partyName,
 
