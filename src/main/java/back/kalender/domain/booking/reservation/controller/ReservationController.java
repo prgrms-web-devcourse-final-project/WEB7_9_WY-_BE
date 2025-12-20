@@ -6,6 +6,7 @@ import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
 import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.service.ReservationService;
+import back.kalender.domain.booking.seatHold.service.SeatHoldService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -105,4 +106,18 @@ public class ReservationController implements ReservationControllerSpec {
         );
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/schedule/{scheduleId}/seats/changes")
+    @Override
+    public ResponseEntity<SeatChangesResponse> getSeatChanges(
+            @PathVariable Long scheduleId,
+            @RequestParam(defaultValue = "0") Long sinceVersion
+    ) {
+        SeatChangesResponse response = reservationService.getSeatChanges(
+                scheduleId,
+                sinceVersion
+        );
+        return ResponseEntity.ok(response);
+    }
+
 }
