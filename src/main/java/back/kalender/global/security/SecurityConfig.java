@@ -46,10 +46,10 @@ public class SecurityConfig {
         
         // 프론트엔드 URL 허용
         configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",          // 로컬 개발용
-                "https://idol-kalendar.shop",     // 도메인
-                "https://fandom-app.vercel.app",  // Vercel 배포 주소
-                frontUrl                          // 기존 설정 파일 값도 포함
+                "http://localhost:3000",            // 로컬 개발용
+                "https://idol-kalendar.shop",       // 도메인
+                "https://web-7-9-wy-fe.vercel.app/",  // Vercel 배포 주소
+                frontUrl                            // 기존 설정 파일 값도 포함
         ));
 
         // 허용할 HTTP 메서드
