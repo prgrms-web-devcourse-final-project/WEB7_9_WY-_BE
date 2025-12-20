@@ -2,8 +2,10 @@ package back.kalender.domain.booking.reservation.service;
 
 import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
+import back.kalender.domain.booking.performanceSeat.entity.SeatStatus;
 import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
+import back.kalender.domain.booking.reservation.dto.response.CancelReservationResponse;
 import back.kalender.domain.booking.reservation.dto.response.ReservationSummaryResponse;
 import back.kalender.domain.booking.reservation.dto.response.UpdateDeliveryInfoResponse;
 import back.kalender.domain.booking.reservation.entity.Reservation;
@@ -22,27 +24,36 @@ import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ReservationService 단위 테스트")
@@ -64,6 +75,11 @@ public class ReservationServiceTest {
     private PerformanceSeatRepository performanceSeatRepository;
     @Mock
     private PriceGradeRepository priceGradeRepository;
+
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+    @Mock
+    private ObjectMapper objectMapper;
 
     private Reservation reservation;
     private PerformanceSchedule schedule;
@@ -119,11 +135,9 @@ public class ReservationServiceTest {
         setId(schedule, SCHEDULE_ID);
 
 
-        // PriceGrade
         priceGrade = new PriceGrade(performance.getId(), "VIP", 200_000);
         setId(priceGrade, PRICE_GRADE_ID);
 
-        // PerformanceSeat
         performanceSeat = PerformanceSeat.create(
                 SCHEDULE_ID,
                 1L,  // hallSeatId
@@ -137,11 +151,9 @@ public class ReservationServiceTest {
         );
         setId(performanceSeat, SEAT_ID);
 
-        // ReservationSeat
         reservationSeat = new ReservationSeat(RESERVATION_ID, performanceSeat.getId(), 200_000);
         setId(reservationSeat, 1L);
 
-        // Reservation
         reservation = Reservation.builder()
                 .userId(USER_ID)
                 .performanceScheduleId(SCHEDULE_ID)
@@ -476,6 +488,250 @@ public class ReservationServiceTest {
             ))
                     .isInstanceOf(ServiceException.class)
                     .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESERVATION_EXPIRED);
+        }
+    }
+
+    @Nested
+    @MockitoSettings(strictness = Strictness.LENIENT)
+    @DisplayName("cancelReservation 테스트")
+    class CancelReservationTest {
+
+        private PerformanceSeat performanceSeat2;
+        private PerformanceSeat performanceSeat3;
+        private ReservationSeat reservationSeat2;
+        private ReservationSeat reservationSeat3;
+
+        @BeforeEach
+        void setUp() {
+            ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+            SetOperations<String, String> setOps = mock(SetOperations.class);
+
+            given(redisTemplate.opsForValue()).willReturn(valueOps);
+            given(redisTemplate.opsForSet()).willReturn(setOps);
+            given(valueOps.increment(anyString())).willReturn(1L);
+            willDoNothing().given(valueOps).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+            given(setOps.remove(anyString(), any())).willReturn(1L);
+
+            // 예매가 PAID 상태로 설정
+            reservation = Reservation.builder()
+                    .userId(USER_ID)
+                    .performanceScheduleId(SCHEDULE_ID)
+                    .status(ReservationStatus.PAID)
+                    .totalAmount(600_000)
+                    .expiresAt(LocalDateTime.of(2026, 1, 3, 17, 0))
+                    .build();
+            ReflectionTestUtils.setField(reservation, "id", RESERVATION_ID);
+
+            // 추가 좌석 생성 (총 3개 좌석)
+            performanceSeat2 = PerformanceSeat.create(
+                    SCHEDULE_ID, 2L, PRICE_GRADE_ID, 1, "A", 1, 2, 100, 1000
+            );
+            ReflectionTestUtils.setField(performanceSeat2, "id", 2L);
+            performanceSeat2.updateStatus(SeatStatus.SOLD);
+
+            performanceSeat3 = PerformanceSeat.create(
+                    SCHEDULE_ID, 3L, PRICE_GRADE_ID, 1, "A", 1, 3, 200, 1000
+            );
+            ReflectionTestUtils.setField(performanceSeat3, "id", 3L);
+            performanceSeat3.updateStatus(SeatStatus.SOLD);
+
+            performanceSeat.updateStatus(SeatStatus.SOLD);
+
+            reservationSeat2 = new ReservationSeat(RESERVATION_ID, 2L, 200_000);
+            reservationSeat3 = new ReservationSeat(RESERVATION_ID, 3L, 200_000);
+        }
+
+        @Test
+        @DisplayName("성공: PAID 상태에서 예매 취소")
+        void cancelReservation_Success() {
+            // given
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+            given(scheduleRepository.findById(SCHEDULE_ID))
+                    .willReturn(Optional.of(schedule));
+            given(reservationSeatRepository.findByReservationId(RESERVATION_ID))
+                    .willReturn(List.of(reservationSeat, reservationSeat2, reservationSeat3));
+
+            List<PerformanceSeat> actualSeats = List.of(performanceSeat, performanceSeat2, performanceSeat3);
+            given(performanceSeatRepository.findAllById(anyList()))
+                    .willReturn(actualSeats);
+
+            given(reservationRepository.save(any(Reservation.class)))
+                    .willReturn(reservation);
+
+            // when
+            CancelReservationResponse response = reservationService.cancelReservation(
+                    RESERVATION_ID, USER_ID
+            );
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.reservationId()).isEqualTo(RESERVATION_ID);
+            assertThat(response.status()).isEqualTo("CANCELLED");
+            assertThat(response.refundAmount()).isEqualTo(600_000);
+            assertThat(response.cancelledSeatCount()).isEqualTo(3);
+            assertThat(response.cancelledAt()).isNotNull();
+
+            // 좌석 상태 복구 확인
+            ArgumentCaptor<List<PerformanceSeat>> seatCaptor = ArgumentCaptor.forClass(List.class);
+            verify(performanceSeatRepository, times(1)).saveAll(seatCaptor.capture());
+
+            List<PerformanceSeat> savedSeats = seatCaptor.getValue();
+            assertThat(savedSeats).hasSize(3);
+            assertThat(savedSeats.get(0).getStatus()).isEqualTo(SeatStatus.AVAILABLE);
+            assertThat(savedSeats.get(0).getHoldUserId()).isNull();
+
+            verify(reservationRepository, times(1)).save(any(Reservation.class));
+        }
+
+        @Test
+        @DisplayName("실패: 예매를 찾을 수 없음")
+        void cancelReservation_Fail_ReservationNotFound() {
+            // given
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESERVATION_NOT_FOUND);
+        }
+
+        @Test
+        @DisplayName("실패: 권한 없음 (다른 사용자)")
+        void cancelReservation_Fail_Unauthorized() {
+            // given
+            Long otherUserId = 999L;
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, otherUserId))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNAUTHORIZED);
+        }
+
+        @Test
+        @DisplayName("실패: PENDING 상태에서 취소 시도")
+        void cancelReservation_Fail_PendingStatus() {
+            // given
+            reservation = Reservation.builder()
+                    .userId(USER_ID)
+                    .performanceScheduleId(SCHEDULE_ID)
+                    .status(ReservationStatus.PENDING)
+                    .totalAmount(0)
+                    .expiresAt(null)
+                    .build();
+            ReflectionTestUtils.setField(reservation, "id", RESERVATION_ID);
+
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        @Test
+        @DisplayName("실패: HOLD 상태에서 취소 시도")
+        void cancelReservation_Fail_HoldStatus() {
+            // given
+            reservation = Reservation.builder()
+                    .userId(USER_ID)
+                    .performanceScheduleId(SCHEDULE_ID)
+                    .status(ReservationStatus.HOLD)
+                    .totalAmount(600_000)
+                    .expiresAt(LocalDateTime.now().plusMinutes(5))
+                    .build();
+            ReflectionTestUtils.setField(reservation, "id", RESERVATION_ID);
+
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        @Test
+        @DisplayName("실패: CANCELLED 상태에서 재취소 시도")
+        void cancelReservation_Fail_AlreadyCancelled() {
+            // given
+            reservation = Reservation.builder()
+                    .userId(USER_ID)
+                    .performanceScheduleId(SCHEDULE_ID)
+                    .status(ReservationStatus.CANCELLED)
+                    .totalAmount(0)
+                    .expiresAt(null)
+                    .build();
+            ReflectionTestUtils.setField(reservation, "id", RESERVATION_ID);
+
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        @Test
+        @DisplayName("실패: 취소 기한 경과 (공연 시작 1시간 이내)")
+        void cancelReservation_Fail_CancelDeadlinePassed() {
+            // given
+            // 공연 시작 30분 전 (취소 불가)
+            PerformanceSchedule nearSchedule = new PerformanceSchedule(
+                    PERFORMANCE_ID,
+                    LocalDate.now(),
+                    LocalTime.now().plusMinutes(30),  // 30분 후 시작
+                    1,
+                    ScheduleStatus.AVAILABLE
+            );
+            ReflectionTestUtils.setField(nearSchedule, "id", SCHEDULE_ID);
+
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+            given(scheduleRepository.findById(SCHEDULE_ID))
+                    .willReturn(Optional.of(nearSchedule));
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANCEL_DEADLINE_PASSED);
+        }
+
+        @Test
+        @DisplayName("실패: 예매된 좌석이 없음")
+        void cancelReservation_Fail_NoSeatsReserved() {
+            // given
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+            given(scheduleRepository.findById(SCHEDULE_ID))
+                    .willReturn(Optional.of(schedule));
+            given(reservationSeatRepository.findByReservationId(RESERVATION_ID))
+                    .willReturn(List.of());  // 좌석 없음
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.NO_SEATS_RESERVED);
+        }
+
+        @Test
+        @DisplayName("실패: 스케줄을 찾을 수 없음")
+        void cancelReservation_Fail_ScheduleNotFound() {
+            // given
+            given(reservationRepository.findById(RESERVATION_ID))
+                    .willReturn(Optional.of(reservation));
+            given(scheduleRepository.findById(SCHEDULE_ID))
+                    .willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> reservationService.cancelReservation(RESERVATION_ID, USER_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SCHEDULE_NOT_FOUND);
         }
     }
 }

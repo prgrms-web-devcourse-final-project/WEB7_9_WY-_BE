@@ -1,6 +1,7 @@
 package back.kalender.domain.booking.reservation.service;
 
 import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
+import back.kalender.domain.booking.performanceSeat.entity.SeatStatus;
 import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
@@ -24,8 +25,10 @@ import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -55,6 +59,8 @@ public class ReservationService {
     private final PerformanceRepository performanceRepository;
     private final PriceGradeRepository priceGradeRepository;
     private final PerformanceSeatRepository performanceSeatRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     // 예매 세션 생성
     @Transactional
@@ -271,19 +277,123 @@ public class ReservationService {
     }
 
     @Transactional
-    public void cancelReservation(
+    public CancelReservationResponse cancelReservation(
             Long reservationId,
             Long userId
     ) {
-        log.info("[Reservation] 예매 취소 - reservationId: {}, userId: {}", reservationId, userId);
+        // 1. Reservation 조회 및 권한 검증
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
 
-        // TODO: Reservation 조회 및 권한 검증
-        // TODO: 결제 완료 여부 검증
-        // TODO: 모든 ReservationSeat 삭제
-        // TODO: PerformanceSeat 상태 AVAILABLE로 복원
-        // TODO: Reservation.cancel() 호출
+        // 소유자 확인
+        if (!reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
 
-        log.info("[Reservation] 예매 취소 완료 - reservationId: {}", reservationId);
+        // 2. 취소 가능 상태 검증
+        if (reservation.getStatus() != ReservationStatus.PAID) {
+            throw new ServiceException(ErrorCode.INVALID_RESERVATION_STATUS);
+        }
+
+        // 3. 취소 가능 기한 확인 (공연 시작 1시간 전까지)
+        PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        LocalDateTime performanceStartTime = LocalDateTime.of(
+                schedule.getPerformanceDate(),
+                schedule.getStartTime()
+        );
+        LocalDateTime cancelDeadline = performanceStartTime.minusHours(1);
+
+        if (LocalDateTime.now().isAfter(cancelDeadline)) {
+            throw new ServiceException(ErrorCode.CANCEL_DEADLINE_PASSED);
+        }
+
+        // 4. 예매된 좌석 조회
+        List<ReservationSeat> reservationSeats = reservationSeatRepository
+                .findByReservationId(reservationId);
+
+        if (reservationSeats.isEmpty()) {
+            throw new ServiceException(ErrorCode.NO_SEATS_RESERVED);
+        }
+
+        List<Long> seatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+
+        // 5. 좌석 상태 복구 (SOLD → AVAILABLE)
+        List<PerformanceSeat> seats = performanceSeatRepository.findAllById(seatIds);
+
+        for (PerformanceSeat seat : seats) {
+            seat.updateStatus(SeatStatus.AVAILABLE);
+            seat.clearHoldInfo();  // holdUserId, holdExpiresAt 초기화
+        }
+        performanceSeatRepository.saveAll(seats);  // ← 이 줄 추가!
+
+
+        // 6. Redis SOLD set에서 제거
+        String soldSetKey = String.format("seat:sold:%d", schedule.getId());
+        for (Long seatId : seatIds) {
+            redisTemplate.opsForSet().remove(soldSetKey, seatId.toString());
+        }
+
+        // 7. 좌석 변경 이벤트 발행 (폴링용)
+        for (Long seatId : seatIds) {
+            recordSeatChangeEvent(
+                    schedule.getId(),
+                    seatId,
+                    SeatStatus.AVAILABLE,
+                    null  // userId = null (예매 취소)
+            );
+        }
+
+        // 8. 예매 상태 변경 (PAID → CANCELLED)
+        reservation.cancel();
+        reservationRepository.save(reservation);
+
+        log.info("[Reservation] 예매 취소 완료 - reservationId={}, userId={}, seatCount={}",
+                reservationId, userId, seatIds.size());
+
+        // 9. 응답 생성
+        return new CancelReservationResponse(
+                reservationId,
+                ReservationStatus.CANCELLED.name(),
+                reservation.getTotalAmount(),  // 환불 예정 금액
+                LocalDateTime.now(),  // cancelledAt
+                seatIds.size()
+        );
+    }
+
+    /**
+     * 좌석 변경 이벤트 발행 (폴링 API용)
+     */
+    private void recordSeatChangeEvent(
+            Long scheduleId,
+            Long seatId,
+            SeatStatus status,
+            Long userId
+    ) {
+        // 버전 증가
+        String versionKey = String.format("seat:version:%d", scheduleId);
+        Long version = redisTemplate.opsForValue().increment(versionKey);
+
+        // 변경 이벤트 저장 (TTL 60초)
+        String changeKey = String.format("seat:changes:%d:%d", scheduleId, version);
+        Map<String, Object> changeEvent = Map.of(
+                "seatId", seatId,
+                "status", status.name(),
+                "userId", userId != null ? userId : "null",
+                "version", version,
+                "timestamp", LocalDateTime.now().toString()
+        );
+
+        try {
+            String eventJson = objectMapper.writeValueAsString(changeEvent);
+            redisTemplate.opsForValue().set(changeKey, eventJson, 60, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[SeatChange] 이벤트 발행 실패 - scheduleId={}, seatId={}", scheduleId, seatId, e);
+        }
     }
 
     public SeatChangesResponse getSeatChanges(Long scheduleId, Long sinceVersion) {

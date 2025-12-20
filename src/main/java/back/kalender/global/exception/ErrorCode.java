@@ -62,6 +62,8 @@ public enum ErrorCode {
     SEAT_STATE_INCONSISTENT("6005", HttpStatus.CONFLICT, "좌석 상태가 일치하지 않습니다."),
     SCHEDULE_NOT_AVAILABLE("6006", HttpStatus.BAD_REQUEST, "예매가 불가능한 회차입니다."),
     INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
+    CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
+    NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
