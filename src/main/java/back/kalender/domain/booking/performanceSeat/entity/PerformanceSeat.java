@@ -86,17 +86,17 @@ public class PerformanceSeat extends BaseEntity {
     }
 
     // HOLD 만료 여부 확인
-    public boolean isHoldExpired() {
+    public boolean isHoldExpired(LocalDateTime now) {
         if(this.status != SeatStatus.HOLD){
             return false;
         }
-        return holdExpiredAt != null && LocalDateTime.now().isAfter(this.holdExpiredAt);
+        return holdExpiredAt != null && now.isAfter(holdExpiredAt);
     }
 
     // 좌석 선점 가능 여부
     public boolean canBeHeld(){
         // AVAILABLE 이거나, HOLD 상태이지만 만료된 경우
-        return this.status == SeatStatus.AVAILABLE || (this.status == SeatStatus.HOLD && isHoldExpired());
+        return this.status == SeatStatus.AVAILABLE || (this.status == SeatStatus.HOLD && isHoldExpired(LocalDateTime.now()));
     }
 
 }

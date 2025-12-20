@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PerformanceSeatRepository extends JpaRepository<PerformanceSeat, Long> {
 
@@ -30,4 +31,7 @@ where p.scheduleId = :scheduleId
 
 
     List<PerformanceSeat> findByScheduleIdAndBlock(Long scheduleId, String block);
+
+    Optional<PerformanceSeat> findByIdAndScheduleId(Long id, Long scheduleId);
+
 }

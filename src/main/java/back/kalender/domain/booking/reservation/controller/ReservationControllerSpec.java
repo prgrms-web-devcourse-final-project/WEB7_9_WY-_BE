@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = "Reservation", description = "예매 관련 API")
 public interface ReservationControllerSpec {
@@ -369,5 +370,24 @@ public interface ReservationControllerSpec {
     ResponseEntity<Void> cancelReservation(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
+    );
+
+    @Operation(
+            summary = "좌석 상태 변경 조회 (폴링)",
+            description = "특정 회차의 좌석 상태 변경 이력을 조회합니다. 프론트엔드에서 주기적으로 호출하여 좌석표 UI를 업데이트합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = SeatChangesResponse.class))
+            )
+    })
+    ResponseEntity<SeatChangesResponse> getSeatChanges(
+            @Parameter(description = "회차 ID", required = true)
+            @PathVariable Long scheduleId,
+
+            @Parameter(description = "마지막으로 받은 버전 (0부터 시작)", example = "0")
+            @RequestParam(defaultValue = "0") Long sinceVersion
     );
 }

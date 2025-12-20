@@ -58,6 +58,8 @@ public enum ErrorCode {
     RESERVATION_NOT_FOUND("6001", HttpStatus.NOT_FOUND, "예매를 찾을 수 없습니다."),
     RESERVATION_EXPIRED("6002", HttpStatus.BAD_REQUEST, "만료된 예매입니다."),
     ALREADY_PAID_RESERVATION("6003", HttpStatus.BAD_REQUEST, "이미 결제된 예매입니다."),
+    PARTIAL_RELEASE_NOT_ALLOWED("6004", HttpStatus.BAD_REQUEST, "부분 좌석 해제는 허용되지 않습니다."),
+    SEAT_STATE_INCONSISTENT("6005", HttpStatus.CONFLICT, "좌석 상태가 일치하지 않습니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),

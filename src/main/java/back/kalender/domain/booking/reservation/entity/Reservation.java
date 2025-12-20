@@ -95,6 +95,7 @@ public class Reservation extends BaseEntity {
     // 예매 취소
     public void cancel(){
         this.status = ReservationStatus.CANCELLED;
+        //this.cancelledAt() = LocalDateTime.now();
     }
 
     // --- 검증 메서드 ---
