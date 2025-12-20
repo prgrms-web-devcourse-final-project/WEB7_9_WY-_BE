@@ -102,9 +102,12 @@ public class Reservation extends BaseEntity {
 
     // 만료 시간 체크
     public boolean isExpired() {
+        // expiresAt이 null이면 아직 HOLD 전 (PENDING 상태)
+        if (this.expiresAt == null) {
+            return false;
+        }
         return LocalDateTime.now().isAfter(this.expiresAt);
     }
-
     // 배송 정보 입력 완료 여부
     public boolean hasDeliveryInfo() {
         if ("PICKUP".equals(deliveryMethod)) {

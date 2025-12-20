@@ -5,9 +5,16 @@ import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
 import back.kalender.domain.booking.reservation.dto.response.*;
+import back.kalender.domain.booking.reservation.entity.Reservation;
+import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.service.SeatHoldService;
+import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
+import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +37,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationSeatRepository reservationSeatRepository;
     private final SeatHoldService seatHoldService;
+    private final PerformanceScheduleRepository scheduleRepository;
 
     // 예매 세션 생성
     @Transactional
@@ -38,25 +46,35 @@ public class ReservationService {
             CreateReservationRequest request,
             Long userId
     ) {
-        // TODO:
-        // 대기열 토큰 검증
-        // Schedule 조회 및 검증
-        // Reservation 엔티티 생성 및 저장
+        // 1. Schedule 조회 및 검증
+         PerformanceSchedule schedule = scheduleRepository.findById(scheduleId)
+             .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        // 더미 응답
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiresAt = now.plusMinutes(5);
-        long remainingSeconds = 300L;
+         if(schedule.getStatus() != ScheduleStatus.AVAILABLE) {
+             throw new ServiceException(ErrorCode.SCHEDULE_NOT_AVAILABLE);
+         }
+        // TODO: 대기열 토큰 검증
+        // TODO: Schedule 상태 검증 (예매 가능한 상태인지)
 
+        // 2. Reservation 엔티티 생성 및 저장
+        Reservation reservation = Reservation.builder()
+                .userId(userId)
+                .performanceScheduleId(scheduleId)
+                .status(ReservationStatus.PENDING)
+                .totalAmount(0)  // 좌석 선택 전이므로 0원
+                .build();
+
+        Reservation savedReservation = reservationRepository.save(reservation);
         return new CreateReservationResponse(
-                1L,  // 더미 reservationId
-                "HOLD",
-                expiresAt,
-                remainingSeconds
+                savedReservation.getId(),
+                savedReservation.getStatus().name(),
+                null,
+                0L
         );
     }
 
     // 좌석 홀드
+    @Transactional
     public HoldSeatsResponse holdSeats(
             Long reservationId,
             HoldSeatsRequest request,
@@ -66,6 +84,7 @@ public class ReservationService {
     }
 
     // 좌석 홀드 해제
+    @Transactional
     public ReleaseSeatsResponse releaseSeats(
             Long reservationId,
             ReleaseSeatsRequest request,
