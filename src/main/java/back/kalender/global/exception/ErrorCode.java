@@ -61,6 +61,7 @@ public enum ErrorCode {
     PARTIAL_RELEASE_NOT_ALLOWED("6004", HttpStatus.BAD_REQUEST, "부분 좌석 해제는 허용되지 않습니다."),
     SEAT_STATE_INCONSISTENT("6005", HttpStatus.CONFLICT, "좌석 상태가 일치하지 않습니다."),
     SCHEDULE_NOT_AVAILABLE("6006", HttpStatus.BAD_REQUEST, "예매가 불가능한 회차입니다."),
+    INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),

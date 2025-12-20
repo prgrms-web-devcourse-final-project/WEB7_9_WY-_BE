@@ -123,7 +123,7 @@ public class Reservation extends BaseEntity {
         return false;
     }
 
-    // 소유자 확인
+    // 예매 소유자 확인
     public boolean isOwnedBy(Long userId) {
         return this.userId.equals(userId);
     }

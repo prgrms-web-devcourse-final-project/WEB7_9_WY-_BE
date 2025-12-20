@@ -1,5 +1,7 @@
 package back.kalender.domain.booking.reservation.service;
 
+import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
+import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
@@ -8,8 +10,15 @@ import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.entity.Reservation;
 import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
+import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.service.SeatHoldService;
+import back.kalender.domain.performance.performance.entity.Performance;
+import back.kalender.domain.performance.performance.repository.PerformanceRepository;
+import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
+import back.kalender.domain.performance.performanceHall.repository.PerformanceHallRepository;
+import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
+import back.kalender.domain.performance.priceGrade.repository.PriceGradeRepository;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
@@ -21,8 +30,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * - ReservationService: 예매 세션 생성, 배송 정보, 취소 등 전반적인 예매 관리
@@ -38,6 +51,10 @@ public class ReservationService {
     private final ReservationSeatRepository reservationSeatRepository;
     private final SeatHoldService seatHoldService;
     private final PerformanceScheduleRepository scheduleRepository;
+    private final PerformanceHallRepository performanceHallRepository;
+    private final PerformanceRepository performanceRepository;
+    private final PriceGradeRepository priceGradeRepository;
+    private final PerformanceSeatRepository performanceSeatRepository;
 
     // 예매 세션 생성
     @Transactional
@@ -97,33 +114,101 @@ public class ReservationService {
             Long reservationId,
             Long userId
     ) {
-        // TODO: Reservation 조회 및 권한 검증
-        // TODO: Performance, Schedule, Hall 정보 조회
-        // TODO: ReservationSeat 목록 조회
-        // TODO: ReservationMapper로 응답 생성
+        // 1. Reservation 조회 및 권한 검증
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
 
-        // 더미 응답
-        LocalDateTime now = LocalDateTime.now();
+        if (!reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+
+        // 2. Performance, Schedule, Hall 정보 조회
+        PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        Performance performance = performanceRepository.findById(schedule.getPerformanceId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_NOT_FOUND));
+
+        PerformanceHall hall = performanceHallRepository.findById(performance.getPerformanceHallId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_HALL_NOT_FOUND));
+
+        // 3. 선택된 좌석 정보 조회
+        List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(reservationId);
+
+        // 좌석 없으면 빈 리스트
+        List<ReservationSummaryResponse.SelectedSeatInfo> selectedSeats = new ArrayList<>();
+
+        if (!reservationSeats.isEmpty()) {
+            // PerformanceSeat 정보 조회
+            List<Long> seatIds = reservationSeats.stream()
+                    .map(ReservationSeat::getPerformanceSeatId)
+                    .toList();
+
+            Map<Long, PerformanceSeat> seatMap = performanceSeatRepository.findAllById(seatIds)
+                    .stream()
+                    .collect(Collectors.toMap(PerformanceSeat::getId, seat -> seat));
+
+            // PriceGrade 정보 조회
+            Set<Long> priceGradeIds = seatMap.values().stream()
+                    .map(PerformanceSeat::getPriceGradeId)
+                    .collect(Collectors.toSet());
+
+            Map<Long, PriceGrade> priceGradeMap = priceGradeRepository.findAllById(priceGradeIds)
+                    .stream()
+                    .collect(Collectors.toMap(PriceGrade::getId, grade -> grade));
+
+            // SelectedSeatInfo 생성
+            for (ReservationSeat reservationSeat : reservationSeats) {
+                PerformanceSeat seat = seatMap.get(reservationSeat.getPerformanceSeatId());
+                PriceGrade priceGrade = priceGradeMap.get(seat.getPriceGradeId());
+
+                selectedSeats.add(new ReservationSummaryResponse.SelectedSeatInfo(
+                        seat.getId(),
+                        seat.getFloor(),
+                        seat.getBlock(),
+                        seat.getRowNumber(),
+                        seat.getSeatNumber(),
+                        priceGrade.getGradeName(),
+                        reservationSeat.getPrice()
+                ));
+            }
+        }
+
+        // 4. 홀드 만료까지 남은 시간 계산
+        Long remainingSeconds = 0L;
+        if (reservation.getExpiresAt() != null) {
+            long seconds = ChronoUnit.SECONDS.between(
+                    LocalDateTime.now(),
+                    reservation.getExpiresAt()
+            );
+            remainingSeconds = Math.max(0, seconds);
+        }
+
+        // 5 취소 가능 기한 계산 (공연 시작 1시간 전)
+        LocalDateTime cancelDeadline = LocalDateTime.of(
+                schedule.getPerformanceDate(),
+                schedule.getStartTime()
+        ).minusHours(1);
+
         return new ReservationSummaryResponse(
-                reservationId,
+                reservation.getId(),
                 new ReservationSummaryResponse.PerformanceInfo(
-                        1L, "BTS 콘서트", "https://poster.jpg", "잠실주경기장"
+                        performance.getId(),
+                        performance.getTitle(),
+                        performance.getPosterImageUrl(),
+                        hall.getName()
                 ),
                 new ReservationSummaryResponse.ScheduleInfo(
-                        1L,
-                        now.toLocalDate().plusDays(30),
-                        now.toLocalTime(),
-                        1
+                        schedule.getId(),
+                        schedule.getPerformanceDate(),
+                        schedule.getStartTime(),
+                        schedule.getPerformanceNo()
                 ),
-                List.of(
-                        new ReservationSummaryResponse.SelectedSeatInfo(
-                                101L, 1, "A", 2, 5, "VIP", 150000
-                        )
-                ),
-                150000,
-                now.plusMinutes(5),
-                280L,
-                now.plusDays(30).minusHours(1)
+                selectedSeats,
+                reservation.getTotalAmount(),
+                reservation.getExpiresAt(),
+                remainingSeconds,
+                cancelDeadline
         );
     }
 
@@ -134,17 +219,54 @@ public class ReservationService {
             Long userId
     ) {
 
-        // TODO: Reservation 조회 및 권한 검증
-        // TODO: 배송 정보 유효성 검증
-        // TODO: Reservation.updateDeliveryInfo() 호출
+        // 1. Reservation 조회 및 권한 검증
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
 
-        // 더미 응답
-        return new UpdateDeliveryInfoResponse(
-                reservationId,
+        // 소유자 확인
+        if (!reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+
+        // 2. 상태 검증 (HOLD상태만)
+        if (reservation.getStatus() != ReservationStatus.HOLD){
+            throw new ServiceException(ErrorCode.INVALID_RESERVATION_STATUS);
+        }
+        // 만료 확인
+        if (reservation.isExpired()) {
+            throw new ServiceException(ErrorCode.RESERVATION_EXPIRED);
+        }
+
+        // 3. 배송 정보 업데이트
+        reservation.updateDeliveryInfo(
                 request.deliveryMethod(),
+                request.recipient().name(),
+                request.recipient().phone(),
+                request.recipient().address(),
+                request.recipient().zipCode()
+        );
+
+        reservationRepository.save(reservation);
+
+        log.info("[Reservation] 배송 정보 입력 완료 - reservationId={}, method={}",
+                reservationId, request.deliveryMethod());
+
+        // 4. 남은 시간 계산
+        Long remainingSeconds = 0L;
+        if (reservation.getExpiresAt() != null) {
+            long seconds = ChronoUnit.SECONDS.between(
+                    LocalDateTime.now(),
+                    reservation.getExpiresAt()
+            );
+            remainingSeconds = Math.max(0, seconds);
+        }
+
+        return new UpdateDeliveryInfoResponse(
+                reservation.getId(),
+                reservation.getDeliveryMethod(),
                 LocalDateTime.now(),
-                LocalDateTime.now().plusMinutes(3),
-                180L
+                reservation.getExpiresAt(),
+                remainingSeconds
         );
     }
 
