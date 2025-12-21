@@ -305,14 +305,21 @@ class AuthServiceTest {
             setupJwtProperties();
             givenTokenCreation(newAccessToken, newRefreshToken);
 
-            authService.refreshToken(oldRefreshToken, httpServletResponse);
+            String returnedAccessToken = authService.refreshToken(oldRefreshToken, httpServletResponse);
 
+            // 반환된 Access Token 검증
+            assertThat(returnedAccessToken).isEqualTo(newAccessToken);
+            
+            // 새 Refresh Token 저장 검증
             RefreshToken saved = captureRefreshToken();
             assertThat(saved.getUserId()).isEqualTo(TEST_USER_ID);
             assertThat(saved.getToken()).isEqualTo(newRefreshToken);
 
+            // 기존 Refresh Token 삭제 검증
             verify(refreshTokenRepository).delete(oldEntity);
-            verify(httpServletResponse).setHeader(HEADER_NAME_AUTHORIZATION, BEARER_PREFIX + newAccessToken);
+            
+            // 쿠키 설정 검증 (HttpServletResponse에 직접 설정)
+            assertRefreshTokenCookie(newRefreshToken);
         }
 
         @Test
