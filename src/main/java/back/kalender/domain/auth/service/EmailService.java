@@ -34,7 +34,7 @@ public class EmailService {
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
 
-    @Value("${spring.mail.username}")
+    @Value("${spring.mail.username:}")
     private String fromEmail;
 
     public void sendVerificationEmail(String to, String code) {
@@ -65,8 +65,7 @@ public class EmailService {
     private void sendEmail(String to, String subject, String templateName, Map<String, Object> variables) {
         try {
             MimeMessage message = createMimeMessage(to, subject, templateName, variables);
-            // 실제 이메일 발송 (개발 환경에서는 주석 처리)
-            // mailSender.send(message);
+            mailSender.send(message);
         } catch (MessagingException | MailException e) {
             log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", to, subject, e);
             throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
@@ -76,6 +75,11 @@ public class EmailService {
     // MimeMessage 생성
     private MimeMessage createMimeMessage(String to, String subject, String templateName, Map<String, Object> variables)
             throws MessagingException {
+        // fromEmail 검증
+        if (fromEmail == null || fromEmail.trim().isEmpty()) {
+            throw new MessagingException("이메일 발신자 주소가 설정되지 않았습니다. spring.mail.username을 설정해주세요.");
+        }
+
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, CHARSET_UTF8);
 
@@ -91,9 +95,14 @@ public class EmailService {
 
     // Thymeleaf 템플릿 렌더링
     private String renderTemplate(String templateName, Map<String, Object> variables) {
-        Context context = new Context();
-        variables.forEach(context::setVariable);
-        return templateEngine.process(templateName, context);
+        try {
+            Context context = new Context();
+            variables.forEach(context::setVariable);
+            return templateEngine.process(templateName, context);
+        } catch (Exception e) {
+            log.error("템플릿 렌더링 실패 - 템플릿: {}", templateName, e);
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
     }
 
     // 비밀번호 재설정 URL 생성(인코딩/조합 안전)
