@@ -10,6 +10,7 @@ import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRe
 import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.entity.Reservation;
 import back.kalender.domain.booking.reservation.entity.ReservationStatus;
+import back.kalender.domain.booking.reservation.mapper.ReservationMapper;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
@@ -28,6 +29,8 @@ import back.kalender.global.exception.ServiceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +64,7 @@ public class ReservationService {
     private final PerformanceSeatRepository performanceSeatRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ReservationMapper reservationMapper;
 
     // 예매 세션 생성
     @Transactional
@@ -396,6 +400,7 @@ public class ReservationService {
         }
     }
 
+    // 좌석 변경 내역 조회 (폴링)
     public SeatChangesResponse getSeatChanges(Long scheduleId, Long sinceVersion) {
         List<Map<String, Object>> changes = seatHoldService.getSeatChanges(
                 scheduleId,
@@ -422,6 +427,136 @@ public class ReservationService {
                 ((Number) map.get("userId")).longValue(),
                 ((Number) map.get("version")).longValue(),
                 (String) map.get("timestamp")
+        );
+    }
+
+    // 예매내역 조회
+    public MyReservationListResponse getMyReservations(Long userId, Pageable pageable) {
+        // 1. 완료된 예매만 조회
+        List<ReservationStatus> completedStatuses = List.of(
+                ReservationStatus.PAID,
+                ReservationStatus.CANCELLED
+        );
+
+        Page<Reservation> reservationPage = reservationRepository
+                .findByUserIdAndStatusInOrderByCreatedAtDesc(userId, completedStatuses, pageable);
+
+        if (reservationPage.isEmpty()) {
+            return new MyReservationListResponse(
+                    List.of(),
+                    reservationPage.getNumber(),
+                    reservationPage.getTotalPages(),
+                    reservationPage.getTotalElements()
+            );
+        }
+
+        // 2. Schedule ID 추출 및 조회
+        Set<Long> scheduleIds = reservationPage.getContent().stream()
+                .map(Reservation::getPerformanceScheduleId)
+                .collect(Collectors.toSet());
+
+        Map<Long, PerformanceSchedule> scheduleMap = scheduleRepository.findAllById(scheduleIds)
+                .stream()
+                .collect(Collectors.toMap(PerformanceSchedule::getId, s -> s));
+
+        // 3. Performance ID 추출 및 조회
+        Set<Long> performanceIds = scheduleMap.values().stream()
+                .map(PerformanceSchedule::getPerformanceId)
+                .collect(Collectors.toSet());
+
+        Map<Long, Performance> performanceMap = performanceRepository.findAllById(performanceIds)
+                .stream()
+                .collect(Collectors.toMap(Performance::getId, p -> p));
+
+        // 4. Hall ID 추출 및 조회
+        Set<Long> hallIds = performanceMap.values().stream()
+                .map(Performance::getPerformanceHallId)
+                .collect(Collectors.toSet());
+
+        Map<Long, PerformanceHall> hallMap = performanceHallRepository.findAllById(hallIds)
+                .stream()
+                .collect(Collectors.toMap(PerformanceHall::getId, h -> h));
+
+        // 5. 예매별 좌석 수 조회
+        List<Long> reservationIds = reservationPage.getContent().stream()
+                .map(Reservation::getId)
+                .toList();
+
+        List<Object[]> seatCounts = reservationSeatRepository.countByReservationIds(reservationIds);
+        Map<Long, Long> seatCountMap = seatCounts.stream()
+                .collect(Collectors.toMap(arr -> (Long) arr[0], arr -> (Long) arr[1]));
+
+        List<MyReservationListResponse.ReservationItem> items = reservationPage.getContent().stream()
+                .map(reservation -> {
+                    PerformanceSchedule schedule = scheduleMap.get(reservation.getPerformanceScheduleId());
+                    Performance performance = performanceMap.get(schedule.getPerformanceId());
+                    PerformanceHall hall = hallMap.get(performance.getPerformanceHallId());
+                    int seatCount = seatCountMap.getOrDefault(reservation.getId(), 0L).intValue();
+
+                    return reservationMapper.toMyReservationItem(
+                            reservation, schedule, performance, hall, seatCount
+                    );
+                })
+                .toList();
+
+        return new MyReservationListResponse(
+                items,
+                reservationPage.getNumber(),
+                reservationPage.getTotalPages(),
+                reservationPage.getTotalElements()
+        );
+    }
+
+    // 예매 상세 조회
+    public ReservationDetailResponse getReservationDetail(Long reservationId, Long userId) {
+        // 1. Reservation 조회 및 권한 검증
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        if (!reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+
+        // 2. Schedule 조회
+        PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        // 3. Performance 조회
+        Performance performance = performanceRepository.findById(schedule.getPerformanceId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_NOT_FOUND));
+
+        // 4. Hall 조회
+        PerformanceHall hall = performanceHallRepository.findById(performance.getPerformanceHallId())
+                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_HALL_NOT_FOUND));
+
+        // 5. 좌석 정보 조회
+        List<ReservationSeat> reservationSeats = reservationSeatRepository
+                .findByReservationId(reservationId);
+
+        List<Long> seatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        Map<Long, PerformanceSeat> seatMap = performanceSeatRepository.findAllById(seatIds)
+                .stream()
+                .collect(Collectors.toMap(PerformanceSeat::getId, s -> s));
+
+        Set<Long> priceGradeIds = seatMap.values().stream()
+                .map(PerformanceSeat::getPriceGradeId)
+                .collect(Collectors.toSet());
+
+        Map<Long, PriceGrade> priceGradeMap = priceGradeRepository.findAllById(priceGradeIds)
+                .stream()
+                .collect(Collectors.toMap(PriceGrade::getId, g -> g));
+
+        return reservationMapper.toReservationDetailResponse(
+                reservation,
+                schedule,
+                performance,
+                hall,
+                reservationSeats,
+                seatMap,
+                priceGradeMap
         );
     }
 }

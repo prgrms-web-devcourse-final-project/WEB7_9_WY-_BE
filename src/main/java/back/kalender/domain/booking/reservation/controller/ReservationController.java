@@ -6,10 +6,11 @@ import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
 import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.service.ReservationService;
-import back.kalender.domain.booking.seatHold.service.SeatHoldService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -120,4 +121,32 @@ public class ReservationController implements ReservationControllerSpec {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/my-reservations")
+    public ResponseEntity<MyReservationListResponse> getMyReservations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        MyReservationListResponse response = reservationService.getMyReservations(
+                userDetails.getUserId(),
+                pageable
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/reservation/{reservationId}")
+    public ResponseEntity<ReservationDetailResponse> getReservationDetail(
+            @PathVariable Long reservationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ReservationDetailResponse response = reservationService.getReservationDetail(
+                reservationId,
+                userDetails.getUserId()
+        );
+
+        return ResponseEntity.ok(response);
+    }
 }

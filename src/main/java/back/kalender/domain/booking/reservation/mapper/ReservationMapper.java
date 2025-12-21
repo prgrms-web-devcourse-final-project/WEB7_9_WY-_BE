@@ -1,21 +1,23 @@
 package back.kalender.domain.booking.reservation.mapper;
 
 import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
-import back.kalender.domain.booking.reservation.dto.response.HoldSeatsResponse;
-import back.kalender.domain.booking.reservation.dto.response.ReleaseSeatsResponse;
-import back.kalender.domain.booking.reservation.dto.response.ReservationSummaryResponse;
+import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.entity.Reservation;
+import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
+@Component
 public class ReservationMapper {
 
     // 좌석 홀드 성공 응답 생성
@@ -142,6 +144,199 @@ public class ReservationMapper {
                 remainingSeconds,
                 cancellationDeadline
         );
+    }
+
+    // Reservation -> MyReservationItem 변환
+    public MyReservationListResponse.ReservationItem toMyReservationItem(
+            Reservation reservation,
+            PerformanceSchedule schedule,
+            Performance performance,
+            PerformanceHall hall,
+            int seatCount
+    ) {
+        // 예매 번호 생성 (예: M256834798)
+        String reservationNumber = "M" + reservation.getId();
+
+        // 관람 인원 (예: 1매, 3매)
+        String ticketCount = seatCount + "매";
+
+        // 상태 표시명
+        String statusDisplay = getStatusDisplay(reservation.getStatus());
+
+        // 취소 가능 기한 (PAID일 때만)
+        String cancelDeadline = null;
+        if (reservation.getStatus() == ReservationStatus.PAID) {
+            LocalDateTime deadline = LocalDateTime.of(
+                    schedule.getPerformanceDate(),
+                    schedule.getStartTime()
+            ).minusHours(1);
+
+            cancelDeadline = deadline.format(
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm까지")
+            );
+        }
+
+        return new MyReservationListResponse.ReservationItem(
+                reservation.getId(),
+                reservationNumber,
+                performance.getTitle(),
+                hall.getName(),
+                schedule.getPerformanceDate(),
+                schedule.getStartTime(),
+                ticketCount,
+                statusDisplay,
+                reservation.getStatus().name(),
+                cancelDeadline,
+                reservation.getCreatedAt()
+        );
+    }
+
+    // Reservaton -> ReserationDetailResponse 변환
+    public ReservationDetailResponse toReservationDetailResponse(
+            Reservation reservation,
+            PerformanceSchedule schedule,
+            Performance performance,
+            PerformanceHall hall,
+            List<ReservationSeat> reservationSeats,
+            Map<Long, PerformanceSeat> seatMap,
+            Map<Long, PriceGrade> priceGradeMap
+    ) {
+        // 1. 예매 정보
+        ReservationDetailResponse.ReservationInfo reservationInfo =
+                toReservationInfoForDetail(reservation, schedule);
+
+        // 2. 공연 정보
+        ReservationDetailResponse.PerformanceInfo performanceInfo =
+                toPerformanceInfoForDetail(performance, hall, schedule);
+
+        // 3. 좌석 정보
+        List<ReservationDetailResponse.SeatInfo> seats = reservationSeats.stream()
+                .map(rs -> {
+                    PerformanceSeat seat = seatMap.get(rs.getPerformanceSeatId());
+                    PriceGrade grade = priceGradeMap.get(seat.getPriceGradeId());
+                    return toSeatInfo(seat, grade, rs.getPrice());
+                })
+                .toList();
+
+        // 4. 결제 내역
+        ReservationDetailResponse.PaymentInfo paymentInfo =
+                toPaymentInfo(reservation);
+
+        // 5. 배송/수령 정보
+        ReservationDetailResponse.DeliveryInfo deliveryInfo =
+                toDeliveryInfo(reservation);
+
+        return new ReservationDetailResponse(
+                reservationInfo,
+                performanceInfo,
+                seats,
+                paymentInfo,
+                deliveryInfo
+        );
+    }
+
+    // 예매 정보 변환 (상세)
+    private ReservationDetailResponse.ReservationInfo toReservationInfoForDetail(
+            Reservation reservation,
+            PerformanceSchedule schedule
+    ) {
+        String reservationNumber = "M" + reservation.getId();
+        String statusDisplay = getStatusDisplay(reservation.getStatus());
+
+        boolean cancellable = false;
+        LocalDateTime cancelDeadline = null;
+
+        if (reservation.getStatus() == ReservationStatus.PAID) {
+            cancelDeadline = LocalDateTime.of(
+                    schedule.getPerformanceDate(),
+                    schedule.getStartTime()
+            ).minusHours(1);
+
+            cancellable = LocalDateTime.now().isBefore(cancelDeadline);
+        }
+
+        return new ReservationDetailResponse.ReservationInfo(
+                reservation.getId(),
+                reservationNumber,
+                reservation.getStatus().name(),
+                statusDisplay,
+                reservation.getCreatedAt(),
+                cancellable,
+                cancelDeadline
+        );
+    }
+
+    // 공연 정보 변환 (상세)
+    private ReservationDetailResponse.PerformanceInfo toPerformanceInfoForDetail(
+            Performance performance,
+            PerformanceHall hall,
+            PerformanceSchedule schedule
+    ) {
+        String round = schedule.getPerformanceNo() + "회차";
+
+        return new ReservationDetailResponse.PerformanceInfo(
+                performance.getId(),
+                performance.getTitle(),
+                hall.getName(),
+                schedule.getPerformanceDate(),
+                schedule.getStartTime(),
+                round
+        );
+    }
+
+    // 좌석 정보 변환 (상세)
+    private ReservationDetailResponse.SeatInfo toSeatInfo(
+            PerformanceSeat seat,
+            PriceGrade grade,
+            Integer price
+    ) {
+        String floor = seat.getFloor() + "층";
+        String block = seat.getBlock() + "블록";
+        String row = seat.getRowNumber() + "열";
+        String seatNumber = seat.getSeatNumber() + "번";
+
+        return new ReservationDetailResponse.SeatInfo(
+                seat.getId(),
+                floor,
+                block,
+                row,
+                seatNumber,
+                grade.getGradeName(),
+                price
+        );
+    }
+
+    // 결제 내역 변환 (상세)
+    private ReservationDetailResponse.PaymentInfo toPaymentInfo(Reservation reservation) {
+        // TODO: 결제 API 연동 후 실제 결제 수단, 결제일시 채우기
+        return new ReservationDetailResponse.PaymentInfo(
+                reservation.getTotalAmount(),
+                "토스페이",  // TODO: 실제 결제 수단
+                reservation.getCreatedAt(),  // TODO: 실제 결제일시
+                "결제 API 연동 후 추가 예정"
+        );
+    }
+
+    // 배송/수령 정보 변환 (상세)
+    private ReservationDetailResponse.DeliveryInfo toDeliveryInfo(Reservation reservation) {
+        String deliveryMethodDisplay = "DELIVERY".equals(reservation.getDeliveryMethod())
+                ? "배송" : "현장수령";
+
+        return new ReservationDetailResponse.DeliveryInfo(
+                deliveryMethodDisplay,
+                reservation.getRecipientName(),
+                reservation.getRecipientPhone(),
+                reservation.getRecipientAddress()
+        );
+    }
+
+    // 상태 표시명 반환
+    private String getStatusDisplay(ReservationStatus status) {
+        return switch (status) {
+            case PAID -> "예매완료(토스페이)";  // TODO: 실제 결제 수단 반영
+            case CANCELLED -> "취소완료";
+            default -> status.name();
+        };
     }
 
     // 남은 시간(초) 계산
