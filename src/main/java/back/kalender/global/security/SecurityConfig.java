@@ -118,7 +118,7 @@ public class SecurityConfig {
                                 "/swagger-ui/**",                  // Swagger UI
                                 "/v3/api-docs/**",                 // OpenAPI 문서
                                 "/swagger-resources/**",            // Swagger 리소스
-                                "/api/v1/notifications/**"          // 알림
+                                "/api/v1/notifications/**",          // 알림
                                 "/api/v1/performance-seats/**",
                                 "/api/v1/queue/**",
                                 "/ws-chat/**"                      // WebSocket 연결 허용
