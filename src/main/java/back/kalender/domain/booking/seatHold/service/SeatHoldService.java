@@ -298,6 +298,7 @@ public class SeatHoldService {
 
         for(Long seatId : seatIds){
             try {
+                log.debug("[SeatRelease] 좌석 해제 시도 - seatId={}", seatId);
                 // Redis 키 삭제
                 String holdOwnerKey = String.format(SEAT_HOLD_OWNER_KEY, scheduleId, seatId);
                 redisTemplate.delete(holdOwnerKey);

@@ -55,7 +55,7 @@ public class Reservation extends BaseEntity {
                 .userId(userId)
                 .performanceScheduleId(scheduleId)
                 .totalAmount(0)
-                .status(ReservationStatus.HOLD)
+                .status(ReservationStatus.PENDING)
                 .expiresAt(now.plusMinutes(5))
                 .build();
     }

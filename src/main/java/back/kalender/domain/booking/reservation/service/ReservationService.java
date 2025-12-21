@@ -36,8 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,6 +64,8 @@ public class ReservationService {
     private final ObjectMapper objectMapper;
     private final ReservationMapper reservationMapper;
 
+    private static final int CANCEL_DEADLINE_HOURS = 1;
+
     // 예매 세션 생성
     @Transactional
     public CreateReservationResponse createReservation(
@@ -84,20 +84,10 @@ public class ReservationService {
         // TODO: Schedule 상태 검증 (예매 가능한 상태인지)
 
         // 2. Reservation 엔티티 생성 및 저장
-        Reservation reservation = Reservation.builder()
-                .userId(userId)
-                .performanceScheduleId(scheduleId)
-                .status(ReservationStatus.PENDING)
-                .totalAmount(0)  // 좌석 선택 전이므로 0원
-                .build();
-
+        Reservation reservation = Reservation.create(userId, scheduleId);
         Reservation savedReservation = reservationRepository.save(reservation);
-        return new CreateReservationResponse(
-                savedReservation.getId(),
-                savedReservation.getStatus().name(),
-                null,
-                0L
-        );
+
+        return reservationMapper.toCreateReservationResponse(savedReservation);
     }
 
     // 좌석 홀드
@@ -120,17 +110,13 @@ public class ReservationService {
         return seatHoldService.releaseSeats(reservationId, request, userId);
     }
 
+    // 예매 요약 조회
     public ReservationSummaryResponse getReservationSummary(
             Long reservationId,
             Long userId
     ) {
         // 1. Reservation 조회 및 권한 검증
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
-
-        if (!reservation.isOwnedBy(userId)) {
-            throw new ServiceException(ErrorCode.UNAUTHORIZED);
-        }
+        Reservation reservation = findAndValidateReservation(reservationId, userId);
 
         // 2. Performance, Schedule, Hall 정보 조회
         PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
@@ -145,83 +131,39 @@ public class ReservationService {
         // 3. 선택된 좌석 정보 조회
         List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(reservationId);
 
-        // 좌석 없으면 빈 리스트
-        List<ReservationSummaryResponse.SelectedSeatInfo> selectedSeats = new ArrayList<>();
-
-        if (!reservationSeats.isEmpty()) {
-            // PerformanceSeat 정보 조회
-            List<Long> seatIds = reservationSeats.stream()
-                    .map(ReservationSeat::getPerformanceSeatId)
-                    .toList();
-
-            Map<Long, PerformanceSeat> seatMap = performanceSeatRepository.findAllById(seatIds)
-                    .stream()
-                    .collect(Collectors.toMap(PerformanceSeat::getId, seat -> seat));
-
-            // PriceGrade 정보 조회
-            Set<Long> priceGradeIds = seatMap.values().stream()
-                    .map(PerformanceSeat::getPriceGradeId)
-                    .collect(Collectors.toSet());
-
-            Map<Long, PriceGrade> priceGradeMap = priceGradeRepository.findAllById(priceGradeIds)
-                    .stream()
-                    .collect(Collectors.toMap(PriceGrade::getId, grade -> grade));
-
-            // SelectedSeatInfo 생성
-            for (ReservationSeat reservationSeat : reservationSeats) {
-                PerformanceSeat seat = seatMap.get(reservationSeat.getPerformanceSeatId());
-                PriceGrade priceGrade = priceGradeMap.get(seat.getPriceGradeId());
-
-                selectedSeats.add(new ReservationSummaryResponse.SelectedSeatInfo(
-                        seat.getId(),
-                        seat.getFloor(),
-                        seat.getBlock(),
-                        seat.getRowNumber(),
-                        seat.getSeatNumber(),
-                        priceGrade.getGradeName(),
-                        reservationSeat.getPrice()
-                ));
-            }
+        if (reservationSeats.isEmpty()) {
+            throw new ServiceException(ErrorCode.NO_SEATS_RESERVED);
         }
 
-        // 4. 홀드 만료까지 남은 시간 계산
-        Long remainingSeconds = 0L;
-        if (reservation.getExpiresAt() != null) {
-            long seconds = ChronoUnit.SECONDS.between(
-                    LocalDateTime.now(),
-                    reservation.getExpiresAt()
-            );
-            remainingSeconds = Math.max(0, seconds);
-        }
+        List<Long> seatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
 
-        // 5 취소 가능 기한 계산 (공연 시작 1시간 전)
-        LocalDateTime cancelDeadline = LocalDateTime.of(
-                schedule.getPerformanceDate(),
-                schedule.getStartTime()
-        ).minusHours(1);
+        Map<Long, PerformanceSeat> performanceSeatMap = performanceSeatRepository.findAllById(seatIds)
+                .stream()
+                .collect(Collectors.toMap(PerformanceSeat::getId, s -> s));
 
-        return new ReservationSummaryResponse(
-                reservation.getId(),
-                new ReservationSummaryResponse.PerformanceInfo(
-                        performance.getId(),
-                        performance.getTitle(),
-                        performance.getPosterImageUrl(),
-                        hall.getName()
-                ),
-                new ReservationSummaryResponse.ScheduleInfo(
-                        schedule.getId(),
-                        schedule.getPerformanceDate(),
-                        schedule.getStartTime(),
-                        schedule.getPerformanceNo()
-                ),
-                selectedSeats,
-                reservation.getTotalAmount(),
-                reservation.getExpiresAt(),
-                remainingSeconds,
-                cancelDeadline
+        Set<Long> priceGradeIds = performanceSeatMap.values().stream()
+                .map(PerformanceSeat::getPriceGradeId)
+                .collect(Collectors.toSet());
+
+        Map<Long, PriceGrade> priceGradeMap = priceGradeRepository.findAllById(priceGradeIds)
+                .stream()
+                .collect(Collectors.toMap(PriceGrade::getId, g -> g));
+
+        return ReservationMapper.toSummaryResponse(
+                reservation,
+                performance,
+                schedule,
+                hall,
+                reservationSeats,
+                performanceSeatMap,
+                priceGradeMap,
+                LocalDateTime.now()
         );
     }
 
+    // 배송 정보 수정
     @Transactional
     public UpdateDeliveryInfoResponse updateDeliveryInfo(
             Long reservationId,
@@ -230,13 +172,7 @@ public class ReservationService {
     ) {
 
         // 1. Reservation 조회 및 권한 검증
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
-
-        // 소유자 확인
-        if (!reservation.isOwnedBy(userId)) {
-            throw new ServiceException(ErrorCode.UNAUTHORIZED);
-        }
+        Reservation reservation = findAndValidateReservation(reservationId, userId);
 
         // 2. 상태 검증 (HOLD상태만)
         if (reservation.getStatus() != ReservationStatus.HOLD){
@@ -256,45 +192,48 @@ public class ReservationService {
                 request.recipient().zipCode()
         );
 
-        reservationRepository.save(reservation);
+        Reservation updatedReservation = reservationRepository.save(reservation);
 
-        log.info("[Reservation] 배송 정보 입력 완료 - reservationId={}, method={}",
-                reservationId, request.deliveryMethod());
-
-        // 4. 남은 시간 계산
-        Long remainingSeconds = 0L;
-        if (reservation.getExpiresAt() != null) {
-            long seconds = ChronoUnit.SECONDS.between(
-                    LocalDateTime.now(),
-                    reservation.getExpiresAt()
-            );
-            remainingSeconds = Math.max(0, seconds);
-        }
-
-        return new UpdateDeliveryInfoResponse(
-                reservation.getId(),
-                reservation.getDeliveryMethod(),
-                LocalDateTime.now(),
-                reservation.getExpiresAt(),
-                remainingSeconds
-        );
+        return reservationMapper.toUpdateDeliveryInfoResponse(updatedReservation);
     }
 
-    @Transactional
+    // 예매 취소
     public CancelReservationResponse cancelReservation(
             Long reservationId,
             Long userId
     ) {
-        // 1. Reservation 조회 및 권한 검증
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        // 1. DB 작업 (트랜잭션 커밋)
+        CancelReservationData data = cancelReservationInDB(reservationId, userId);
 
-        // 소유자 확인
-        if (!reservation.isOwnedBy(userId)) {
-            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        // 2. Redis 작업 (트랜잭션 외부 - DB 커밋 완료 후)
+        try {
+            updateRedisAfterCancel(data.scheduleId(), data.seatIds());
+        } catch (Exception e) {
+            /*
+             * Redis 실패 처리:
+             * - DB는 이미 커밋됨 (정합성 유지)
+             * - Redis는 캐시 역할이므로 TTL로 자동 정리
+             * - 폴링 API는 Redis 이벤트 기반이지만, Redis 실패 시에도
+             *   다음 HOLD/RELEASE에서 Redis가 정리되므로 최종 일관성 유지
+             */
+            log.error("[Reservation] Redis 업데이트 실패 (DB는 이미 커밋됨) - reservationId={}",
+                    reservationId, e);
         }
 
-        // 2. 취소 가능 상태 검증
+        // 3. Mapper로 응답 생성
+        return reservationMapper.toCancelReservationResponse(
+                data.reservation(),
+                data.seatIds().size()
+        );
+    }
+
+    // 예매 취소 - DB 작업
+    @Transactional
+    protected CancelReservationData cancelReservationInDB(Long reservationId, Long userId) {
+        // 1. Reservation 조회 및 권한 검증
+        Reservation reservation = findAndValidateReservation(reservationId, userId);
+
+        // 2. 취소 가능 상태 검증 (PAID만 가능)
         if (reservation.getStatus() != ReservationStatus.PAID) {
             throw new ServiceException(ErrorCode.INVALID_RESERVATION_STATUS);
         }
@@ -303,11 +242,10 @@ public class ReservationService {
         PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        LocalDateTime performanceStartTime = LocalDateTime.of(
+        LocalDateTime cancelDeadline = LocalDateTime.of(
                 schedule.getPerformanceDate(),
                 schedule.getStartTime()
-        );
-        LocalDateTime cancelDeadline = performanceStartTime.minusHours(1);
+        ).minusHours(CANCEL_DEADLINE_HOURS);
 
         if (LocalDateTime.now().isAfter(cancelDeadline)) {
             throw new ServiceException(ErrorCode.CANCEL_DEADLINE_PASSED);
@@ -325,53 +263,58 @@ public class ReservationService {
                 .map(ReservationSeat::getPerformanceSeatId)
                 .toList();
 
-
         // 5. 좌석 상태 복구 (SOLD → AVAILABLE)
         List<PerformanceSeat> seats = performanceSeatRepository.findAllById(seatIds);
-
         for (PerformanceSeat seat : seats) {
             seat.updateStatus(SeatStatus.AVAILABLE);
-            seat.clearHoldInfo();  // holdUserId, holdExpiresAt 초기화
+            seat.clearHoldInfo();
         }
-        performanceSeatRepository.saveAll(seats);  // ← 이 줄 추가!
+        performanceSeatRepository.saveAll(seats);
 
+        // 6. 예매 상태 변경 (PAID → CANCELLED)
+        reservation.cancel();
+        Reservation cancelledReservation = reservationRepository.save(reservation);
 
-        // 6. Redis SOLD set에서 제거
-        String soldSetKey = String.format("seat:sold:%d", schedule.getId());
+        log.info("[Reservation] 예매 취소 DB 완료 - reservationId={}, userId={}, seatCount={}",
+                reservationId, userId, seatIds.size());
+
+        return new CancelReservationData(
+                cancelledReservation,
+                schedule.getId(),
+                seatIds
+        );
+    }
+
+    // 예매 취소 후 Redis 업데이트
+    protected void updateRedisAfterCancel(Long scheduleId, List<Long> seatIds) {
+        // 1. Redis SOLD set에서 제거
+        String soldSetKey = String.format("seat:sold:%d", scheduleId);
         for (Long seatId : seatIds) {
             redisTemplate.opsForSet().remove(soldSetKey, seatId.toString());
         }
 
-        // 7. 좌석 변경 이벤트 발행 (폴링용)
+        // 2. 좌석 변경 이벤트 발행 (폴링용)
         for (Long seatId : seatIds) {
-            recordSeatChangeEvent(
-                    schedule.getId(),
-                    seatId,
-                    SeatStatus.AVAILABLE,
-                    null  // userId = null (예매 취소)
-            );
+            try {
+                recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, null);
+            } catch (Exception e) {
+                // 이벤트 발행 실패는 로그만 (폴링에 영향 있지만 치명적이지 않음)
+                log.warn("[Reservation] 변경 이벤트 발행 실패 - seatId={}", seatId, e);
+            }
         }
 
-        // 8. 예매 상태 변경 (PAID → CANCELLED)
-        reservation.cancel();
-        reservationRepository.save(reservation);
-
-        log.info("[Reservation] 예매 취소 완료 - reservationId={}, userId={}, seatCount={}",
-                reservationId, userId, seatIds.size());
-
-        // 9. 응답 생성
-        return new CancelReservationResponse(
-                reservationId,
-                ReservationStatus.CANCELLED.name(),
-                reservation.getTotalAmount(),  // 환불 예정 금액
-                LocalDateTime.now(),  // cancelledAt
-                seatIds.size()
-        );
+        log.debug("[Reservation] Redis 업데이트 완료 - scheduleId={}, seatCount={}",
+                scheduleId, seatIds.size());
     }
 
-    /**
-     * 좌석 변경 이벤트 발행 (폴링 API용)
-     */
+    // 예매 취소 DB 작업 결과 DTO
+    protected record CancelReservationData(
+            Reservation reservation,
+            Long scheduleId,
+            List<Long> seatIds
+    ) {}
+
+    // 좌석 변경 이벤트 발행 (폴링 API용)
     private void recordSeatChangeEvent(
             Long scheduleId,
             Long seatId,
@@ -510,12 +453,7 @@ public class ReservationService {
     // 예매 상세 조회
     public ReservationDetailResponse getReservationDetail(Long reservationId, Long userId) {
         // 1. Reservation 조회 및 권한 검증
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
-
-        if (!reservation.isOwnedBy(userId)) {
-            throw new ServiceException(ErrorCode.UNAUTHORIZED);
-        }
+        Reservation reservation = findAndValidateReservation(reservationId, userId);
 
         // 2. Schedule 조회
         PerformanceSchedule schedule = scheduleRepository.findById(reservation.getPerformanceScheduleId())
@@ -558,5 +496,12 @@ public class ReservationService {
                 seatMap,
                 priceGradeMap
         );
+    }
+
+    private Reservation findAndValidateReservation(Long reservationId, Long userId) {
+        Reservation r = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        if (!r.isOwnedBy(userId)) throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        return r;
     }
 }

@@ -9,6 +9,8 @@ import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -16,9 +18,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 public class ReservationMapper {
+    private static final int CANCEL_DEADLINE_HOURS = 1;
 
     // 좌석 홀드 성공 응답 생성
     public static HoldSeatsResponse toHoldSeatsResponse(
@@ -53,27 +57,6 @@ public class ReservationMapper {
                 reservation.getId(),
                 reservation.getStatus().name(),
                 heldSeats,
-                totalAmount,
-                reservation.getExpiresAt(),
-                remainingSeconds
-        );
-    }
-
-    // 좌석 홀드 해제 성공 응답 생성
-    public static ReleaseSeatsResponse toReleaseSeatsResponse(
-            Reservation reservation,
-            List<Long> releasedSeatIds,
-            int remainingSeatCount,
-            int totalAmount,
-            LocalDateTime now
-    ) {
-        long remainingSeconds = calculateRemainingSeconds(reservation, now);
-
-        return new ReleaseSeatsResponse(
-                reservation.getId(),
-                reservation.getStatus().name(),
-                releasedSeatIds,
-                remainingSeatCount,
                 totalAmount,
                 reservation.getExpiresAt(),
                 remainingSeconds
@@ -130,7 +113,7 @@ public class ReservationMapper {
         // 취소 가능 기한 (공연 시작 1시간 전)
         LocalDateTime cancellationDeadline = schedule.getPerformanceDate()
                 .atTime(schedule.getStartTime())
-                .minusHours(1);
+                .minusHours(CANCEL_DEADLINE_HOURS);
 
         long remainingSeconds = calculateRemainingSeconds(reservation, now);
 
@@ -146,7 +129,46 @@ public class ReservationMapper {
         );
     }
 
-    // Reservation -> MyReservationItem 변환
+    // 예매 생성
+    public CreateReservationResponse toCreateReservationResponse(Reservation reservation) {
+        return new CreateReservationResponse(
+                reservation.getId(),
+                reservation.getStatus().name(),
+                reservation.getExpiresAt(),
+                0L
+        );
+    }
+
+    // 배송 정보 입력
+    public UpdateDeliveryInfoResponse toUpdateDeliveryInfoResponse(Reservation reservation) {
+        long remainingSeconds = reservation.getExpiresAt() != null
+                ? calculateRemainingSeconds(reservation, LocalDateTime.now())
+                : 0L;
+
+        return new UpdateDeliveryInfoResponse(
+                reservation.getId(),
+                reservation.getDeliveryMethod(),
+                reservation.getUpdatedAt(),
+                reservation.getExpiresAt(),
+                remainingSeconds
+        );
+    }
+
+    // 예매 취소
+    public CancelReservationResponse toCancelReservationResponse(
+            Reservation reservation,
+            int cancelledSeatCount
+    ) {
+        return new CancelReservationResponse(
+                reservation.getId(),
+                reservation.getStatus().name(),
+                reservation.getTotalAmount(),  // 환불 예정 금액
+                LocalDateTime.now(),            // 취소 시각
+                cancelledSeatCount
+        );
+    }
+
+    // 예매 내역 목록
     public MyReservationListResponse.ReservationItem toMyReservationItem(
             Reservation reservation,
             PerformanceSchedule schedule,
@@ -191,7 +213,7 @@ public class ReservationMapper {
         );
     }
 
-    // Reservaton -> ReserationDetailResponse 변환
+    // 예매 상세
     public ReservationDetailResponse toReservationDetailResponse(
             Reservation reservation,
             PerformanceSchedule schedule,
@@ -212,8 +234,10 @@ public class ReservationMapper {
         // 3. 좌석 정보
         List<ReservationDetailResponse.SeatInfo> seats = reservationSeats.stream()
                 .map(rs -> {
-                    PerformanceSeat seat = seatMap.get(rs.getPerformanceSeatId());
-                    PriceGrade grade = priceGradeMap.get(seat.getPriceGradeId());
+                    PerformanceSeat seat = Optional.ofNullable(seatMap.get(rs.getPerformanceSeatId()))
+                            .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_SEAT_NOT_FOUND));
+                    PriceGrade grade = Optional.ofNullable(priceGradeMap.get(seat.getPriceGradeId()))
+                            .orElseThrow(() -> new ServiceException(ErrorCode.PRICE_GRADE_NOT_FOUND));
                     return toSeatInfo(seat, grade, rs.getPrice());
                 })
                 .toList();
@@ -235,7 +259,7 @@ public class ReservationMapper {
         );
     }
 
-    // 예매 정보 변환 (상세)
+
     private ReservationDetailResponse.ReservationInfo toReservationInfoForDetail(
             Reservation reservation,
             PerformanceSchedule schedule
@@ -341,6 +365,9 @@ public class ReservationMapper {
 
     // 남은 시간(초) 계산
     public static long calculateRemainingSeconds(Reservation reservation, LocalDateTime now) {
+        if (reservation.getExpiresAt() == null) {
+            return 0L;
+        }
         long seconds = Duration.between(now, reservation.getExpiresAt()).getSeconds();
         return Math.max(0, seconds);
     }
