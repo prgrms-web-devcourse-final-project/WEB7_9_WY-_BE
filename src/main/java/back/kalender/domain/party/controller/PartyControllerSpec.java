@@ -3,8 +3,8 @@ package back.kalender.domain.party.controller;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
-import back.kalender.domain.party.entity.PartyType;
-import back.kalender.domain.party.entity.TransportType;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.TransportType;
 import back.kalender.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -19,7 +19,22 @@ import org.springframework.web.bind.annotation.*;
 
 public interface PartyControllerSpec {
 
-    @Operation(summary = "파티 생성", description = "새로운 파티를 생성합니다.")
+    @Operation(
+            summary = "파티 생성",
+            description = """
+                    새로운 파티를 생성합니다.
+                    
+                    **자동 처리:**
+                    - 파티 생성 시 채팅방 자동 생성
+                    - 생성자가 자동으로 파티장이 됨
+                    - 생성자가 자동으로 첫 번째 멤버로 추가됨
+                    
+                    **생성 후:**
+                    - 파티 상태: RECRUITING (모집 중)
+                    - 현재 인원: 1명 (파티장)
+                    - 채팅방 활성화: true
+                    """
+    )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "생성 성공",
                     content = @Content(schema = @Schema(implementation = CreatePartyResponse.class),
@@ -46,7 +61,7 @@ public interface PartyControllerSpec {
                             """)))
     })
     @PostMapping
-    public ResponseEntity<CreatePartyResponse> createParty(
+    ResponseEntity<CreatePartyResponse> createParty(
             @Valid @RequestBody CreatePartyRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -84,14 +99,27 @@ public interface PartyControllerSpec {
                             }
                             """)))
     })
-    @PutMapping("/{partyId}")
-    public ResponseEntity<UpdatePartyResponse> updateParty(
+    @PatchMapping("/{partyId}")
+    ResponseEntity<UpdatePartyResponse> updateParty(
             @PathVariable Long partyId,
             @Valid @RequestBody UpdatePartyRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
-    @Operation(summary = "파티 삭제", description = "파티를 삭제합니다. 파티장만 삭제할 수 있습니다.")
+    @Operation(
+            summary = "파티 삭제",
+            description = """
+                    파티를 삭제합니다. 파티장만 삭제할 수 있습니다.
+                    
+                    **자동 처리:**
+                    - 파티 삭제 시 채팅방 자동 종료 (비활성화)
+                    - 채팅 메시지는 보존됨 (삭제되지 않음)
+                    
+                    **주의:**
+                    - 파티장만 삭제 가능
+                    - 삭제 후 복구 불가
+                    """
+    )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
             @ApiResponse(responseCode = "403", description = "권한 없음",
@@ -110,7 +138,7 @@ public interface PartyControllerSpec {
                             """)))
     })
     @DeleteMapping("/{partyId}")
-    public ResponseEntity<Void> deleteParty(
+    ResponseEntity<Void> deleteParty(
             @PathVariable Long partyId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -121,7 +149,7 @@ public interface PartyControllerSpec {
                     content = @Content(schema = @Schema(implementation = GetPartiesResponse.class)))
     })
     @GetMapping
-    public ResponseEntity<GetPartiesResponse> getParties(
+    ResponseEntity<GetPartiesResponse> getParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -149,7 +177,7 @@ public interface PartyControllerSpec {
             )
     })
     @GetMapping("/schedule/{scheduleId}")
-    public ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
+    ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
             @PathVariable Long scheduleId,
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
@@ -212,7 +240,7 @@ public interface PartyControllerSpec {
                             """)))
     })
     @PostMapping("/{partyId}/application/apply")
-    public ResponseEntity<ApplyToPartyResponse> applyToParty(
+    ResponseEntity<ApplyToPartyResponse> applyToParty(
             @PathVariable Long partyId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -243,13 +271,24 @@ public interface PartyControllerSpec {
                             """)))
     })
     @DeleteMapping("/{partyId}/application/{applicationId}/cancel")
-    public ResponseEntity<Void> cancelApplication(
+    ResponseEntity<Void> cancelApplication(
             @PathVariable Long partyId,
             @PathVariable Long applicationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
-    @Operation(summary = "파티 신청 승인", description = "파티 신청을 승인합니다. 파티장만 승인할 수 있습니다.")
+    @Operation(
+            summary = "파티 신청 승인",
+            description = """
+                    파티 신청을 승인합니다. 파티장만 승인할 수 있습니다.
+                    
+                    **승인 후:**
+                    - 신청자가 파티 멤버로 추가됨
+                    - 채팅방 입장 가능해짐
+                    - 현재 인원 +1
+                    - 인원이 가득 차면 파티 상태 자동 변경 (RECRUITING → CLOSED)
+                    """
+    )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "승인 성공",
                     content = @Content(schema = @Schema(implementation = AcceptApplicationResponse.class),
@@ -299,7 +338,7 @@ public interface PartyControllerSpec {
                     }))
     })
     @PatchMapping("/{partyId}/application/{applicationId}/accept")
-    public ResponseEntity<AcceptApplicationResponse> acceptApplication(
+    ResponseEntity<AcceptApplicationResponse> acceptApplication(
             @PathVariable Long partyId,
             @PathVariable Long applicationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -347,7 +386,7 @@ public interface PartyControllerSpec {
                     }))
     })
     @PatchMapping("/{partyId}/application/{applicationId}/reject")
-    public ResponseEntity<RejectApplicationResponse> rejectApplication(
+    ResponseEntity<RejectApplicationResponse> rejectApplication(
             @PathVariable Long partyId,
             @PathVariable Long applicationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -373,12 +412,21 @@ public interface PartyControllerSpec {
                             """)))
     })
     @GetMapping("/{partyId}/application/applicants")
-    public ResponseEntity<GetApplicantsResponse> getApplicants(
+    ResponseEntity<GetApplicantsResponse> getApplicants(
             @PathVariable Long partyId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
-    @Operation(summary = "파티 멤버 목록 조회", description = "파티에 참여 중인 멤버 목록을 조회합니다.")
+    @Operation(
+            summary = "파티 멤버 목록 조회",
+            description = """
+                    파티에 참여 중인 멤버 목록을 조회합니다.
+                    
+                    **참고:**
+                    - 채팅방 참여자 목록은 별도 API 사용 (GET /api/v1/chat/rooms/{partyId}/participants)
+                    - 이 API는 파티 멤버 정보만 조회
+                    """
+    )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
                     content = @Content(schema = @Schema(implementation = GetPartyMembersResponse.class))),
@@ -391,7 +439,7 @@ public interface PartyControllerSpec {
                             """)))
     })
     @GetMapping("/{partyId}/members")
-    public ResponseEntity<GetPartyMembersResponse> getPartyMembers(
+    ResponseEntity<GetPartyMembersResponse> getPartyMembers(
             @PathVariable Long partyId
     );
 
@@ -401,7 +449,7 @@ public interface PartyControllerSpec {
                     content = @Content(schema = @Schema(implementation = GetMyApplicationsResponse.class)))
     })
     @GetMapping("/user/me/party/application")
-    public ResponseEntity<GetMyApplicationsResponse> getMyApplications(
+    ResponseEntity<GetMyApplicationsResponse> getMyApplications(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -413,7 +461,7 @@ public interface PartyControllerSpec {
                     content = @Content(schema = @Schema(implementation = GetMyCreatedPartiesResponse.class)))
     })
     @GetMapping("/user/me/party/created")
-    public ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
+    ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -456,7 +504,7 @@ public interface PartyControllerSpec {
                                       },
                                       "partyDetail": {
                                         "partyName": "즐거운 BTS 콘서트",
-                                        "partyType": "출발",
+                                        "partyType": "LEAVE",
                                         "departureLocation": "강남역",
                                         "arrivalLocation": "잠실종합운동장",
                                         "maxMembers": 4,
@@ -482,7 +530,7 @@ public interface PartyControllerSpec {
                                       },
                                       "partyDetail": {
                                         "partyName": "블핑 콘서트 같이 가요",
-                                        "partyType": "출발",
+                                        "partyType": "LEAVE",
                                         "departureLocation": "신림역",
                                         "arrivalLocation": "고척스카이돔",
                                         "maxMembers": 5,
@@ -507,7 +555,7 @@ public interface PartyControllerSpec {
             )
     })
     @GetMapping("/user/me/party/completed")
-    public ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
+    ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails

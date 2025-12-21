@@ -8,7 +8,7 @@ import back.kalender.domain.user.dto.response.UserSignupResponse;
 import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.mapper.UserBuilder;
 import back.kalender.domain.user.repository.UserRepository;
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.global.common.enums.Gender;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;

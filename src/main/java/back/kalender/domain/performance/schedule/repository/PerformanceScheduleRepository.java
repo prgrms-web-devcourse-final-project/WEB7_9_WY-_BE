@@ -13,6 +13,16 @@ public interface PerformanceScheduleRepository extends JpaRepository<Performance
     // 특정 공연의 모든 회차 조회
     List<PerformanceSchedule> findAllByPerformanceIdOrderByPerformanceDateAscStartTimeAsc(Long performanceId);
 
+    // 특정 공연의 예매 가능한 날짜 목록 조회 (중복 제거)
+    @Query("""
+        select distinct ps.performanceDate
+        from PerformanceSchedule ps
+        where ps.performanceId = :performanceId
+        order by ps.performanceDate asc
+    """)
+    List<LocalDate> findAvailableDatesByPerformanceId(@Param("performanceId") Long performanceId);
+
+
     // 특정 공연의 특정 날짜 회차들만 조회
     List<PerformanceSchedule> findAllByPerformanceIdAndPerformanceDateOrderByStartTimeAsc(
         Long performanceId,
@@ -20,7 +30,4 @@ public interface PerformanceScheduleRepository extends JpaRepository<Performance
     );
 
     List<PerformanceSchedule> findByPerformanceId(Long performanceId);
-
-    // 특정 공연의 예매 가능한 날짜 목록 조회 (중복 제거)
-    List<LocalDate> findAvailableDatesByPerformanceId(Long performanceId);
 }

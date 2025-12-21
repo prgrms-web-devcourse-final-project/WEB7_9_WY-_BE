@@ -10,6 +10,7 @@ public enum ErrorCode {
     UNAUTHORIZED("002",HttpStatus.UNAUTHORIZED,"로그인이 필요합니다."),
     INTERNAL_SERVER_ERROR("003",HttpStatus.INTERNAL_SERVER_ERROR,"서버에서 오류가 발생했습니다."),
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+
     // User 1000
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
     DUPLICATE_NICKNAME("1002", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
@@ -39,13 +40,13 @@ public enum ErrorCode {
     APPLICATION_ALREADY_PROCESSED("3206", HttpStatus.BAD_REQUEST, "이미 처리된 신청입니다."),
     CANNOT_CANCEL_APPROVED_APPLICATION("3209", HttpStatus.BAD_REQUEST, "승인된 신청은 취소할 수 없습니다."),
     PARTY_NOT_RECRUITING("3212", HttpStatus.BAD_REQUEST, "모집중인 파티가 아닙니다."),
+    ALREADY_JOINED_BEFORE("3213",  HttpStatus.BAD_REQUEST, "한번 나간 파티는 다시 들어갈 수 없습니다."),
 
     // 3400-3499: 파티 유효성 검증
     CANNOT_REDUCE_MAX_MEMBERS("3413", HttpStatus.BAD_REQUEST, "현재 인원보다 적게 최대 인원을 설정할 수 없습니다."),
 
     // Schedule 4000
     SCHEDULE_NOT_FOUND("4001", HttpStatus.NOT_FOUND, "일정을 찾을 수 없습니다."),
-
 
     // Performance 5000
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
@@ -67,7 +68,24 @@ public enum ErrorCode {
     EXPIRED_PASSWORD_RESET_TOKEN("7010", HttpStatus.UNAUTHORIZED, "만료된 비밀번호 재설정 토큰입니다."),
     PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
-    PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다.");
+    PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+
+    // Chat 8000
+    // 8001-8099: 채팅방 관련
+    CHAT_ROOM_NOT_FOUND("8001", HttpStatus.NOT_FOUND, "채팅방을 찾을 수 없습니다."),
+    CHAT_ROOM_ALREADY_EXISTS("8002", HttpStatus.CONFLICT, "이미 채팅방이 존재합니다."),
+    CHAT_ROOM_NOT_ACTIVE("8003", HttpStatus.BAD_REQUEST, "비활성화된 채팅방입니다."),
+    UNAUTHORIZED_CHAT_ACCESS("8004", HttpStatus.FORBIDDEN, "채팅방 접근 권한이 없습니다."),
+
+    // 8100-8199: 메시지 관련
+    MESSAGE_EMPTY("8101", HttpStatus.BAD_REQUEST, "메시지 내용이 비어있습니다."),
+    MESSAGE_TOO_LONG("8102", HttpStatus.BAD_REQUEST, "메시지가 너무 깁니다. (최대 500자)"),
+
+    // 8200-8299: 권한 관련
+    LEADER_CANNOT_LEAVE("8201", HttpStatus.BAD_REQUEST, "파티장은 채팅방을 나갈 수 없습니다."),
+    CANNOT_KICK_YOURSELF("8202", HttpStatus.BAD_REQUEST, "자기 자신을 강퇴할 수 없습니다."),
+    ONLY_LEADER_CAN_KICK("8203", HttpStatus.FORBIDDEN, "파티장만 멤버를 강퇴할 수 있습니다."),
+    USER_NOT_IN_PARTY("8204", HttpStatus.NOT_FOUND, "해당 사용자는 파티 멤버가 아닙니다.");
 
     private final String code;
     private final HttpStatus status;

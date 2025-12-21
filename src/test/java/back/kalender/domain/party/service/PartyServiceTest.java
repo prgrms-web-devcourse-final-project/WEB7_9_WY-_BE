@@ -6,6 +6,10 @@
 //import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 //import back.kalender.domain.party.dto.response.*;
 //import back.kalender.domain.party.entity.*;
+//import back.kalender.domain.party.enums.PartyStatus;
+//import back.kalender.domain.party.enums.PartyType;
+//import back.kalender.domain.party.enums.PreferredAge;
+//import back.kalender.domain.party.enums.TransportType;
 //import back.kalender.domain.party.repository.PartyApplicationRepository;
 //import back.kalender.domain.party.repository.PartyMemberRepository;
 //import back.kalender.domain.party.repository.PartyRepository;

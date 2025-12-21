@@ -5,7 +5,7 @@ import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.entity.User;
 import back.kalender.domain.user.repository.UserRepository;
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.global.common.enums.Gender;
 import back.kalender.global.exception.ServiceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

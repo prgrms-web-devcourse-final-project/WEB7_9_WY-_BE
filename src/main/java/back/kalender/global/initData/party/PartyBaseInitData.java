@@ -209,7 +209,7 @@
 //        return scheduleRepository.save(schedule);
 //    }
 //
-//    private Party createParty(Long scheduleId, Long leaderId, PartyType partyType, String partyName,
+//    private Party createParty(Long scheduleId, Long leaderId, PartyType partyType, String partyTitle,
 //                              String description, String departureLocation, String arrivalLocation,
 //                              TransportType transportType, Integer maxMembers, Gender preferredGender,
 //                              PreferredAge preferredAge) {
@@ -217,7 +217,7 @@
 //                .scheduleId(scheduleId)
 //                .leaderId(leaderId)
 //                .partyType(partyType)
-//                .partyName(partyName)
+//                .partyTitle(partyTitle)
 //                .description(description)
 //                .departureLocation(departureLocation)
 //                .arrivalLocation(arrivalLocation)

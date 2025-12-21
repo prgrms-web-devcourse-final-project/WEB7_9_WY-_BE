@@ -1,6 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.global.common.Enum.Gender;
+import back.kalender.global.common.enums.Gender;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public record ApplyToPartyResponse(
