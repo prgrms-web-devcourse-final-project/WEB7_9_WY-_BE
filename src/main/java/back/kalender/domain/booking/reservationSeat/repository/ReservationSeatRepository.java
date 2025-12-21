@@ -2,6 +2,8 @@ package back.kalender.domain.booking.reservationSeat.repository;
 
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -19,5 +21,12 @@ public interface ReservationSeatRepository extends JpaRepository<ReservationSeat
             List<Long> performanceSeatIds
     );
 
-    List<Object[]> countByReservationIds(List<Long> reservationIds);
+    // 예매별 좌석 수 조회
+    @Query("""
+        SELECT rs.reservationId, COUNT(rs)
+        FROM ReservationSeat rs
+        WHERE rs.reservationId IN :reservationIds
+        GROUP BY rs.reservationId
+        """)
+    List<Object[]> countByReservationIds(@Param("reservationIds") List<Long> reservationIds);
 }

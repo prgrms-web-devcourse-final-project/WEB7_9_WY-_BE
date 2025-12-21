@@ -97,15 +97,15 @@ public class ReservationController implements ReservationControllerSpec {
 
     @DeleteMapping("/reservation/{reservationId}")
     @Override
-    public ResponseEntity<Void> cancelReservation(
+    public ResponseEntity<CancelReservationResponse> cancelReservation(
             @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        reservationService.cancelReservation(
+        CancelReservationResponse response = reservationService.cancelReservation(
                 reservationId,
                 userDetails.getUserId()
         );
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/schedule/{scheduleId}/seats/changes")
@@ -122,6 +122,7 @@ public class ReservationController implements ReservationControllerSpec {
     }
 
     @GetMapping("/my-reservations")
+    @Override
     public ResponseEntity<MyReservationListResponse> getMyReservations(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -138,6 +139,7 @@ public class ReservationController implements ReservationControllerSpec {
     }
 
     @GetMapping("/reservation/{reservationId}")
+    @Override
     public ResponseEntity<ReservationDetailResponse> getReservationDetail(
             @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
