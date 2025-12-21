@@ -1,5 +1,6 @@
 package back.kalender.domain.booking.reservation.controller;
 
+
 import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
@@ -11,15 +12,14 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Reservation", description = "예매 관련 API")
 public interface ReservationControllerSpec {
@@ -76,6 +76,7 @@ public interface ReservationControllerSpec {
                     )
             )
     })
+    @PostMapping("/schedule/{scheduleId}/reservation")
     ResponseEntity<CreateReservationResponse> createReservation(
             @Parameter(description = "공연 회차 ID") @PathVariable Long scheduleId,
             @Valid @RequestBody CreateReservationRequest request,
@@ -196,6 +197,7 @@ public interface ReservationControllerSpec {
                     )
             )
     })
+    @PostMapping("/reservation/{reservationId}/seats:hold")
     ResponseEntity<HoldSeatsResponse> holdSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody HoldSeatsRequest request,
@@ -241,6 +243,7 @@ public interface ReservationControllerSpec {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "예매를 찾을 수 없음")
     })
+    @PostMapping("/reservation/{reservationId}/seats:release")
     ResponseEntity<ReleaseSeatsResponse> releaseSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody ReleaseSeatsRequest request,
@@ -266,6 +269,7 @@ public interface ReservationControllerSpec {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "예매를 찾을 수 없음")
     })
+    @GetMapping("/reservation/{reservationId}/summary")
     ResponseEntity<ReservationSummaryResponse> getReservationSummary(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -321,6 +325,7 @@ public interface ReservationControllerSpec {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "예매를 찾을 수 없음")
     })
+    @PutMapping("/reservation/{reservationId}/delivery")
     ResponseEntity<UpdateDeliveryInfoResponse> updateDeliveryInfo(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody UpdateDeliveryInfoRequest request,
@@ -386,6 +391,7 @@ public interface ReservationControllerSpec {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "예매를 찾을 수 없음")
     })
+    @DeleteMapping("/reservation/{reservationId}")
     ResponseEntity<CancelReservationResponse> cancelReservation(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -402,6 +408,7 @@ public interface ReservationControllerSpec {
                     content = @Content(schema = @Schema(implementation = SeatChangesResponse.class))
             )
     })
+    @GetMapping("/schedule/{scheduleId}/seats/changes")
     ResponseEntity<SeatChangesResponse> getSeatChanges(
             @Parameter(description = "회차 ID", required = true)
             @PathVariable Long scheduleId,
@@ -425,6 +432,7 @@ public interface ReservationControllerSpec {
             ),
             @ApiResponse(responseCode = "401", description = "인증 실패")
     })
+    @GetMapping("/my-reservations")
     ResponseEntity<MyReservationListResponse> getMyReservations(
             @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
             @RequestParam(defaultValue = "0") int page,
@@ -452,6 +460,7 @@ public interface ReservationControllerSpec {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "예매를 찾을 수 없음")
     })
+    @GetMapping("/reservation/{reservationId}")
     ResponseEntity<ReservationDetailResponse> getReservationDetail(
             @Parameter(description = "예매 ID", example = "1", required = true)
             @PathVariable Long reservationId,
