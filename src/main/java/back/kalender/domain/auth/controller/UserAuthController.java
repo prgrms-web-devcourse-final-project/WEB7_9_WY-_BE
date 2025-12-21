@@ -25,8 +25,13 @@ public class UserAuthController implements UserAuthControllerSpec {
             @Valid @RequestBody UserLoginRequest request,
             HttpServletResponse response
     ) {
-        UserLoginResponse loginResponse = authService.login(request, response);
-        return ResponseEntity.ok(loginResponse);
+        Object[] result = authService.loginWithToken(request, response);
+        UserLoginResponse loginResponse = (UserLoginResponse) result[0];
+        String accessToken = (String) result[1];
+        // ResponseEntity 헤더에 Authorization 직접 설정
+        return ResponseEntity.ok()
+                .header("Authorization", "Bearer " + accessToken)
+                .body(loginResponse);
     }
 
     @PostMapping("/logout")
@@ -45,8 +50,11 @@ public class UserAuthController implements UserAuthControllerSpec {
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response
     ) {
-        authService.refreshToken(refreshToken, response);
-        return ResponseEntity.ok().build();
+        String accessToken = authService.refreshToken(refreshToken, response);
+        // ResponseEntity 헤더에 Authorization 직접 설정
+        return ResponseEntity.ok()
+                .header("Authorization", "Bearer " + accessToken)
+                .build();
     }
 
     @PostMapping("/password/send")

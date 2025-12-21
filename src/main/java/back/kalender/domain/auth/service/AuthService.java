@@ -44,8 +44,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
+    /**
+     * 로그인 처리 및 토큰 생성
+     * @return UserLoginResponse와 Access Token을 포함한 배열 [UserLoginResponse, accessToken]
+     */
     @Transactional
-    public UserLoginResponse login(UserLoginRequest request, HttpServletResponse response) {
+    public Object[] loginWithToken(UserLoginRequest request, HttpServletResponse response) {
         // 유저 조회
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ServiceException(ErrorCode.INVALID_CREDENTIALS));
@@ -57,15 +61,23 @@ public class AuthService {
 
         // 토큰 생성, 저장 및 응답 설정
         // 주의: 기존 refresh token을 삭제하지 않으므로 여러 기기에서 동시 로그인 가능
-        createAndSaveTokens(user, response);
+        String accessToken = createAndSaveTokens(user, response);
 
-        return new UserLoginResponse(
+        UserLoginResponse loginResponse = new UserLoginResponse(
                 user.getId(),
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileImage(),
                 user.isEmailVerified()
         );
+        
+        return new Object[]{loginResponse, accessToken};
+    }
+    
+    @Transactional
+    public UserLoginResponse login(UserLoginRequest request, HttpServletResponse response) {
+        Object[] result = loginWithToken(request, response);
+        return (UserLoginResponse) result[0];
     }
 
     @Transactional
@@ -81,7 +93,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void refreshToken(String refreshToken, HttpServletResponse response) {
+    public String refreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
             throw new ServiceException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
@@ -104,7 +116,7 @@ public class AuthService {
         refreshTokenRepository.delete(refreshTokenEntity);
 
         // 새 토큰 생성, 저장 및 응답 설정
-        createAndSaveTokens(user, response);
+        return createAndSaveTokens(user, response);
     }
 
     @Transactional
@@ -239,8 +251,9 @@ public class AuthService {
     /**
      * Access Token과 Refresh Token을 생성하고 저장합니다.
      * 여러 기기 로그인을 허용하므로 기존 refresh token을 삭제하지 않습니다.
+     * @return 생성된 Access Token (컨트롤러에서 ResponseEntity 헤더에 설정하기 위해 반환)
      */
-    private void createAndSaveTokens(User user, HttpServletResponse response) {
+    private String createAndSaveTokens(User user, HttpServletResponse response) {
         // 토큰 생성
         String accessToken = createAccessToken(user);
         String refreshToken = createRefreshToken(user);
@@ -253,8 +266,11 @@ public class AuthService {
         );
         refreshTokenRepository.save(refreshTokenEntity);
 
-        // 토큰을 Response에 설정
-        setTokensToResponse(response, accessToken, refreshToken);
+        // Refresh Token 쿠키 설정 (쿠키는 HttpServletResponse에 설정)
+        response.addCookie(buildRefreshTokenCookie(refreshToken));
+        
+        // Access Token 반환 (컨트롤러에서 ResponseEntity 헤더에 설정)
+        return accessToken;
     }
 
     private String createAccessToken(User user) {
@@ -265,11 +281,6 @@ public class AuthService {
     private String createRefreshToken(User user) {
         long validityInMillis = jwtProperties.getTokenExpiration().getRefreshInMillis();
         return jwtTokenProvider.createToken(String.valueOf(user.getId()), validityInMillis);
-    }
-
-    private void setTokensToResponse(HttpServletResponse response, String accessToken, String refreshToken) {
-        response.setHeader("Authorization", "Bearer " + accessToken);
-        response.addCookie(buildRefreshTokenCookie(refreshToken));
     }
 
     private Cookie buildRefreshTokenCookie(String token) {
