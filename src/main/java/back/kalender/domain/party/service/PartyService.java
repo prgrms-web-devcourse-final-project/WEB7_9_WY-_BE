@@ -1,5 +1,7 @@
 package back.kalender.domain.party.service;
 
+import back.kalender.domain.notification.enums.NotificationType;
+import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.chat.service.ChatRoomService;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
@@ -48,6 +50,7 @@ public class PartyService {
     private final PartyApplicationRepository partyApplicationRepository;
     private final UserRepository userRepository;
     private final ScheduleRepository scheduleRepository;
+    private final NotificationService notificationService;
     private final ChatRoomService chatRoomService;
 
     @Transactional
@@ -246,6 +249,17 @@ public class PartyService {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
+        String message = String.format("%s(%d/%s)님이 '%s' 파티를 신청했습니다.",
+                user.getNickname(), user.getAge(), user.getGender(), party.getPartyName());
+
+        notificationService.send(
+                party.getLeaderId(),        // 수신자: 방장
+                NotificationType.APPLY,     // 타입: 신청
+                "새로운 파티 신청",             // 제목
+                message,                    // 내용
+                "/party/" + partyId       // URL
+        );
+
         return new ApplyToPartyResponse(
                 user.getNickname(),
                 user.getAge(),
@@ -301,6 +315,14 @@ public class PartyService {
             party.changeStatus(PartyStatus.CLOSED);
         }
 
+        notificationService.send(
+                application.getApplicantId(),   // 수신자: 신청자
+                NotificationType.ACCEPT,        // 타입: 수락
+                "파티 신청 수락",
+                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName()),
+                "/party/" + partyId
+        );
+
         return new AcceptApplicationResponse(
                 application.getApplicantId(),
                 party.getPartyName(),
@@ -325,6 +347,14 @@ public class PartyService {
         }
 
         application.reject();
+
+        notificationService.send(
+                application.getApplicantId(),   // 수신자: 신청자
+                NotificationType.REJECT,        // 타입: 거절
+                "파티 신청 거절",
+                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName()),
+                "/party/" + partyId
+        );
 
         return new RejectApplicationResponse(
                 application.getApplicantId(),

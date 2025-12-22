@@ -52,8 +52,18 @@ public enum ErrorCode {
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
     PERFORMANCE_HALL_NOT_FOUND("5002", HttpStatus.NOT_FOUND, "공연장을 찾을 수 없습니다."),
     PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다."),
+    PERFORMANCE_SEAT_NOT_FOUND("5004", HttpStatus.NOT_FOUND, "공연 좌석을 찾을 수 없습니다."),
 
-    // MyPage 6000
+    // Reservation 6000
+    RESERVATION_NOT_FOUND("6001", HttpStatus.NOT_FOUND, "예매를 찾을 수 없습니다."),
+    RESERVATION_EXPIRED("6002", HttpStatus.BAD_REQUEST, "만료된 예매입니다."),
+    ALREADY_PAID_RESERVATION("6003", HttpStatus.BAD_REQUEST, "이미 결제된 예매입니다."),
+    PARTIAL_RELEASE_NOT_ALLOWED("6004", HttpStatus.BAD_REQUEST, "부분 좌석 해제는 허용되지 않습니다."),
+    SEAT_STATE_INCONSISTENT("6005", HttpStatus.CONFLICT, "좌석 상태가 일치하지 않습니다."),
+    SCHEDULE_NOT_AVAILABLE("6006", HttpStatus.BAD_REQUEST, "예매가 불가능한 회차입니다."),
+    INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
+    CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
+    NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
@@ -69,6 +79,20 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
     PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+    
+    // 7014-7019: 이메일 발송 관련
+    EMAIL_CONFIGURATION_ERROR("7014", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 서버 설정이 올바르지 않습니다."),
+    INVALID_EMAIL_ADDRESS("7015", HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 주소입니다."),
+    EMAIL_TEMPLATE_ERROR("7016", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 템플릿 처리 중 오류가 발생했습니다."),
+    EMAIL_SEND_FAILED("7017", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 발송에 실패했습니다."),
+    
+    // 7018-7023: JWT 토큰 검증 관련
+    JWT_TOKEN_NULL_OR_EMPTY("7018", HttpStatus.UNAUTHORIZED, "JWT 토큰이 없거나 비어있습니다."),
+    JWT_TOKEN_EXPIRED("7019", HttpStatus.UNAUTHORIZED, "JWT 토큰이 만료되었습니다."),
+    JWT_TOKEN_MALFORMED("7020", HttpStatus.UNAUTHORIZED, "JWT 토큰 형식이 올바르지 않습니다."),
+    JWT_TOKEN_SIGNATURE_INVALID("7021", HttpStatus.UNAUTHORIZED, "JWT 토큰 서명이 유효하지 않습니다."),
+    JWT_TOKEN_UNSUPPORTED("7022", HttpStatus.UNAUTHORIZED, "지원하지 않는 JWT 토큰입니다."),
+    JWT_TOKEN_ILLEGAL_ARGUMENT("7023", HttpStatus.UNAUTHORIZED, "JWT 토큰 파싱 중 오류가 발생했습니다."),
 
     // Chat 8000
     // 8001-8099: 채팅방 관련

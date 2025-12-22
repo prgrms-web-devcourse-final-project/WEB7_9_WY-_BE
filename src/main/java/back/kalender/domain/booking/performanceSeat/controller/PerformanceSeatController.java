@@ -25,10 +25,8 @@ public class PerformanceSeatController implements PerformanceSeatControllerSpec 
     @GetMapping("/schedules/{scheduleId}")
     public List<PerformanceSeatResponse> getPerformanceSeats(
             @PathVariable Long scheduleId,
-            @RequestHeader("X-Device-Id") String deviceId
+            @RequestHeader("X-QSID") String qsid
     ) {
-        //queueAccessService.checkSeatAccess(scheduleId, deviceId);
-
-        return performanceSeatQueryService.getSeatsByScheduleId(scheduleId, deviceId);
+        return performanceSeatQueryService.getSeatsByScheduleId(scheduleId, qsid);
     }
 }

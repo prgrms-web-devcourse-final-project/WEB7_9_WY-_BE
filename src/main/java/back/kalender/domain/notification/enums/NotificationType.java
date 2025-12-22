@@ -1,4 +1,4 @@
-package back.kalender.domain.notification.entity;
+package back.kalender.domain.notification.enums;
 
 public enum NotificationType {
     EVENT_REMINDER, // 일정 알림

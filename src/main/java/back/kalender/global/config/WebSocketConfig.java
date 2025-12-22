@@ -1,13 +1,18 @@
 package back.kalender.global.config;
 
 import back.kalender.global.security.jwt.JwtTokenProvider;
+import back.kalender.global.security.webSocket.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import java.util.Arrays;
 
 /**
  * WebSocket 설정
@@ -19,6 +24,14 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final Environment environment;
+
+    @Value("${custom.site.frontUrl}")
+    private String frontUrl;
+
+    private boolean isProdProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("prod");
+    }
 
     /**
      * 메시지 브로커 설정
@@ -39,9 +52,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws-chat")
-                .setAllowedOriginPatterns("*") // CORS 설정
-                .withSockJS(); // SockJS fallback 옵션 활성화
+        var endpoint = registry.addEndpoint("/ws-chat");
+        
+        if (isProdProfile()) {
+            // 프로덕션: 운영 도메인만 허용
+            endpoint.setAllowedOrigins(frontUrl);
+        } else {
+            // 개발: 로컬 및 개발 도메인 허용
+            endpoint.setAllowedOriginPatterns("*");
+        }
+        
+        endpoint.withSockJS(); // SockJS fallback 옵션 활성화
     }
 
     /**
@@ -50,6 +71,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new back.kalender.domain.chat.config.WebSocketAuthInterceptor(jwtTokenProvider));
+        registration.interceptors(new WebSocketAuthInterceptor(jwtTokenProvider, environment));
     }
 }

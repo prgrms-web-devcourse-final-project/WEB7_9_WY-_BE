@@ -9,7 +9,7 @@ spring:
     include: secret
   thymeleaf:
     cache: false
-    prefix: file:src/main/resources/templates/
+    prefix: classpath:/templates/
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -25,22 +25,29 @@ spring:
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   output:
     ansi:
-      enabled: always
+      enabled: detect
   datasource:
     hikari:
       auto-commit: false
   jpa:
     properties:
       hibernate:
-        format_sql: true
-        highlight_sql: true
-        use_sql_comments: true
+        format_sql: false
+        highlight_sql: false
+        use_sql_comments: false
         default_batch_fetch_size: 100
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
+  cache:
+    type: redis
 
 springdoc:
   default-produces-media-type: application/json
@@ -49,21 +56,21 @@ logging:
   level:
     org.hibernate.orm.jdbc.bind: OFF
     org.hibernate.orm.jdbc.extract: OFF
-    org.springframework.transaction.interceptor: TRACE
-    com.rest1: DEBUG
-    org.apache.tomcat.util.threads: DEBUG
-    com.zaxxer.hikari: INFO
+    org.springframework.transaction.interceptor: INFO
+    com.rest1: INFO
+    org.apache.tomcat.util.threads: WARN
+    com.zaxxer.hikari: WARN
 
 custom:
   dev:
-    domain: localhost
-    backUrl: "http://${custom.dev.domain}:${server.port}"
-    frontUrl: "http://${custom.dev.domain}:3000"
+    domain: ${DEV_DOMAIN:localhost}
+    backUrl: ${DEV_BACK_URL:http://${custom.dev.domain}:${server.port}}
+    frontUrl: ${DEV_FRONT_URL:http://${custom.dev.domain}:3000}
 
   prod:
-    domain: p-14626.javamemtor.shop
-    backUrl: "https://api.${custom.prod.domain}"
-    frontUrl: "https://www.${custom.prod.domain}"
+    domain: ${PROD_DOMAIN:idol-kalendar.shop}
+    backUrl: ${PROD_BACK_URL:https://idol-kalendar.shop}
+    frontUrl: ${PROD_FRONT_URL:https://web-7-9-wy-fe.vercel.app}
 
   site:
     domain: "${custom.dev.domain}"
@@ -77,3 +84,7 @@ custom:
     secret: ${JWT_SECRET}
     cookie:
       secure: false
+  redis:
+    redisson:
+      address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}
+      password: ${REDIS_PASSWORD:}
