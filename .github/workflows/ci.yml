@@ -79,9 +79,5 @@ jobs:
             export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
             export RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}"
             export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
-<<<<<<< HEAD
-            ./deploy.sh
-=======
             export JWT_SECRET="${{ secrets.JWT_SECRET }}"
             ./deploy.sh
->>>>>>> d41ff7d (chore: JWT_SECRET 추가)
