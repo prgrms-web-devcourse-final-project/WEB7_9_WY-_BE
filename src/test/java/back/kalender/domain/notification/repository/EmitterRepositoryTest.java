@@ -82,4 +82,33 @@ class EmitterRepositoryTest {
         Map<String, SseEmitter> result = emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId));
         Assertions.assertEquals(0, result.size());
     }
+
+    @Test
+    @DisplayName("10분이 지난 이벤트 캐시는 삭제되어야 한다.")
+    void deleteExpiredEventCache() {
+        Long userId = 1L;
+        long tenMinutesInMillis = 10 * 60 * 1000L;
+
+        // 만료된 키 생성 (현재 시간보다 11분 전)
+        long expiredTime = System.currentTimeMillis() - tenMinutesInMillis - (60 * 1000L);
+        String expiredKey = userId + "_" + expiredTime;
+
+        // 유효한 키 생성 (현재 시간)
+        long validTime = System.currentTimeMillis();
+        String validKey = userId + "_" + validTime;
+
+        emitterRepository.saveEventCache(expiredKey, "만료된 데이터");
+        emitterRepository.saveEventCache(validKey, "유효한 데이터");
+
+        emitterRepository.deleteExpiredEventCache();
+
+        Map<String, Object> result = emitterRepository.findAllEventCacheStartWithByMemberId(String.valueOf(userId));
+
+        Assertions.assertNull(result.get(expiredKey));
+
+        Assertions.assertNotNull(result.get(validKey));
+        Assertions.assertEquals("유효한 데이터", result.get(validKey));
+
+        Assertions.assertEquals(1, result.size());
+    }
 }
