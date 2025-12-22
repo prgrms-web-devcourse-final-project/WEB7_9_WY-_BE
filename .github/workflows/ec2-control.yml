@@ -1,0 +1,38 @@
+name: EC2 Control Tower (On/Off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '원하는 작업을 선택하세요'
+        required: true
+        default: 'start'
+        type: choice
+        options:
+          - start
+          - stop
+
+jobs:
+  manage-ec2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}     # 기존에 등록한 시크릿 사용
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # 기존에 등록한 시크릿 사용
+          aws-region: ap-northeast-2
+
+      - name: Execute EC2 Command
+        run: |
+          INSTANCE_ID="i-09dbf2e335d3749d0" 
+          
+          if [ "${{ inputs.action }}" == "start" ]; then
+            echo "🚀 EC2 인스턴스를 시작합니다..."
+            aws ec2 start-instances --instance-ids $INSTANCE_ID
+            echo "✅ 시작 명령 전송 완료! (완전히 켜지는 데 1~2분 걸립니다)"
+          else
+            echo "🛑 EC2 인스턴스를 정지합니다..."
+            aws ec2 stop-instances --instance-ids $INSTANCE_ID
+            echo "✅ 정지 명령 전송 완료!"
+          fi
