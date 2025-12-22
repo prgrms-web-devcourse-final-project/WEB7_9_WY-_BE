@@ -50,6 +50,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new back.kalender.domain.chat.config.WebSocketAuthInterceptor(jwtTokenProvider));
+        registration.interceptors(new back.kalender.global.security.webSocket.WebSocketAuthInterceptor(jwtTokenProvider));
     }
 }

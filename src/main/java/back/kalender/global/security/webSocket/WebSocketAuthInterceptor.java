@@ -1,5 +1,6 @@
-package back.kalender.domain.chat.config;
+package back.kalender.global.security.webSocket;
 
+import back.kalender.global.common.constant.HttpHeaders;
 import back.kalender.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,9 +22,6 @@ import org.springframework.util.StringUtils;
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtTokenProvider jwtTokenProvider;
-
-    private static final String AUTHORIZATION_HEADER = "Authorization";
-    private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -61,10 +59,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
      * STOMP 헤더에서 JWT 토큰 추출
      */
     private String resolveToken(StompHeaderAccessor accessor) {
-        String authHeader = accessor.getFirstNativeHeader(AUTHORIZATION_HEADER);
+        String authHeader = accessor.getFirstNativeHeader(HttpHeaders.AUTHORIZATION);
 
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith(BEARER_PREFIX)) {
-            return authHeader.substring(BEARER_PREFIX.length());
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith(HttpHeaders.BEARER_PREFIX)) {
+            return authHeader.substring(HttpHeaders.BEARER_PREFIX.length());
         }
 
         return null;
