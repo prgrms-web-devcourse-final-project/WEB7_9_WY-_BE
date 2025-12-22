@@ -78,7 +78,7 @@ public class EmailService {
         if (isDevProfile()) {
             log.info("[Auth](비밀번호 재설정) 수신자: {} | 토큰: {} | 링크: {}", to, token, resetUrl);
         } else {
-            log.info("[Auth](비밀번호 재설정) 수신자: {} | 링크: {}", to, resetUrl);
+            log.info("[Auth](비밀번호 재설정) 전송 완료", to);
         }
     }
 
