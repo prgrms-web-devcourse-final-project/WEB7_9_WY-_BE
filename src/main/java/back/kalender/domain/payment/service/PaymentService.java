@@ -18,6 +18,7 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,9 @@ public class PaymentService {
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
     private final OutboxEventService outboxEventService;
+    
+    @Value("${custom.payment.idempotency.ttlDays:7}")
+    private int idempotencyTtlDays;
 
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
@@ -117,9 +121,11 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
 
-        // 멱등성 검증: 기존 결과 반환
+        // 멱등성 검증: TTL 체크 포함 조회
+        LocalDateTime ttlDate = LocalDateTime.now().minusDays(idempotencyTtlDays);
         Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
-                .findByPaymentIdAndOperationAndIdempotencyKey(payment.getId(), PaymentOperation.CONFIRM.name(), idempotencyKey);
+                .findByPaymentIdAndOperationAndIdempotencyKeyWithTtl(
+                    payment.getId(), PaymentOperation.CONFIRM.name(), idempotencyKey, ttlDate);
         
         if (existingIdempotency.isPresent()) {
             log.info("[Payment] 멱등성: 기존 승인 결과 반환 - paymentId: {}, idempotencyKey: {}", 
@@ -278,9 +284,11 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
         }
 
-        // 멱등성 검증: 기존 결과 반환
+        // 멱등성 검증: TTL 체크 포함 조회
+        LocalDateTime ttlDate = LocalDateTime.now().minusDays(idempotencyTtlDays);
         Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
-                .findByPaymentIdAndOperationAndIdempotencyKey(payment.getId(), PaymentOperation.CANCEL.name(), idempotencyKey);
+                .findByPaymentIdAndOperationAndIdempotencyKeyWithTtl(
+                    payment.getId(), PaymentOperation.CANCEL.name(), idempotencyKey, ttlDate);
         
         if (existingIdempotency.isPresent()) {
             log.info("[Payment] 멱등성: 기존 취소 결과 반환 - paymentId: {}, idempotencyKey: {}", 
