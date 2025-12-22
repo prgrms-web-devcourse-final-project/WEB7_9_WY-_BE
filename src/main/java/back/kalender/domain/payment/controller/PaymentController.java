@@ -62,7 +62,8 @@ public class PaymentController implements PaymentControllerSpec {
     public ResponseEntity<PaymentResponse> getPayment(
             @PathVariable Long paymentId
     ) {
-        PaymentResponse response = paymentService.getPayment(paymentId);
+        Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        PaymentResponse response = paymentService.getPayment(paymentId, userId);
         return ResponseEntity.ok(response);
     }
 }

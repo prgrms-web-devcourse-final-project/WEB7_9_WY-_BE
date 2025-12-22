@@ -118,7 +118,8 @@ public enum ErrorCode {
     PAYMENT_ALREADY_CANCELED("9005", HttpStatus.BAD_REQUEST, "이미 취소된 결제입니다."),
     PAYMENT_GATEWAY_ERROR("9006", HttpStatus.BAD_GATEWAY, "결제 게이트웨이 오류가 발생했습니다."),
     PAYMENT_CANNOT_CONFIRM("9007", HttpStatus.BAD_REQUEST, "승인할 수 없는 결제 상태입니다."),
-    PAYMENT_GATEWAY_TIMEOUT("9010", HttpStatus.REQUEST_TIMEOUT, "결제 게이트웨이 타임아웃이 발생했습니다.");
+    PAYMENT_GATEWAY_TIMEOUT("9010", HttpStatus.REQUEST_TIMEOUT, "결제 게이트웨이 타임아웃이 발생했습니다."),
+    PAYMENT_IDEMPOTENCY_KEY_REQUIRED("9008", HttpStatus.BAD_REQUEST, "Idempotency-Key 헤더가 필요합니다.");
 
     private final String code;
     private final HttpStatus status;

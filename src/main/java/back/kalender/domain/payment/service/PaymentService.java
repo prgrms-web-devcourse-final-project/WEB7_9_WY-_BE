@@ -93,9 +93,17 @@ public class PaymentService {
                 });
     }
 
-    public PaymentResponse getPayment(Long paymentId) {
+    public PaymentResponse getPayment(Long paymentId, Long userId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+        
+        // 권한 검증: 본인 결제만 조회 가능
+        if (!payment.getUserId().equals(userId)) {
+            log.warn("[Payment] 결제 조회 권한 없음 - paymentId: {}, 저장된 userId: {}, 요청 userId: {}",
+                    paymentId, payment.getUserId(), userId);
+            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
+        }
+        
         return PaymentResponse.from(payment);
     }
 
@@ -119,6 +127,30 @@ public class PaymentService {
             log.warn("[Payment] 결제 금액 불일치 - paymentId: {}, paymentAmount: {}, reservationTotalAmount: {}",
                     payment.getId(), payment.getAmount(), reservation.getTotalAmount());
             throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
+
+        // 이미 APPROVED 상태인 경우: 멱등성 검증 후 반환
+        if (payment.getStatus() == PaymentStatus.APPROVED) {
+            log.info("[Payment] 이미 승인된 결제 - paymentId: {}, status: {}", 
+                    payment.getId(), payment.getStatus());
+            
+            // 멱등성 검증: TTL 체크 포함 조회
+            LocalDateTime ttlDate = LocalDateTime.now().minusDays(idempotencyTtlDays);
+            Optional<PaymentIdempotency> existingIdempotency = paymentIdempotencyRepository
+                    .findByPaymentIdAndOperationAndIdempotencyKeyWithTtl(
+                        payment.getId(), PaymentOperation.CONFIRM.name(), idempotencyKey, ttlDate);
+            
+            if (existingIdempotency.isPresent()) {
+                log.info("[Payment] 멱등성: 기존 승인 결과 반환 - paymentId: {}, idempotencyKey: {}", 
+                        payment.getId(), idempotencyKey);
+                return parseConfirmResponse(existingIdempotency.get().getResultJson(), payment);
+            }
+            
+            // 멱등성 레코드가 없어도 이미 APPROVED이므로 Payment 엔티티에서 응답 생성
+            PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(payment);
+            // 멱등성 저장 (재요청 방지)
+            saveIdempotency(payment.getId(), PaymentOperation.CONFIRM, idempotencyKey, response);
+            return response;
         }
 
         // 멱등성 검증: TTL 체크 포함 조회
