@@ -29,30 +29,30 @@ public class PaymentMapper {
 
     // Payment -> PaymentCreateResponse 변환
     public static PaymentCreateResponse toCreateResponse(Payment payment) {
-        return PaymentCreateResponse.builder()
-                .paymentId(payment.getId())
-                .reservationId(payment.getReservationId())
-                .amount(payment.getAmount())
-                .status(payment.getStatus())
-                .build();
+        return new PaymentCreateResponse(
+                payment.getId(),
+                payment.getReservationId(),
+                payment.getAmount(),
+                payment.getStatus()
+        );
     }
 
     // Payment -> PaymentConfirmResponse 변환
     public static PaymentConfirmResponse toConfirmResponse(Payment payment) {
-        return PaymentConfirmResponse.builder()
-                .paymentId(payment.getId())
-                .reservationId(payment.getReservationId())
-                .status(payment.getStatus())
-                .approvedAt(payment.getApprovedAt())
-                .build();
+        return new PaymentConfirmResponse(
+                payment.getId(),
+                payment.getReservationId(),
+                payment.getStatus(),
+                payment.getApprovedAt()
+        );
     }
 
     // Payment -> PaymentCancelResponse 변환
     public static PaymentCancelResponse toCancelResponse(Payment payment) {
-        return PaymentCancelResponse.builder()
-                .paymentId(payment.getId())
-                .status(payment.getStatus())
-                .canceledAt(payment.getCanceledAt())
-                .build();
+        return new PaymentCancelResponse(
+                payment.getId(),
+                payment.getStatus(),
+                payment.getCanceledAt()
+        );
     }
 }
