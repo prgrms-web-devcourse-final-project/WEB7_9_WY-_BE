@@ -54,4 +54,8 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     );
 
     List<Schedule> findAllByScheduleTimeBetween(LocalDateTime start, LocalDateTime end);
+
+    boolean existsByArtistId(Long id);
+
+    List<Schedule> findByScheduleCategoryAndPerformanceIdIsNotNull(ScheduleCategory scheduleCategory);
 }
