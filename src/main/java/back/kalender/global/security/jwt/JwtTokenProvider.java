@@ -61,9 +61,11 @@ public class JwtTokenProvider {
         return builder.compact();
     }
 
-    public boolean validateToken(String token) {
+    // JWT 토큰 검증 (실패 시 구체적인 예외 발생)
+    public void validateToken(String token) {
         if (!StringUtils.hasText(token)) {
-            return false;
+            log.warn("[JWT] [ValidateToken] 토큰이 null이거나 비어있음");
+            throw new ServiceException(ErrorCode.JWT_TOKEN_NULL_OR_EMPTY);
         }
 
         try {
@@ -71,27 +73,56 @@ public class JwtTokenProvider {
                     .verifyWith(signingKey)
                     .build()
                     .parseClaimsJws(token);
-            return true;
         } catch (ExpiredJwtException e) {
-            // 만료된 토큰은 정상적인 케이스
-            return false;
-        } catch (JwtException | SecurityException e) {
-            log.warn("[JWT] [ValidateToken] 유효하지 않은 토큰 - message={}", e.getMessage());
-            return false;
+            log.warn("[JWT] [ValidateToken] 만료된 토큰 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_EXPIRED);
+        } catch (MalformedJwtException e) {
+            log.warn("[JWT] [ValidateToken] 형식 오류 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
+        } catch (SecurityException | io.jsonwebtoken.security.SignatureException e) {
+            log.warn("[JWT] [ValidateToken] 서명 오류 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_SIGNATURE_INVALID);
+        } catch (UnsupportedJwtException e) {
+            log.warn("[JWT] [ValidateToken] 지원하지 않는 토큰 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_UNSUPPORTED);
         } catch (IllegalArgumentException e) {
             log.warn("[JWT] [ValidateToken] 토큰 파싱 실패 - message={}", e.getMessage());
-            return false;
+            throw new ServiceException(ErrorCode.JWT_TOKEN_ILLEGAL_ARGUMENT);
+        } catch (JwtException e) {
+            log.warn("[JWT] [ValidateToken] JWT 예외 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
         }
     }
 
+    // JWT 토큰에서 subject 추출 (검증 후)
     public String getSubject(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(signingKey)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
 
-        return claims.getSubject();
+            return claims.getSubject();
+        } catch (ExpiredJwtException e) {
+            log.warn("[JWT] [GetSubject] 만료된 토큰 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_EXPIRED);
+        } catch (MalformedJwtException e) {
+            log.warn("[JWT] [GetSubject] 형식 오류 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
+        } catch (SecurityException | io.jsonwebtoken.security.SignatureException e) {
+            log.warn("[JWT] [GetSubject] 서명 오류 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_SIGNATURE_INVALID);
+        } catch (UnsupportedJwtException e) {
+            log.warn("[JWT] [GetSubject] 지원하지 않는 토큰 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_UNSUPPORTED);
+        } catch (IllegalArgumentException e) {
+            log.warn("[JWT] [GetSubject] 토큰 파싱 실패 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_ILLEGAL_ARGUMENT);
+        } catch (JwtException e) {
+            log.warn("[JWT] [GetSubject] JWT 예외 - message={}", e.getMessage());
+            throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
+        }
     }
 
     public Authentication getAuthentication(String token) {

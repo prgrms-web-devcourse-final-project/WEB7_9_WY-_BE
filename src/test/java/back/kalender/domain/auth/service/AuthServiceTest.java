@@ -43,8 +43,6 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     private static final String COOKIE_NAME_REFRESH_TOKEN = "refreshToken";
-    private static final String HEADER_NAME_AUTHORIZATION = "Authorization";
-    private static final String BEARER_PREFIX = "Bearer ";
 
     private static final long ACCESS_TOKEN_EXPIRY_MILLIS = 1800000L;
     private static final long REFRESH_TOKEN_EXPIRY_MILLIS = 1209600000L;
@@ -299,20 +297,27 @@ class AuthServiceTest {
             String newAccessToken = "newAccessToken";
             String newRefreshToken = "newRefreshToken";
 
-            given(jwtTokenProvider.validateToken(oldRefreshToken)).willReturn(true);
+            doNothing().when(jwtTokenProvider).validateToken(oldRefreshToken);
             given(refreshTokenRepository.findByToken(oldRefreshToken)).willReturn(Optional.of(oldEntity));
             givenUserById();
             setupJwtProperties();
             givenTokenCreation(newAccessToken, newRefreshToken);
 
-            authService.refreshToken(oldRefreshToken, httpServletResponse);
+            String returnedAccessToken = authService.refreshToken(oldRefreshToken, httpServletResponse);
 
+            // 반환된 Access Token 검증
+            assertThat(returnedAccessToken).isEqualTo(newAccessToken);
+            
+            // 새 Refresh Token 저장 검증
             RefreshToken saved = captureRefreshToken();
             assertThat(saved.getUserId()).isEqualTo(TEST_USER_ID);
             assertThat(saved.getToken()).isEqualTo(newRefreshToken);
 
+            // 기존 Refresh Token 삭제 검증
             verify(refreshTokenRepository).delete(oldEntity);
-            verify(httpServletResponse).setHeader(HEADER_NAME_AUTHORIZATION, BEARER_PREFIX + newAccessToken);
+            
+            // 쿠키 설정 검증 (HttpServletResponse에 직접 설정)
+            assertRefreshTokenCookie(newRefreshToken);
         }
 
         @Test
@@ -321,7 +326,7 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.refreshToken(null, httpServletResponse))
                     .isInstanceOf(ServiceException.class)
                     .extracting("errorCode")
-                    .isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
+                    .isEqualTo(ErrorCode.JWT_TOKEN_NULL_OR_EMPTY);
 
             verify(jwtTokenProvider, never()).validateToken(anyString());
         }
