@@ -1,5 +1,6 @@
 package back.kalender.domain.party.entity;
 
+import back.kalender.domain.party.enums.ApplicationStatus;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -8,7 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "party_application",
+@Table(name = "party_applications",
         uniqueConstraints = {
                 @UniqueConstraint(name = "unique_party_applicant", columnNames = {"party_id", "applicant_id"})
         })
@@ -51,10 +52,6 @@ public class PartyApplication extends BaseEntity {
 
     public void reject() {
         this.status = ApplicationStatus.REJECTED;
-    }
-
-    public boolean isPending() {
-        return this.status == ApplicationStatus.PENDING;
     }
 
     public boolean isApproved() {

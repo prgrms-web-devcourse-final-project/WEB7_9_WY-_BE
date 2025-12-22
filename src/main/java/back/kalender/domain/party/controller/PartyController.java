@@ -3,10 +3,8 @@ package back.kalender.domain.party.controller;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
-import back.kalender.domain.party.entity.ApplicationStatus;
-import back.kalender.domain.party.entity.PartyStatus;
-import back.kalender.domain.party.entity.PartyType;
-import back.kalender.domain.party.entity.TransportType;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.TransportType;
 import back.kalender.domain.party.service.PartyService;
 import back.kalender.global.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -152,25 +150,34 @@ public class PartyController implements PartyControllerSpec{
 
     @GetMapping("/user/me/party/application")
     public ResponseEntity<GetMyApplicationsResponse> getMyApplications(
-            @RequestParam(value = "status", required = false) ApplicationStatus status,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetMyApplicationsResponse response = partyService.getMyApplications(status, pageable, userDetails.getUserId());
+        GetMyApplicationsResponse response = partyService.getMyApplications(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/user/me/party/created")
     public ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
-            @RequestParam(value = "status", required = false) PartyStatus status,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetMyCreatedPartiesResponse response = partyService.getMyCreatedParties(status, pageable, userDetails.getUserId());
+        GetMyCreatedPartiesResponse response = partyService.getMyCreatedParties(pageable, userDetails.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/user/me/party/completed")
+    public ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        GetCompletedPartiesResponse response = partyService.getMyCompletedParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 }

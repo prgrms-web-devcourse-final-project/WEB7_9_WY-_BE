@@ -1,9 +1,9 @@
 package back.kalender.domain.party.dto.response;
 
-import back.kalender.global.common.Enum.Gender;
-import back.kalender.domain.party.entity.PartyStatus;
-import back.kalender.domain.party.entity.PartyType;
-import back.kalender.domain.party.entity.TransportType;
+import back.kalender.global.common.enums.Gender;
+import back.kalender.domain.party.enums.PartyStatus;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.TransportType;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -81,11 +81,11 @@ public record GetPartiesResponse(
     @Schema(description = "파티 상세 정보")
     public record PartyInfo(
 
-            @Schema(description = "파티 타입", implementation = PartyType.class)
+            @Schema(description = "파티 타입", example = "LEAVE", implementation = PartyType.class)
             PartyType partyType,
 
             @Schema(description = "파티 이름", example = "지민이 최애")
-            String partyName,
+            String partyTitle,
 
             @Schema(description = "출발 위치", example = "강남역")
             String departureLocation,

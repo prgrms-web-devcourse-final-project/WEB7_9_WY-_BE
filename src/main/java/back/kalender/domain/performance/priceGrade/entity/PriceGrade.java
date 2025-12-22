@@ -1,6 +1,6 @@
 package back.kalender.domain.performance.priceGrade.entity;
 
-import back.kalender.domain.performance.performane.entity.Performance;
+import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -14,10 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 public class PriceGrade extends BaseEntity {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performance_id", nullable = false)
-    private Performance performance;
+    @Column(name = "performance_id", nullable = false)
+    private Long performanceId;
 
     @Column(name = "grade_name")
     private String gradeName;

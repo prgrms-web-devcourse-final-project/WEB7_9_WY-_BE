@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "performance_seats")
 @Getter
@@ -32,10 +34,16 @@ public class PerformanceSeat extends BaseEntity {
     private Integer x;
     private Integer y;
 
-    /**
-     * 생성 전용 정적 팩토리
-     * (B가 상태값들 붙이기 전에는 이 구조만 사용)
-     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private SeatStatus status;
+
+    @Column(name = "hold_user_id")
+    private Long holdUserId;
+
+    @Column(name = "hold_expired_at")
+    private LocalDateTime holdExpiredAt;
+
     public static PerformanceSeat create(
             Long scheduleId,
             Long hallSeatId,
@@ -47,16 +55,49 @@ public class PerformanceSeat extends BaseEntity {
             Integer x,
             Integer y
     ) {
-        return new PerformanceSeat(
-                scheduleId,
-                hallSeatId,
-                priceGradeId,
-                floor,
-                block,
-                rowNumber,
-                seatNumber,
-                x,
-                y
-        );
+        PerformanceSeat seat = new PerformanceSeat();
+        seat.scheduleId = scheduleId;
+        seat.hallSeatId = hallSeatId;
+        seat.priceGradeId = priceGradeId;
+        seat.floor = floor;
+        seat.block = block;
+        seat.rowNumber = rowNumber;
+        seat.seatNumber = seatNumber;
+        seat.x = x;
+        seat.y = y;
+        seat.status = SeatStatus.AVAILABLE; // 기본값
+        return seat;
     }
+
+    // 좌석 상태 변경
+    public void updateStatus(SeatStatus status) {
+        this.status = status;
+    }
+
+    // HOLD 정보 설정
+    public void updateHoldInfo(Long userId, LocalDateTime expiredAt) {
+        this.holdUserId = userId;
+        this.holdExpiredAt = expiredAt;
+    }
+
+    // HOLD 정보 초기화
+    public void clearHoldInfo() {
+        this.holdUserId = null;
+        this.holdExpiredAt = null;
+    }
+
+    // HOLD 만료 여부 확인
+    public boolean isHoldExpired(LocalDateTime now) {
+        if(this.status != SeatStatus.HOLD){
+            return false;
+        }
+        return holdExpiredAt != null && now.isAfter(holdExpiredAt);
+    }
+
+    // 좌석 선점 가능 여부
+    public boolean canBeHeld(){
+        // AVAILABLE 이거나, HOLD 상태이지만 만료된 경우
+        return this.status == SeatStatus.AVAILABLE || (this.status == SeatStatus.HOLD && isHoldExpired(LocalDateTime.now()));
+    }
+
 }
