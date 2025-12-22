@@ -15,6 +15,7 @@ import back.kalender.domain.booking.reservation.repository.ReservationRepository
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.service.SeatHoldService;
+import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
@@ -63,6 +64,7 @@ public class ReservationService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final ReservationMapper reservationMapper;
+    private final BookingSessionService bookingSessionService;
 
     private static final int CANCEL_DEADLINE_HOURS = 1;
 
@@ -71,19 +73,25 @@ public class ReservationService {
     public CreateReservationResponse createReservation(
             Long scheduleId,
             CreateReservationRequest request,
-            Long userId
+            Long userId,
+            String bookingSessionId
+
     ) {
-        // 1. Schedule 조회 및 검증
-         PerformanceSchedule schedule = scheduleRepository.findById(scheduleId)
-             .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+        // 1. BookingSession 검증
+        bookingSessionService.validateForSchedule(bookingSessionId, scheduleId);
 
-         if(schedule.getStatus() != ScheduleStatus.AVAILABLE) {
-             throw new ServiceException(ErrorCode.SCHEDULE_NOT_AVAILABLE);
-         }
-        // 2. 대기열 토큰 검증
-        validateWaitingToken(scheduleId, request.waitingToken(), request.deviceId());
+        // 2. 기존에 진행중인 예매 세션이 있는지 확인 (HOLD/PENDING)
+        boolean exists = reservationRepository.existsByUserIdAndPerformanceScheduleIdAndStatusIn(
+                userId,
+                scheduleId,
+                ReservationStatus.activeStatuses()
+        );
 
-        // Reservation 엔티티 생성 및 저장
+        if(exists){
+            throw new ServiceException(ErrorCode.RESERVATION_ALREADY_EXISTS);
+        }
+
+        // 3. Reservation 엔티티 생성 및 저장
         Reservation reservation = Reservation.create(userId, scheduleId);
         Reservation savedReservation = reservationRepository.save(reservation);
 
@@ -499,64 +507,5 @@ public class ReservationService {
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
         if (!r.isOwnedBy(userId)) throw new ServiceException(ErrorCode.UNAUTHORIZED);
         return r;
-    }
-
-    private void validateWaitingToken(Long scheduleId, String waitingToken, String deviceId) {
-        // waitingToken이 없으면 실패
-        if (waitingToken == null || waitingToken.isBlank()) {
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_REQUIRED);
-        }
-
-        // Redis에서 토큰 검증
-        String tokenKey = "waiting:" + waitingToken;
-        String tokenValue = redisTemplate.opsForValue().get(tokenKey);
-
-        // 토큰 만료 or 존재하지 않음
-        if (tokenValue == null) {
-            log.error("[Reservation] 대기열 토큰 만료 또는 없음");
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_INVALID);
-        }
-
-        // 토큰 값: "qsid:scheduleId" 형식
-        String[] parts = tokenValue.split(":");
-        if (parts.length != 2) {
-            log.error("[Reservation] 토큰 형식 오류");
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_INVALID);
-        }
-
-        String qsid = parts[0];
-        Long tokenScheduleId = Long.parseLong(parts[1]);
-
-        // scheduleId 일치 확인
-        if (!scheduleId.equals(tokenScheduleId)) {
-            log.error("[Reservation] scheduleId 불일치 - expected={}, actual={}",
-                    tokenScheduleId, scheduleId);
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_MISMATCH);
-        }
-
-        // deviceId 검증 - qsid로 저장된 deviceId와 비교
-        String qsidKey = "qsid:" + qsid;
-        String qsidValue = redisTemplate.opsForValue().get(qsidKey);
-
-        if (qsidValue == null) {
-            log.error("[Reservation] qsid 정보 없음");
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_INVALID);
-        }
-        // qsidValue 형식: "deviceId:scheduleId"
-        String[] qsidParts = qsidValue.split(":");
-        if (qsidParts.length < 1) {
-            log.error("[Reservation] qsid 형식 오류");
-            throw new ServiceException(ErrorCode.WAITING_TOKEN_INVALID);
-        }
-
-        String expectedDeviceId = qsidParts[0];
-        if (!deviceId.equals(expectedDeviceId)) {
-            log.error("[Reservation] deviceId 불일치 - expected={}, actual={}",
-                    expectedDeviceId, deviceId);
-            throw new ServiceException(ErrorCode.DEVICE_ID_MISMATCH);
-        }
-
-        // 검증 성공 - 토큰 삭제 (1회용)
-        redisTemplate.delete(tokenKey);
     }
 }

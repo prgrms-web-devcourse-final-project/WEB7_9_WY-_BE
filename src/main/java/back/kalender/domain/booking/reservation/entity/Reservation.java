@@ -50,7 +50,6 @@ public class Reservation extends BaseEntity {
     private String recipientZipCode;
 
     public static Reservation create(Long userId, Long scheduleId) {
-        LocalDateTime now = LocalDateTime.now();
 
         Reservation reservation = new Reservation();
         reservation.userId = userId;

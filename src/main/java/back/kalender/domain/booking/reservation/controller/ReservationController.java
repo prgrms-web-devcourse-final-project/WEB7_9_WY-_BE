@@ -6,6 +6,7 @@ import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
 import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.service.ReservationService;
+import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,18 +22,23 @@ import org.springframework.web.bind.annotation.*;
 public class ReservationController implements ReservationControllerSpec {
 
     private final ReservationService reservationService;
+    private final BookingSessionService bookingSessionService;
 
     @PostMapping("/schedule/{scheduleId}/reservation")
     @Override
     public ResponseEntity<CreateReservationResponse> createReservation(
             @PathVariable Long scheduleId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        bookingSessionService.validateForSchedule(bookingSessionId, scheduleId);
+
         CreateReservationResponse response = reservationService.createReservation(
                 scheduleId,
                 request,
-                userDetails.getUserId()
+                userDetails.getUserId(),
+                bookingSessionId
         );
         return ResponseEntity.ok(response);
     }
@@ -41,9 +47,12 @@ public class ReservationController implements ReservationControllerSpec {
     @Override
     public ResponseEntity<HoldSeatsResponse> holdSeats(
             @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody HoldSeatsRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        bookingSessionService.validateExists(bookingSessionId);
+
         HoldSeatsResponse response = reservationService.holdSeats(
                 reservationId,
                 request,
@@ -57,8 +66,11 @@ public class ReservationController implements ReservationControllerSpec {
     public ResponseEntity<ReleaseSeatsResponse> releaseSeats(
             @PathVariable Long reservationId,
             @Valid @RequestBody ReleaseSeatsRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        bookingSessionService.validateExists(bookingSessionId);
+
         ReleaseSeatsResponse response = reservationService.releaseSeats(
                 reservationId,
                 request,
@@ -71,8 +83,11 @@ public class ReservationController implements ReservationControllerSpec {
     @Override
     public ResponseEntity<ReservationSummaryResponse> getReservationSummary(
             @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        bookingSessionService.validateExists(bookingSessionId);
+
         ReservationSummaryResponse response = reservationService.getReservationSummary(
                 reservationId,
                 userDetails.getUserId()
@@ -85,8 +100,11 @@ public class ReservationController implements ReservationControllerSpec {
     public ResponseEntity<UpdateDeliveryInfoResponse> updateDeliveryInfo(
             @PathVariable Long reservationId,
             @Valid @RequestBody UpdateDeliveryInfoRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        bookingSessionService.validateExists(bookingSessionId);
+
         UpdateDeliveryInfoResponse response = reservationService.updateDeliveryInfo(
                 reservationId,
                 request,

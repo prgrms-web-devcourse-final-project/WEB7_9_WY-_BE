@@ -78,6 +78,7 @@ public interface ReservationControllerSpec {
     @PostMapping("/schedule/{scheduleId}/reservation")
     ResponseEntity<CreateReservationResponse> createReservation(
             @Parameter(description = "공연 회차 ID") @PathVariable Long scheduleId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -199,6 +200,7 @@ public interface ReservationControllerSpec {
     @PostMapping("/reservation/{reservationId}/seats:hold")
     ResponseEntity<HoldSeatsResponse> holdSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody HoldSeatsRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -246,6 +248,7 @@ public interface ReservationControllerSpec {
     ResponseEntity<ReleaseSeatsResponse> releaseSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody ReleaseSeatsRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
@@ -271,6 +274,7 @@ public interface ReservationControllerSpec {
     @GetMapping("/reservation/{reservationId}/summary")
     ResponseEntity<ReservationSummaryResponse> getReservationSummary(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
@@ -328,6 +332,7 @@ public interface ReservationControllerSpec {
     ResponseEntity<UpdateDeliveryInfoResponse> updateDeliveryInfo(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody UpdateDeliveryInfoRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 

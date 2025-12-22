@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
@@ -15,4 +16,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             List<ReservationStatus> statuses,
             Pageable pageable
     );
-}
+
+    boolean existsByUserIdAndPerformanceScheduleIdAndStatusIn(
+            Long userId,
+            Long performanceScheduleId,
+            Collection<ReservationStatus> statuses
+    );}
