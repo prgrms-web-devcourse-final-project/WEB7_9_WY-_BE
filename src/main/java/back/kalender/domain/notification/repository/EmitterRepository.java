@@ -66,7 +66,7 @@ public class EmitterRepository {
 
                     if (now - timestamp > EVENT_CACHE_TTL) {
                         eventCache.remove(key);
-                        log.debug("만료된 데이터 삭제됨: {}", key);
+                        log.info("만료된 데이터 삭제됨: {}", key);
                     }
                 }
             } catch (NumberFormatException | IndexOutOfBoundsException e) {

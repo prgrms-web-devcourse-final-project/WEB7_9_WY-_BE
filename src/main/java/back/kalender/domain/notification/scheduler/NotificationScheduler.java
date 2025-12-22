@@ -57,6 +57,8 @@ public class NotificationScheduler {
                 }
             }
         }
+
+        log.info("[스케줄러 종료] 총 {}건의 알림 발송 완료", count);
     }
 
     private void sendNotification(Long userId, Schedule schedule, Party party) {

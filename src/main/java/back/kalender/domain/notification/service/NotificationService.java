@@ -76,6 +76,9 @@ public class NotificationService {
                     .data(data));
         } catch (IOException exception) {
             emitterRepository.deleteById(emitterId);
+            log.error("SSE 연결 오류", exception);
+        } catch (Exception exception) {
+            log.error("알림 전송 중 예상치 못한 에러 발생 (ID: {}): {}", eventId, exception.getMessage());
         }
     }
 
