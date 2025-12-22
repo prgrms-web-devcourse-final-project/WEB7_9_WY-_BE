@@ -51,11 +51,7 @@ public class NotificationScheduler {
             try {
                 sendNotification(target);
                 count++;
-            } catch (IOException e) {
-                log.error("알림 전송 중 IO 예외 발생 (UserId: {}, PartyId: {}): {}",
-                        target.userId(), target.partyId(), e.getMessage());
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 log.error("스케줄러 알림 발송 실패 (UserId: {}, PartyId: {}): {}",
                         target.userId(), target.partyId(), e.getMessage());
             }
