@@ -80,4 +80,5 @@ jobs:
             export RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}"
             export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
             export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            export SPRING_PROFILES_ACTIVE=prod
             ./deploy.sh
