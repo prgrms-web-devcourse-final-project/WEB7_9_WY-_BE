@@ -53,7 +53,6 @@ public class EmitterRepository {
         });
     }
 
-    @Scheduled(fixedRate = 60000)
     public void deleteExpiredEventCache() {
         long now = System.currentTimeMillis();
 
