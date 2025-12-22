@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ReservationSeatRepository extends JpaRepository<ReservationSeat, Long> {
@@ -29,4 +30,7 @@ public interface ReservationSeatRepository extends JpaRepository<ReservationSeat
         GROUP BY rs.reservationId
         """)
     List<Object[]> countByReservationIds(@Param("reservationIds") List<Long> reservationIds);
+
+    // 만료된 performanceSeatIds로 reservationSeat 조회
+    List<ReservationSeat> findByPerformanceSeatIdIn(Collection<Long> performanceSeatIds);
 }

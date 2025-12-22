@@ -51,13 +51,17 @@ public class Reservation extends BaseEntity {
 
     public static Reservation create(Long userId, Long scheduleId) {
         LocalDateTime now = LocalDateTime.now();
-        return Reservation.builder()
-                .userId(userId)
-                .performanceScheduleId(scheduleId)
-                .totalAmount(0)
-                .status(ReservationStatus.PENDING)
-                .expiresAt(now.plusMinutes(5))
-                .build();
+
+        Reservation reservation = new Reservation();
+        reservation.userId = userId;
+        reservation.performanceScheduleId = scheduleId;
+        reservation.totalAmount = 0;
+        reservation.status = ReservationStatus.PENDING;
+        reservation.expiresAt = null;
+        reservation.confirmedAt = null;
+        reservation.remainingSeconds = null;
+
+        return reservation;
     }
 
     // 배송정보 업데이트
@@ -97,6 +101,12 @@ public class Reservation extends BaseEntity {
         this.status = ReservationStatus.CANCELLED;
         this.expiresAt = null;  // 만료 시간 제거
         this.remainingSeconds = null;  // 남은 시간 제거
+    }
+
+    // 세션 만료 처리 (스케줄러용)
+    public void expire() {
+        this.status = ReservationStatus.EXPIRED;
+        this.remainingSeconds = 0L;
     }
 
     // --- 검증 메서드 ---

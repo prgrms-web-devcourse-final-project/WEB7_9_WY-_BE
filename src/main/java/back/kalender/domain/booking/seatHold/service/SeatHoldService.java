@@ -73,7 +73,7 @@ public class SeatHoldService {
 
     private static final long LOCK_WAIT_TIME = 3;        // 락 획득 대기 시간 (초)
     private static final long LOCK_LEASE_TIME = 5;       // 락 자동 해제 시간 (초)
-    private static final long HOLD_TTL_SECONDS = 300;    // HOLD 만료 시간 (5분)
+    private static final long HOLD_TTL_SECONDS = 420;    // HOLD 만료 시간 (7분)
     private static final long CHANGES_TTL_SECONDS = 60;  // 변경 이벤트 TTL (60초)
 
     @Transactional
