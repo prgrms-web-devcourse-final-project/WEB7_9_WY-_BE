@@ -297,7 +297,7 @@ class AuthServiceTest {
             String newAccessToken = "newAccessToken";
             String newRefreshToken = "newRefreshToken";
 
-            given(jwtTokenProvider.validateToken(oldRefreshToken)).willReturn(true);
+            doNothing().when(jwtTokenProvider).validateToken(oldRefreshToken);
             given(refreshTokenRepository.findByToken(oldRefreshToken)).willReturn(Optional.of(oldEntity));
             givenUserById();
             setupJwtProperties();
@@ -326,7 +326,7 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.refreshToken(null, httpServletResponse))
                     .isInstanceOf(ServiceException.class)
                     .extracting("errorCode")
-                    .isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
+                    .isEqualTo(ErrorCode.JWT_TOKEN_NULL_OR_EMPTY);
 
             verify(jwtTokenProvider, never()).validateToken(anyString());
         }

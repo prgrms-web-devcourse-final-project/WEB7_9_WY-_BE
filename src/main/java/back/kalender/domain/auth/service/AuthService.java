@@ -2,6 +2,7 @@ package back.kalender.domain.auth.service;
 
 import back.kalender.domain.auth.dto.request.*;
 import back.kalender.domain.auth.dto.response.EmailStatusResponse;
+import back.kalender.domain.auth.dto.response.LoginResult;
 import back.kalender.domain.auth.dto.response.UserLoginResponse;
 import back.kalender.domain.auth.dto.response.VerifyEmailResponse;
 import back.kalender.domain.auth.entity.EmailVerification;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
@@ -44,12 +45,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    /**
-     * 로그인 처리 및 토큰 생성
-     * @return UserLoginResponse와 Access Token을 포함한 배열 [UserLoginResponse, accessToken]
-     */
+    // 로그인 처리 및 토큰 생성 (기존 refresh token을 삭제하지 않으므로 여러 기기에서 동시 로그인 가능)
     @Transactional
-    public Object[] loginWithToken(UserLoginRequest request, HttpServletResponse response) {
+    public LoginResult loginWithToken(UserLoginRequest request, HttpServletResponse response) {
         // 유저 조회
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ServiceException(ErrorCode.INVALID_CREDENTIALS));
@@ -60,7 +58,6 @@ public class AuthService {
         }
 
         // 토큰 생성, 저장 및 응답 설정
-        // 주의: 기존 refresh token을 삭제하지 않으므로 여러 기기에서 동시 로그인 가능
         String accessToken = createAndSaveTokens(user, response);
 
         UserLoginResponse loginResponse = new UserLoginResponse(
@@ -71,13 +68,13 @@ public class AuthService {
                 user.isEmailVerified()
         );
         
-        return new Object[]{loginResponse, accessToken};
+        return new LoginResult(loginResponse, accessToken);
     }
     
     @Transactional
     public UserLoginResponse login(UserLoginRequest request, HttpServletResponse response) {
-        Object[] result = loginWithToken(request, response);
-        return (UserLoginResponse) result[0];
+        LoginResult result = loginWithToken(request, response);
+        return result.loginResponse();
     }
 
     @Transactional
@@ -94,9 +91,12 @@ public class AuthService {
 
     @Transactional
     public String refreshToken(String refreshToken, HttpServletResponse response) {
-        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
-            throw new ServiceException(ErrorCode.INVALID_REFRESH_TOKEN);
+        if (refreshToken == null) {
+            throw new ServiceException(ErrorCode.JWT_TOKEN_NULL_OR_EMPTY);
         }
+        
+        // JWT 토큰 검증 (구체적인 예외 발생)
+        jwtTokenProvider.validateToken(refreshToken);
 
         // DB에서 Refresh Token 확인
         RefreshToken refreshTokenEntity = refreshTokenRepository.findByToken(refreshToken)
@@ -124,16 +124,19 @@ public class AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        // 기존 토큰 삭제
-        passwordResetTokenRepository.deleteByUserId(user.getId());
+        // 새 토큰 생성 (32바이트 랜덤 바이트를 Base64 URL-safe 인코딩) - 보안을 위해 SecureRandom 사용
+        byte[] randomBytes = new byte[32];
+        secureRandom.nextBytes(randomBytes);
+        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
 
-        // 새 토큰 생성
-        String token = UUID.randomUUID().toString();
+        // 이메일 발송 (실패 시 예외 발생하여 트랜잭션 롤백)
+        emailService.sendPasswordResetEmail(user.getEmail(), token);
+
+        // 이메일 발송 성공 시에만 토큰 저장
+        // 기존 토큰 삭제 후 새 토큰 저장
+        passwordResetTokenRepository.deleteByUserId(user.getId());
         PasswordResetToken resetToken = PasswordResetToken.create(user.getId(), token);
         passwordResetTokenRepository.save(resetToken);
-
-        // 이메일 발송
-        emailService.sendPasswordResetEmail(user.getEmail(), token);
     }
 
     @Transactional
@@ -189,15 +192,14 @@ public class AuthService {
         // 인증 코드 생성 (6자리 숫자) - 보안을 위해 SecureRandom 사용
         String code = String.format("%06d", secureRandom.nextInt(1000000));
 
-        // 기존 인증 코드 삭제
-        emailVerificationRepository.deleteByUserId(user.getId());
+        // 이메일 발송 (실패 시 예외 발생하여 트랜잭션 롤백)
+        emailService.sendVerificationEmail(user.getEmail(), code);
 
-        // 새 인증 코드 저장
+        // 이메일 발송 성공 시에만 인증 코드 저장
+        // 기존 인증 코드 삭제 후 새 인증 코드 저장
+        emailVerificationRepository.deleteByUserId(user.getId());
         EmailVerification verification = EmailVerification.create(user.getId(), code);
         emailVerificationRepository.save(verification);
-
-        // 이메일 발송
-        emailService.sendVerificationEmail(user.getEmail(), code);
     }
 
     @Transactional

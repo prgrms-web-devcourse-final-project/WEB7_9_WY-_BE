@@ -85,6 +85,14 @@ public enum ErrorCode {
     INVALID_EMAIL_ADDRESS("7015", HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 주소입니다."),
     EMAIL_TEMPLATE_ERROR("7016", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 템플릿 처리 중 오류가 발생했습니다."),
     EMAIL_SEND_FAILED("7017", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 발송에 실패했습니다."),
+    
+    // 7018-7023: JWT 토큰 검증 관련
+    JWT_TOKEN_NULL_OR_EMPTY("7018", HttpStatus.UNAUTHORIZED, "JWT 토큰이 없거나 비어있습니다."),
+    JWT_TOKEN_EXPIRED("7019", HttpStatus.UNAUTHORIZED, "JWT 토큰이 만료되었습니다."),
+    JWT_TOKEN_MALFORMED("7020", HttpStatus.UNAUTHORIZED, "JWT 토큰 형식이 올바르지 않습니다."),
+    JWT_TOKEN_SIGNATURE_INVALID("7021", HttpStatus.UNAUTHORIZED, "JWT 토큰 서명이 유효하지 않습니다."),
+    JWT_TOKEN_UNSUPPORTED("7022", HttpStatus.UNAUTHORIZED, "지원하지 않는 JWT 토큰입니다."),
+    JWT_TOKEN_ILLEGAL_ARGUMENT("7023", HttpStatus.UNAUTHORIZED, "JWT 토큰 파싱 중 오류가 발생했습니다."),
 
     // Chat 8000
     // 8001-8099: 채팅방 관련

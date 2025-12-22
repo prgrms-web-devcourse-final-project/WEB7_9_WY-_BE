@@ -26,13 +26,11 @@ public class UserAuthController implements UserAuthControllerSpec {
             @Valid @RequestBody UserLoginRequest request,
             HttpServletResponse response
     ) {
-        Object[] result = authService.loginWithToken(request, response);
-        UserLoginResponse loginResponse = (UserLoginResponse) result[0];
-        String accessToken = (String) result[1];
+        LoginResult result = authService.loginWithToken(request, response);
         // ResponseEntity 헤더에 Authorization 직접 설정
         return ResponseEntity.ok()
-                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(accessToken))
-                .body(loginResponse);
+                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(result.accessToken()))
+                .body(result.loginResponse());
     }
 
     @PostMapping("/logout")

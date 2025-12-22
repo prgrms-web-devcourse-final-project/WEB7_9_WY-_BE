@@ -1,6 +1,7 @@
 package back.kalender.global.security.jwt;
 
 import back.kalender.global.common.constant.HttpHeaders;
+import back.kalender.global.exception.ServiceException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,9 +28,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = resolveToken(request);
 
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            Authentication authentication = jwtTokenProvider.getAuthentication(token);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (StringUtils.hasText(token)) {
+            try {
+                // JWT 토큰 검증 (구체적인 예외 발생)
+                jwtTokenProvider.validateToken(token);
+                Authentication authentication = jwtTokenProvider.getAuthentication(token);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (ServiceException e) {
+                // JWT 검증 실패는 필터에서 무시 (인증이 필요한 엔드포인트에서 401 반환)
+                // SecurityConfig의 authenticationEntryPoint가 처리
+            }
         }
 
         filterChain.doFilter(request, response);
