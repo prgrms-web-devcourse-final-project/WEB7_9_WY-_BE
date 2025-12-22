@@ -3,3 +3,12 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
+  
+  output:
+    ansi:
+      enabled: always
+
+logging:
+  level:
+    root: INFO
+    com.back: DEBUG

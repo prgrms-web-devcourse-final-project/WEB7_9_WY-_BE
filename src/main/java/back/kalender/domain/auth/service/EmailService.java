@@ -8,6 +8,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
@@ -18,6 +19,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.util.Arrays;
 import java.util.Map;
 
 @Slf4j
@@ -33,12 +35,20 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final Environment environment;
 
     @Value("${custom.site.frontUrl}")
     private String frontUrl;
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
+
+    /**
+     * 개발 환경인지 확인
+     */
+    private boolean isDevProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("dev");
+    }
 
     public void sendVerificationEmail(String to, String code) {
         String subject = String.format("[%s] 이메일 인증 코드", BRAND_NAME);
@@ -48,7 +58,11 @@ public class EmailService {
         );
 
         sendEmail(to, subject, TEMPLATE_VERIFICATION, variables);
-        log.info("[Auth](이메일 인증 코드) 수신자: {} | 인증 코드: {}", to, code);
+        if (isDevProfile()) {
+            log.info("[Auth](이메일 인증 코드) 수신자: {} | 인증 코드: {}", to, code);
+        } else {
+            log.info("[Auth](이메일 인증 코드) 수신자: {}", to);
+        }
     }
 
     public void sendPasswordResetEmail(String to, String token) {
@@ -61,7 +75,11 @@ public class EmailService {
         );
 
         sendEmail(to, subject, TEMPLATE_PASSWORD_RESET, variables);
-        log.info("[Auth](비밀번호 재설정) 수신자: {} | 토큰: {} | 링크: {}", to, token, resetUrl);
+        if (isDevProfile()) {
+            log.info("[Auth](비밀번호 재설정) 수신자: {} | 토큰: {} | 링크: {}", to, token, resetUrl);
+        } else {
+            log.info("[Auth](비밀번호 재설정) 전송 완료", to);
+        }
     }
 
     // 공통 이메일 발송 메서드

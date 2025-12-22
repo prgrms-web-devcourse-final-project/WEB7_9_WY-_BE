@@ -10,6 +10,7 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -19,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -31,8 +33,13 @@ public class JwtTokenProvider {
 
     private final JwtProperties jwtProperties;
     private final UserRepository userRepository;
+    private final Environment environment;
 
     private SecretKey signingKey;
+    
+    private boolean isDevProfile() {
+        return Arrays.asList(environment.getActiveProfiles()).contains("dev");
+    }
 
     @PostConstruct
     public void init() {
@@ -74,22 +81,46 @@ public class JwtTokenProvider {
                     .build()
                     .parseClaimsJws(token);
         } catch (ExpiredJwtException e) {
-            log.warn("[JWT] [ValidateToken] 만료된 토큰 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] 만료된 토큰 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] 만료된 토큰");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_EXPIRED);
         } catch (MalformedJwtException e) {
-            log.warn("[JWT] [ValidateToken] 형식 오류 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] 형식 오류 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] 형식 오류");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
         } catch (SecurityException | io.jsonwebtoken.security.SignatureException e) {
-            log.warn("[JWT] [ValidateToken] 서명 오류 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] 서명 오류 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] 서명 오류");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_SIGNATURE_INVALID);
         } catch (UnsupportedJwtException e) {
-            log.warn("[JWT] [ValidateToken] 지원하지 않는 토큰 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] 지원하지 않는 토큰 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] 지원하지 않는 토큰");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_UNSUPPORTED);
         } catch (IllegalArgumentException e) {
-            log.warn("[JWT] [ValidateToken] 토큰 파싱 실패 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] 토큰 파싱 실패 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] 토큰 파싱 실패");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_ILLEGAL_ARGUMENT);
         } catch (JwtException e) {
-            log.warn("[JWT] [ValidateToken] JWT 예외 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [ValidateToken] JWT 예외 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [ValidateToken] JWT 예외");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
         }
     }
@@ -105,22 +136,46 @@ public class JwtTokenProvider {
 
             return claims.getSubject();
         } catch (ExpiredJwtException e) {
-            log.warn("[JWT] [GetSubject] 만료된 토큰 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] 만료된 토큰 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] 만료된 토큰");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_EXPIRED);
         } catch (MalformedJwtException e) {
-            log.warn("[JWT] [GetSubject] 형식 오류 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] 형식 오류 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] 형식 오류");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
         } catch (SecurityException | io.jsonwebtoken.security.SignatureException e) {
-            log.warn("[JWT] [GetSubject] 서명 오류 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] 서명 오류 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] 서명 오류");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_SIGNATURE_INVALID);
         } catch (UnsupportedJwtException e) {
-            log.warn("[JWT] [GetSubject] 지원하지 않는 토큰 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] 지원하지 않는 토큰 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] 지원하지 않는 토큰");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_UNSUPPORTED);
         } catch (IllegalArgumentException e) {
-            log.warn("[JWT] [GetSubject] 토큰 파싱 실패 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] 토큰 파싱 실패 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] 토큰 파싱 실패");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_ILLEGAL_ARGUMENT);
         } catch (JwtException e) {
-            log.warn("[JWT] [GetSubject] JWT 예외 - message={}", e.getMessage());
+            if (isDevProfile()) {
+                log.warn("[JWT] [GetSubject] JWT 예외 - message={}", e.getMessage());
+            } else {
+                log.warn("[JWT] [GetSubject] JWT 예외");
+            }
             throw new ServiceException(ErrorCode.JWT_TOKEN_MALFORMED);
         }
     }
