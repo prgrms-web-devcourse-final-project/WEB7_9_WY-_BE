@@ -418,8 +418,9 @@ public interface ReservationControllerSpec {
             @PathVariable Long scheduleId,
 
             @Parameter(description = "마지막으로 받은 버전 (0부터 시작)", example = "0")
-            @RequestParam(defaultValue = "0") Long sinceVersion
-    );
+            @RequestParam(defaultValue = "0") Long sinceVersion,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+            );
 
     @Operation(
             summary = "내 예매 내역 조회",

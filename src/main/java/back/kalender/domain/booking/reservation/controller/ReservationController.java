@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 public class ReservationController implements ReservationControllerSpec {
 
     private final ReservationService reservationService;
-    private final BookingSessionService bookingSessionService;
 
     @PostMapping("/schedule/{scheduleId}/reservation")
     @Override
@@ -32,8 +31,6 @@ public class ReservationController implements ReservationControllerSpec {
             @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        bookingSessionService.validateForSchedule(bookingSessionId, scheduleId);
-
         CreateReservationResponse response = reservationService.createReservation(
                 scheduleId,
                 request,
@@ -51,8 +48,6 @@ public class ReservationController implements ReservationControllerSpec {
             @Valid @RequestBody HoldSeatsRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        bookingSessionService.validateExists(bookingSessionId);
-
         HoldSeatsResponse response = reservationService.holdSeats(
                 reservationId,
                 request,
@@ -69,7 +64,6 @@ public class ReservationController implements ReservationControllerSpec {
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        bookingSessionService.validateExists(bookingSessionId);
 
         ReleaseSeatsResponse response = reservationService.releaseSeats(
                 reservationId,
@@ -86,8 +80,6 @@ public class ReservationController implements ReservationControllerSpec {
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        bookingSessionService.validateExists(bookingSessionId);
-
         ReservationSummaryResponse response = reservationService.getReservationSummary(
                 reservationId,
                 userDetails.getUserId()
@@ -103,8 +95,6 @@ public class ReservationController implements ReservationControllerSpec {
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        bookingSessionService.validateExists(bookingSessionId);
-
         UpdateDeliveryInfoResponse response = reservationService.updateDeliveryInfo(
                 reservationId,
                 request,
@@ -130,8 +120,10 @@ public class ReservationController implements ReservationControllerSpec {
     @Override
     public ResponseEntity<SeatChangesResponse> getSeatChanges(
             @PathVariable Long scheduleId,
-            @RequestParam(defaultValue = "0") Long sinceVersion
-    ) {
+            @RequestParam(defaultValue = "0") Long sinceVersion,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+
+            ) {
         SeatChangesResponse response = reservationService.getSeatChanges(
                 scheduleId,
                 sinceVersion
