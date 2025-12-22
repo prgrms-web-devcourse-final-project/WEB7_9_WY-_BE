@@ -1,4 +1,4 @@
-package back.kalender.domain.chat.config;
+package back.kalender.global.security.webSocket;
 
 import back.kalender.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;

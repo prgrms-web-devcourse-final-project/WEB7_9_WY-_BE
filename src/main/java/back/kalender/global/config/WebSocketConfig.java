@@ -1,6 +1,7 @@
 package back.kalender.global.config;
 
 import back.kalender.global.security.jwt.JwtTokenProvider;
+import back.kalender.global.security.webSocket.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -50,6 +51,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
      */
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(new back.kalender.domain.chat.config.WebSocketAuthInterceptor(jwtTokenProvider));
+        registration.interceptors(new WebSocketAuthInterceptor(jwtTokenProvider));
     }
 }
