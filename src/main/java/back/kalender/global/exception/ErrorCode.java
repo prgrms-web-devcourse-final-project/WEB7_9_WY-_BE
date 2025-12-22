@@ -52,8 +52,18 @@ public enum ErrorCode {
     PERFORMANCE_NOT_FOUND("5001", HttpStatus.NOT_FOUND, "공연을 찾을 수 없습니다."),
     PERFORMANCE_HALL_NOT_FOUND("5002", HttpStatus.NOT_FOUND, "공연장을 찾을 수 없습니다."),
     PRICE_GRADE_NOT_FOUND("5003", HttpStatus.NOT_FOUND, "가격 등급을 찾을 수 없습니다."),
+    PERFORMANCE_SEAT_NOT_FOUND("5004", HttpStatus.NOT_FOUND, "공연 좌석을 찾을 수 없습니다."),
 
-    // MyPage 6000
+    // Reservation 6000
+    RESERVATION_NOT_FOUND("6001", HttpStatus.NOT_FOUND, "예매를 찾을 수 없습니다."),
+    RESERVATION_EXPIRED("6002", HttpStatus.BAD_REQUEST, "만료된 예매입니다."),
+    ALREADY_PAID_RESERVATION("6003", HttpStatus.BAD_REQUEST, "이미 결제된 예매입니다."),
+    PARTIAL_RELEASE_NOT_ALLOWED("6004", HttpStatus.BAD_REQUEST, "부분 좌석 해제는 허용되지 않습니다."),
+    SEAT_STATE_INCONSISTENT("6005", HttpStatus.CONFLICT, "좌석 상태가 일치하지 않습니다."),
+    SCHEDULE_NOT_AVAILABLE("6006", HttpStatus.BAD_REQUEST, "예매가 불가능한 회차입니다."),
+    INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
+    CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
+    NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),

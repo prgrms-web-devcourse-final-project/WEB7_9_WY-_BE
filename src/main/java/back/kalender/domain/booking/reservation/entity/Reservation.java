@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Builder
 public class Reservation extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
@@ -48,6 +49,17 @@ public class Reservation extends BaseEntity {
     @Column(name = "recipient_zip_code", length = 10)
     private String recipientZipCode;
 
+    public static Reservation create(Long userId, Long scheduleId) {
+        LocalDateTime now = LocalDateTime.now();
+        return Reservation.builder()
+                .userId(userId)
+                .performanceScheduleId(scheduleId)
+                .totalAmount(0)
+                .status(ReservationStatus.PENDING)
+                .expiresAt(now.plusMinutes(5))
+                .build();
+    }
+
     // 배송정보 업데이트
     public void updateDeliveryInfo(
             String deliveryMethod,
@@ -63,15 +75,40 @@ public class Reservation extends BaseEntity {
         this.recipientZipCode = recipientZipCode;
     }
 
+    // --- 상태 변경 메서드 ---
+
+    // 예매 상태 변경
+    public void updateStatus(ReservationStatus status) {
+        this.status = status;
+    }
+
+    // 만료 시간 업데이트
+    public void updateExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    // 총액 업데이트
     public void updateTotalAmount(Integer totalAmount) {
         this.totalAmount = totalAmount;
     }
 
-    // 만료 시간 체크
-    public boolean isExpired() {
-        return LocalDateTime.now().isAfter(this.expiresAt);
+    // 예매 취소
+    public void cancel() {
+        this.status = ReservationStatus.CANCELLED;
+        this.expiresAt = null;  // 만료 시간 제거
+        this.remainingSeconds = null;  // 남은 시간 제거
     }
 
+    // --- 검증 메서드 ---
+
+    // 만료 시간 체크
+    public boolean isExpired() {
+        // expiresAt이 null이면 아직 HOLD 전 (PENDING 상태)
+        if (this.expiresAt == null) {
+            return false;
+        }
+        return LocalDateTime.now().isAfter(this.expiresAt);
+    }
     // 배송 정보 입력 완료 여부
     public boolean hasDeliveryInfo() {
         if ("PICKUP".equals(deliveryMethod)) {
@@ -85,5 +122,10 @@ public class Reservation extends BaseEntity {
                     && recipientZipCode != null;
         }
         return false;
+    }
+
+    // 예매 소유자 확인
+    public boolean isOwnedBy(Long userId) {
+        return this.userId.equals(userId);
     }
 }

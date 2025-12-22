@@ -9,6 +9,8 @@ import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -95,14 +97,58 @@ public class ReservationController implements ReservationControllerSpec {
 
     @DeleteMapping("/reservation/{reservationId}")
     @Override
-    public ResponseEntity<Void> cancelReservation(
+    public ResponseEntity<CancelReservationResponse> cancelReservation(
             @PathVariable Long reservationId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        reservationService.cancelReservation(
+        CancelReservationResponse response = reservationService.cancelReservation(
                 reservationId,
                 userDetails.getUserId()
         );
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/schedule/{scheduleId}/seats/changes")
+    @Override
+    public ResponseEntity<SeatChangesResponse> getSeatChanges(
+            @PathVariable Long scheduleId,
+            @RequestParam(defaultValue = "0") Long sinceVersion
+    ) {
+        SeatChangesResponse response = reservationService.getSeatChanges(
+                scheduleId,
+                sinceVersion
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/my-reservations")
+    @Override
+    public ResponseEntity<MyReservationListResponse> getMyReservations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        MyReservationListResponse response = reservationService.getMyReservations(
+                userDetails.getUserId(),
+                pageable
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/reservation/{reservationId}")
+    @Override
+    public ResponseEntity<ReservationDetailResponse> getReservationDetail(
+            @PathVariable Long reservationId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ReservationDetailResponse response = reservationService.getReservationDetail(
+                reservationId,
+                userDetails.getUserId()
+        );
+
+        return ResponseEntity.ok(response);
     }
 }

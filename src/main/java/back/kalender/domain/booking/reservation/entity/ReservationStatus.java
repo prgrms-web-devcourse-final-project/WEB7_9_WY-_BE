@@ -4,7 +4,8 @@ import lombok.Getter;
 
 @Getter
 public enum ReservationStatus {
-    HOLD("임시 예매"),
+    PENDING("초기 상태"),
+    HOLD("홀드 상태"),
     PAID("결제 완료"),
     EXPIRED("만료됨"),
     CANCELLED("취소됨");
@@ -15,6 +16,9 @@ public enum ReservationStatus {
         this.description = description;
     }
 
+    public boolean isPending() {
+        return this == PENDING;
+    }
     public boolean isHold() {
         return this == HOLD;
     }
