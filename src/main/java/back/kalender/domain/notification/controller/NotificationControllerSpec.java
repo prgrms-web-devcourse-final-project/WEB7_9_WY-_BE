@@ -89,6 +89,7 @@ public interface NotificationControllerSpec {
     })
     @GetMapping(value = "/subscribe", produces = "text/event-stream")
     public SseEmitter subscribeToNotifications(
-            @AuthenticationPrincipal(expression = "userId") Long userId
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     );
 }

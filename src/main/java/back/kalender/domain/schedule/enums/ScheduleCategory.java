@@ -1,4 +1,4 @@
-package back.kalender.domain.schedule.entity;
+package back.kalender.domain.schedule.enums;
 
 public enum ScheduleCategory {
     CONCERT,

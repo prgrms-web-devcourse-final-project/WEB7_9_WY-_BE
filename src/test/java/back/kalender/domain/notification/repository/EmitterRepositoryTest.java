@@ -1,37 +1,114 @@
 package back.kalender.domain.notification.repository;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import java.util.Map;
 
-@ExtendWith(MockitoExtension.class)
-@DisplayName("Repo 로직 단위 테스트")
 class EmitterRepositoryTest {
+
     private final EmitterRepository emitterRepository = new EmitterRepository();
+    private final Long DEFAULT_TIMEOUT = 60L * 1000L * 60L;
 
     @Test
-    @DisplayName("새로운 Emitter를 저장한다")
-    void saveEmitter() {
+    @DisplayName("새로운 Emitter를 추가한다.")
+    void save() {
         Long userId = 1L;
-        SseEmitter emitter = new SseEmitter();
+        String emitterId = userId + "_" + System.currentTimeMillis();
+        SseEmitter sseEmitter = new SseEmitter(DEFAULT_TIMEOUT);
 
-        emitterRepository.save(userId, emitter);
+        emitterRepository.save(emitterId, sseEmitter);
 
-        assertThat(emitterRepository.get(userId)).isEqualTo(emitter);
+        Map<String, SseEmitter> result = emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId));
+        Assertions.assertEquals(1, result.size());
     }
 
     @Test
-    @DisplayName("저장된 Emitter를 삭제한다")
-    void deleteEmitter() {
+    @DisplayName("수신한 이벤트를 캐시에 저장한다.")
+    void saveEventCache() {
         Long userId = 1L;
-        emitterRepository.save(userId, new SseEmitter());
+        String eventCacheId = userId + "_" + System.currentTimeMillis();
+        Object event = "Test Event Data";
 
-        emitterRepository.deleteById(userId);
+        emitterRepository.saveEventCache(eventCacheId, event);
 
-        assertThat(emitterRepository.get(userId)).isNull();
+        Map<String, Object> events = emitterRepository.findAllEventCacheStartWithByMemberId(String.valueOf(userId));
+        Assertions.assertEquals(1, events.size());
+        Assertions.assertEquals("Test Event Data", events.get(eventCacheId));
+    }
+
+    @Test
+    @DisplayName("어떤 회원이 접속한 모든 Emitter를 찾는다.")
+    void findAllEmitterStartWithByMemberId() {
+        Long userId = 1L;
+        String emitterId1 = userId + "_" + System.currentTimeMillis();
+        emitterRepository.save(emitterId1, new SseEmitter(DEFAULT_TIMEOUT));
+
+        String emitterId2 = userId + "_" + (System.currentTimeMillis() + 100);
+        emitterRepository.save(emitterId2, new SseEmitter(DEFAULT_TIMEOUT));
+
+        Map<String, SseEmitter> result = emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId));
+
+        Assertions.assertEquals(2, result.size());
+    }
+
+    @Test
+    @DisplayName("어떤 회원에게 발생한 모든 이벤트를 찾는다 (캐시 조회).")
+    void findAllEventCacheStartWithByMemberId() {
+        Long userId = 1L;
+        String eventCacheId1 = userId + "_" + System.currentTimeMillis();
+        String eventCacheId2 = userId + "_" + (System.currentTimeMillis() + 100);
+
+        emitterRepository.saveEventCache(eventCacheId1, "데이터1");
+        emitterRepository.saveEventCache(eventCacheId2, "데이터2");
+
+        Map<String, Object> result = emitterRepository.findAllEventCacheStartWithByMemberId(String.valueOf(userId));
+
+        Assertions.assertEquals(2, result.size());
+    }
+
+    @Test
+    @DisplayName("ID로 Emitter를 삭제한다.")
+    void deleteById() {
+        Long userId = 1L;
+        String emitterId = userId + "_" + System.currentTimeMillis();
+        SseEmitter sseEmitter = new SseEmitter(DEFAULT_TIMEOUT);
+        emitterRepository.save(emitterId, sseEmitter);
+
+        emitterRepository.deleteById(emitterId);
+
+        Map<String, SseEmitter> result = emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId));
+        Assertions.assertEquals(0, result.size());
+    }
+
+    @Test
+    @DisplayName("10분이 지난 이벤트 캐시는 삭제되어야 한다.")
+    void deleteExpiredEventCache() {
+        Long userId = 1L;
+        long tenMinutesInMillis = 10 * 60 * 1000L;
+
+        // 만료된 키 생성 (현재 시간보다 11분 전)
+        long expiredTime = System.currentTimeMillis() - tenMinutesInMillis - (60 * 1000L);
+        String expiredKey = userId + "_" + expiredTime;
+
+        // 유효한 키 생성 (현재 시간)
+        long validTime = System.currentTimeMillis();
+        String validKey = userId + "_" + validTime;
+
+        emitterRepository.saveEventCache(expiredKey, "만료된 데이터");
+        emitterRepository.saveEventCache(validKey, "유효한 데이터");
+
+        emitterRepository.deleteExpiredEventCache();
+
+        Map<String, Object> result = emitterRepository.findAllEventCacheStartWithByMemberId(String.valueOf(userId));
+
+        Assertions.assertNull(result.get(expiredKey));
+
+        Assertions.assertNotNull(result.get(validKey));
+        Assertions.assertEquals("유효한 데이터", result.get(validKey));
+
+        Assertions.assertEquals(1, result.size());
     }
 }

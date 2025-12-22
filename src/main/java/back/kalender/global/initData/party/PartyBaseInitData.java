@@ -5,7 +5,7 @@
 //import back.kalender.domain.party.repository.PartyMemberRepository;
 //import back.kalender.domain.party.repository.PartyRepository;
 //import back.kalender.domain.schedule.entity.Schedule;
-//import back.kalender.domain.schedule.entity.ScheduleCategory;
+//import back.kalender.domain.schedule.enums.ScheduleCategory;
 //import back.kalender.domain.schedule.repository.ScheduleRepository;
 //import back.kalender.domain.user.entity.User;
 //import back.kalender.domain.user.repository.UserRepository;
