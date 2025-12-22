@@ -63,6 +63,27 @@ public class ReservationMapper {
         );
     }
 
+    // 좌석 해제 성공 응답 생성
+    public static ReleaseSeatsResponse toReleaseSeatsResponse(
+            Reservation reservation,
+            List<Long> releasedSeatIds,
+            int remainingSeatCount,
+            int totalAmount,
+            LocalDateTime now
+    ) {
+        long remainingSeconds = calculateRemainingSeconds(reservation, now);
+
+        return new ReleaseSeatsResponse(
+                reservation.getId(),
+                reservation.getStatus().name(),
+                releasedSeatIds,
+                remainingSeatCount,
+                totalAmount,
+                reservation.getExpiresAt(),
+                remainingSeconds
+        );
+    }
+
     // 예매 요약 응답 생성
     public static ReservationSummaryResponse toSummaryResponse(
             Reservation reservation,

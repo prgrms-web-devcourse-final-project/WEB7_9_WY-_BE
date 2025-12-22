@@ -131,10 +131,6 @@ public class ReservationService {
         // 3. 선택된 좌석 정보 조회
         List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(reservationId);
 
-        if (reservationSeats.isEmpty()) {
-            throw new ServiceException(ErrorCode.NO_SEATS_RESERVED);
-        }
-
         List<Long> seatIds = reservationSeats.stream()
                 .map(ReservationSeat::getPerformanceSeatId)
                 .toList();
@@ -163,7 +159,7 @@ public class ReservationService {
         );
     }
 
-    // 배송 정보 수정
+    // 배송 정보 입력
     @Transactional
     public UpdateDeliveryInfoResponse updateDeliveryInfo(
             Long reservationId,

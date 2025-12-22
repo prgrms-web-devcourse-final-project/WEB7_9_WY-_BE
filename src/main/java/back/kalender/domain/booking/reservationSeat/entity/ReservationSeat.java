@@ -29,4 +29,11 @@ public class ReservationSeat extends BaseEntity {
         this.performanceSeatId = performanceSeatId;
         this.price = price;
     }
+    public static ReservationSeat create(Long reservationId, Long performanceSeatId, Integer price) {
+        return ReservationSeat.builder()
+                .reservationId(reservationId)
+                .performanceSeatId(performanceSeatId)
+                .price(price)
+                .build();
+    }
 }

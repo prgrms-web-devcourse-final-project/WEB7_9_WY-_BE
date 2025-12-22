@@ -13,6 +13,7 @@ import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.mapper.ReservationMapper;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
+import back.kalender.domain.booking.reservationSeat.mapper.ReservationSeatMapper;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.entity.SeatHoldLog;
 import back.kalender.domain.booking.seatHold.exception.SeatHoldConflictException;
@@ -241,12 +242,13 @@ public class SeatHoldService {
         PriceGrade priceGrade = priceGradeRepository.findById(seat.getPriceGradeId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PRICE_GRADE_NOT_FOUND));
 
-        ReservationSeat reservationSeat = ReservationSeat.builder()
-                .reservationId(reservation.getId())
-                .performanceSeatId(seatId)
-                .price(priceGrade.getPrice())
-                .build();
+        ReservationSeat reservationSeat = ReservationSeatMapper.create(
+                reservation.getId(),
+                seatId,
+                priceGrade.getPrice()
+        );
         reservationSeatRepository.save(reservationSeat);
+
 
         // 8. SeatHoldLog 기록
         SeatHoldLog holdLog = SeatHoldMapper.toHoldLog(seatId, userId, now, expiresAt);
@@ -494,14 +496,12 @@ public class SeatHoldService {
             reservationRepository.save(reservation);
 
             // 5. 응답 생성
-            ReleaseSeatsResponse response = new ReleaseSeatsResponse(
-                    reservation.getId(),
-                    reservation.getStatus().name(),  // CANCELLED
+            ReleaseSeatsResponse response = ReservationMapper.toReleaseSeatsResponse(
+                    reservation,
                     sortedSeatIds,
                     0,
                     0,
-                    null,
-                    0L
+                    now
             );
             log.info("[SeatHold] RELEASE 성공 - reservationId={}", reservationId);
 

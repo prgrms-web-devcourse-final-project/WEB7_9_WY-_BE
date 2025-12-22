@@ -10,6 +10,7 @@ import back.kalender.domain.booking.reservation.dto.response.ReservationSummaryR
 import back.kalender.domain.booking.reservation.dto.response.UpdateDeliveryInfoResponse;
 import back.kalender.domain.booking.reservation.entity.Reservation;
 import back.kalender.domain.booking.reservation.entity.ReservationStatus;
+import back.kalender.domain.booking.reservation.mapper.ReservationMapper;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -60,6 +62,8 @@ import static org.mockito.Mockito.*;
 public class ReservationServiceTest {
     @InjectMocks
     private ReservationService reservationService;
+    @Spy
+    private ReservationMapper reservationMapper = new ReservationMapper();
 
     @Mock
     private ReservationRepository reservationRepository;

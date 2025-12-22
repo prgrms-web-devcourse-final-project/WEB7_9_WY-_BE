@@ -1,5 +1,6 @@
 package back.kalender.domain.booking.seatHold.mapper;
 
+import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.seatHold.entity.SeatHoldLog;
 
 import java.time.LocalDateTime;
