@@ -29,12 +29,9 @@ import java.util.List;
 public class NotificationScheduler {
 
     private final NotificationService notificationService;
-    private final ScheduleRepository scheduleRepository;
     private final PartyRepository partyRepository;
-    private final PartyMemberRepository partyMemberRepository;
 
     @Scheduled(cron = "0 0 0 * * *")
-    @Transactional
     public void sendScheduledNotifications() {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
