@@ -56,21 +56,29 @@ public class EmitterRepository {
     public void deleteExpiredEventCache() {
         long now = System.currentTimeMillis();
 
-        eventCache.keySet().forEach(key -> {
+        eventCache.keySet().removeIf(key -> {
             try {
                 int lastUnderscoreIndex = key.lastIndexOf("_");
-                if (lastUnderscoreIndex != -1) {
-                    String timeString = key.substring(lastUnderscoreIndex + 1);
-                    long timestamp = Long.parseLong(timeString);
 
-                    if (now - timestamp > EVENT_CACHE_TTL) {
-                        eventCache.remove(key);
-                        log.info("만료된 데이터 삭제됨: {}", key);
-                    }
+                if (lastUnderscoreIndex == -1) {
+                    log.warn("잘못된 키 형식 발견 (삭제됨): {}", key);
+                    return true;
                 }
+
+                String timeString = key.substring(lastUnderscoreIndex + 1);
+                long timestamp = Long.parseLong(timeString);
+
+                boolean isExpired = (now - timestamp > EVENT_CACHE_TTL);
+
+                if (isExpired) {
+                    log.debug("캐시 만료되어 삭제됨: {}", key);
+                }
+
+                return isExpired;
+
             } catch (NumberFormatException | IndexOutOfBoundsException e) {
-                log.warn("유효하지 않은 키 형식: {}", key);
-                eventCache.remove(key);
+                log.warn("파싱 에러로 인한 비정상 데이터 삭제: {}", key);
+                return true;
             }
         });
     }
