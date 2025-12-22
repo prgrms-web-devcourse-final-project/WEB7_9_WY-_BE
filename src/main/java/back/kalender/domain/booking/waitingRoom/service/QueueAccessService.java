@@ -26,11 +26,14 @@ public class QueueAccessService {
     }
 
     public void ping(Long scheduleId, String qsid) {
-        redisTemplate.opsForZSet().add(
-                activeKey(scheduleId),
-                qsid,
-                System.currentTimeMillis()
-        );
+        String key = activeKey(scheduleId);
+
+        Double score = redisTemplate.opsForZSet().score(key, qsid);
+        if (score == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
+
+        redisTemplate.opsForZSet().add(key, qsid, System.currentTimeMillis());
     }
 
     // B개발자 담당
