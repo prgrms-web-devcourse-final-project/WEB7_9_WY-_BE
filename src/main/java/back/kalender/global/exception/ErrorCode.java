@@ -65,6 +65,12 @@ public enum ErrorCode {
     CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
     NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
 
+    // 6100-6199: 대기열 토큰 관련
+    WAITING_TOKEN_REQUIRED("6101", HttpStatus.BAD_REQUEST, "대기열 토큰이 필요합니다."),
+    WAITING_TOKEN_INVALID("6102", HttpStatus.BAD_REQUEST, "유효하지 않은 대기열 토큰입니다."),
+    WAITING_TOKEN_MISMATCH("6103", HttpStatus.BAD_REQUEST, "대기열 토큰이 일치하지 않습니다."),
+    DEVICE_ID_MISMATCH("6104", HttpStatus.BAD_REQUEST, "디바이스 ID가 일치하지 않습니다."),
+
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_REFRESH_TOKEN("7002", HttpStatus.UNAUTHORIZED, "유효하지 않은 refresh token입니다."),

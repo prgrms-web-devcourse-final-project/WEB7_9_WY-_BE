@@ -27,8 +27,7 @@ public interface ReservationControllerSpec {
     @Operation(
             summary = "예매 세션 생성",
             description = """
-                    대기열 통과 후 예약 세션을 생성합니다.
-                    - 대기열 토큰 검증 후 5분간 유효한 예매 세션 생성
+                    대기열 통과 후 예매 세션을 생성합니다.
                     - 생성 즉시 좌석 선택 가능 (PENDING 상태)
                     """
     )
