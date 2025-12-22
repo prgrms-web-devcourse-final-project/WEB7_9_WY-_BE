@@ -3,6 +3,7 @@ package back.kalender.domain.auth.controller;
 import back.kalender.domain.auth.dto.request.*;
 import back.kalender.domain.auth.dto.response.*;
 import back.kalender.domain.auth.service.AuthService;
+import back.kalender.global.common.constant.HttpHeaders;
 import back.kalender.global.security.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,7 +31,7 @@ public class UserAuthController implements UserAuthControllerSpec {
         String accessToken = (String) result[1];
         // ResponseEntity 헤더에 Authorization 직접 설정
         return ResponseEntity.ok()
-                .header("Authorization", "Bearer " + accessToken)
+                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(accessToken))
                 .body(loginResponse);
     }
 
@@ -53,7 +54,7 @@ public class UserAuthController implements UserAuthControllerSpec {
         String accessToken = authService.refreshToken(refreshToken, response);
         // ResponseEntity 헤더에 Authorization 직접 설정
         return ResponseEntity.ok()
-                .header("Authorization", "Bearer " + accessToken)
+                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(accessToken))
                 .build();
     }
 

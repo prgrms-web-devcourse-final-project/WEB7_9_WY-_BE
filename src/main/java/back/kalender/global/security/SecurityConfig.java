@@ -1,5 +1,6 @@
 package back.kalender.global.security;
 
+import back.kalender.global.common.constant.HttpHeaders;
 import back.kalender.global.security.jwt.JwtAuthEntryPoint;
 import back.kalender.global.security.jwt.JwtAuthFilter;
 import back.kalender.global.security.jwt.JwtTokenProvider;
@@ -60,7 +61,7 @@ public class SecurityConfig {
         configuration.setMaxAge(3600L);
         
         // 노출할 응답 헤더
-        configuration.setExposedHeaders(Arrays.asList("Authorization"));
+        configuration.setExposedHeaders(Arrays.asList(HttpHeaders.AUTHORIZATION));
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

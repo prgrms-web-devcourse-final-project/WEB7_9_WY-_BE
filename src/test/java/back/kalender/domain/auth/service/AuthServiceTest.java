@@ -43,8 +43,6 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     private static final String COOKIE_NAME_REFRESH_TOKEN = "refreshToken";
-    private static final String HEADER_NAME_AUTHORIZATION = "Authorization";
-    private static final String BEARER_PREFIX = "Bearer ";
 
     private static final long ACCESS_TOKEN_EXPIRY_MILLIS = 1800000L;
     private static final long REFRESH_TOKEN_EXPIRY_MILLIS = 1209600000L;

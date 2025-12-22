@@ -1,5 +1,6 @@
 package back.kalender.global.security.jwt;
 
+import back.kalender.global.common.constant.HttpHeaders;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,9 +17,6 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-
-    private static final String AUTHORIZATION_HEADER = "Authorization";
-    private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
     protected void doFilterInternal(
@@ -39,9 +37,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private String resolveToken(HttpServletRequest request) {
         // Authorization 헤더에서 Bearer 토큰 찾기
-        String header = request.getHeader(AUTHORIZATION_HEADER);
-        if (StringUtils.hasText(header) && header.startsWith(BEARER_PREFIX)) {
-            return header.substring(BEARER_PREFIX.length());
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(header) && header.startsWith(HttpHeaders.BEARER_PREFIX)) {
+            return header.substring(HttpHeaders.BEARER_PREFIX.length());
         }
 
         return null;

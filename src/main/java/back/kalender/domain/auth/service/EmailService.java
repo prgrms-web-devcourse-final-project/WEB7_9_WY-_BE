@@ -3,11 +3,14 @@ package back.kalender.domain.auth.service;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import jakarta.mail.MessagingException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -63,12 +66,39 @@ public class EmailService {
 
     // 공통 이메일 발송 메서드
     private void sendEmail(String to, String subject, String templateName, Map<String, Object> variables) {
+        // 이메일 주소 유효성 검증
+        validateEmailAddress(to);
+
         try {
             MimeMessage message = createMimeMessage(to, subject, templateName, variables);
             mailSender.send(message);
-        } catch (MessagingException | MailException e) {
+        } catch (MailAuthenticationException e) {
+            log.error("이메일 서버 인증 실패 - 수신자: {}, 제목: {}", to, subject, e);
+            throw new ServiceException(ErrorCode.EMAIL_CONFIGURATION_ERROR);
+        } catch (MailSendException e) {
+            log.error("이메일 발송 실패 (SMTP 오류) - 수신자: {}, 제목: {}", to, subject, e);
+            throw new ServiceException(ErrorCode.EMAIL_SEND_FAILED);
+        } catch (MailException e) {
             log.error("이메일 발송 실패 - 수신자: {}, 제목: {}", to, subject, e);
-            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new ServiceException(ErrorCode.EMAIL_SEND_FAILED);
+        } catch (MessagingException e) {
+            log.error("이메일 메시지 생성 실패 - 수신자: {}, 제목: {}", to, subject, e);
+            throw new ServiceException(ErrorCode.EMAIL_SEND_FAILED);
+        }
+    }
+
+    // 이메일 주소 유효성 검증
+    private void validateEmailAddress(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new ServiceException(ErrorCode.INVALID_EMAIL_ADDRESS);
+        }
+
+        try {
+            InternetAddress internetAddress = new InternetAddress(email);
+            internetAddress.validate();
+        } catch (jakarta.mail.internet.AddressException e) {
+            log.warn("유효하지 않은 이메일 주소: {}", email);
+            throw new ServiceException(ErrorCode.INVALID_EMAIL_ADDRESS);
         }
     }
 
@@ -77,7 +107,17 @@ public class EmailService {
             throws MessagingException {
         // fromEmail 검증
         if (fromEmail == null || fromEmail.trim().isEmpty()) {
-            throw new MessagingException("이메일 발신자 주소가 설정되지 않았습니다. spring.mail.username을 설정해주세요.");
+            log.error("이메일 발신자 주소가 설정되지 않음 - spring.mail.username 설정 필요");
+            throw new ServiceException(ErrorCode.EMAIL_CONFIGURATION_ERROR);
+        }
+
+        // fromEmail 유효성 검증
+        try {
+            InternetAddress internetAddress = new InternetAddress(fromEmail);
+            internetAddress.validate();
+        } catch (jakarta.mail.internet.AddressException e) {
+            log.error("유효하지 않은 발신자 이메일 주소: {}", fromEmail);
+            throw new ServiceException(ErrorCode.EMAIL_CONFIGURATION_ERROR);
         }
 
         MimeMessage message = mailSender.createMimeMessage();
@@ -101,7 +141,7 @@ public class EmailService {
             return templateEngine.process(templateName, context);
         } catch (Exception e) {
             log.error("템플릿 렌더링 실패 - 템플릿: {}", templateName, e);
-            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new ServiceException(ErrorCode.EMAIL_TEMPLATE_ERROR);
         }
     }
 
