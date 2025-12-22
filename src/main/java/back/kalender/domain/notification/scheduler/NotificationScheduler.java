@@ -2,6 +2,7 @@ package back.kalender.domain.notification.scheduler;
 
 import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.service.NotificationService;
+import back.kalender.domain.party.dto.query.NotificationTarget;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyMember;
 import back.kalender.domain.party.repository.PartyMemberRepository;
@@ -15,6 +16,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -37,44 +39,45 @@ public class NotificationScheduler {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
 
-        List<Schedule> todaySchedules = scheduleRepository.findAllByScheduleTimeBetween(startOfDay, endOfDay);
+        List<NotificationTarget> targets = partyRepository.findNotificationTargets(startOfDay, endOfDay);
 
-        if (todaySchedules.isEmpty()) {
+        if (targets.isEmpty()) {
             log.info("오늘은 예정된 일정이 없습니다.");
             return;
         }
 
         int count = 0;
-        for (Schedule schedule : todaySchedules) {
-            List<Party> parties = partyRepository.findAllByScheduleId(schedule.getId());
-
-            for (Party party : parties) {
-                List<PartyMember> activeMembers = partyMemberRepository.findActiveMembers(party.getId());
-
-                for (PartyMember member : activeMembers) {
-                    sendNotification(member.getUserId(), schedule, party);
-                    count++;
-                }
+        for (NotificationTarget target : targets) {
+            try {
+                sendNotification(target);
+                count++;
+            } catch (IOException e) {
+                log.error("알림 전송 중 IO 예외 발생 (UserId: {}, PartyId: {}): {}",
+                        target.userId(), target.partyId(), e.getMessage());
+            }
+            catch (Exception e) {
+                log.error("스케줄러 알림 발송 실패 (UserId: {}, PartyId: {}): {}",
+                        target.userId(), target.partyId(), e.getMessage());
             }
         }
 
         log.info("[스케줄러 종료] 총 {}건의 알림 발송 완료", count);
     }
 
-    private void sendNotification(Long userId, Schedule schedule, Party party) {
+    private void sendNotification(NotificationTarget target) {
         String title = "오늘의 일정 알림";
         String content;
-        String url = "/party/" + party.getId();
+        String url = "/party/" + target.partyId();
 
-        if (schedule.getScheduleCategory() == ScheduleCategory.BIRTHDAY) {
-            content = String.format("오늘은 [%s]입니다. 다함께 축하해주세요! 🎂", schedule.getTitle());
+        if (target.category() == ScheduleCategory.BIRTHDAY) {
+            content = String.format("오늘은 [%s]입니다. 다함께 축하해주세요! 🎂", target.scheduleTitle());
         } else {
-            String timeStr = schedule.getScheduleTime().format(DateTimeFormatter.ofPattern("HH시 mm분"));
-            content = String.format("오늘 %s에 [%s] 일정이 있습니다!", timeStr, schedule.getTitle());
+            String timeStr = target.scheduleTime().format(DateTimeFormatter.ofPattern("HH시 mm분"));
+            content = String.format("오늘 %s에 [%s] 일정이 있습니다!", timeStr, target.scheduleTitle());
         }
 
         notificationService.send(
-                userId,
+                target.userId(),
                 NotificationType.EVENT_REMINDER,
                 title,
                 content,

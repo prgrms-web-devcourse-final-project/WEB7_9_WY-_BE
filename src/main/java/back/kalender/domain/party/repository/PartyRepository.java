@@ -17,4 +17,6 @@ public interface PartyRepository extends JpaRepository<Party, Long>, PartyReposi
     Page<Party> findActivePartiesByLeaderId(@Param("leaderId") Long leaderId, Pageable pageable);
 
     List<Party> findAllByScheduleId(Long scheduleId);
+
+    List<Party> findAllByScheduleIdIn(List<Long> scheduleIds);
 }

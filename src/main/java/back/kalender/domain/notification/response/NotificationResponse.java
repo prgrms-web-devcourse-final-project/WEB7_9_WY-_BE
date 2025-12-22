@@ -13,7 +13,7 @@ public record NotificationResponse(
     @Schema(description = "알림 유형", example = "ACCEPT")
     NotificationType notificationType,
 
-    @Schema(description = "알림 제목", example = "오늘의 일정 알림")
+    @Schema(description = "알림 제목", example = "BTS 콘서트")
     String title,
 
     @Schema(description = "알림 내용", example = "오늘 8시에 BTS 콘서트 일정이 있습니다.")
