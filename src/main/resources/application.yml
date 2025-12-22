@@ -32,7 +32,7 @@ spring:
       password: ${REDIS_PASSWORD:}
   output:
     ansi:
-      enabled: always
+      enabled: detect
   datasource:
     hikari:
       auto-commit: false
@@ -63,14 +63,14 @@ logging:
 
 custom:
   dev:
-    domain: localhost
-    backUrl: "http://${custom.dev.domain}:${server.port}"
-    frontUrl: "http://${custom.dev.domain}:3000"
+    domain: ${DEV_DOMAIN:localhost}
+    backUrl: ${DEV_BACK_URL:http://${custom.dev.domain}:${server.port}}
+    frontUrl: ${DEV_FRONT_URL:http://${custom.dev.domain}:3000}
 
   prod:
-    domain: p-14626.javamemtor.shop
-    backUrl: "https://api.${custom.prod.domain}"
-    frontUrl: "https://www.${custom.prod.domain}"
+    domain: ${PROD_DOMAIN:idol-kalendar.shop}
+    backUrl: ${PROD_BACK_URL:https://idol-kalendar.shop}
+    frontUrl: ${PROD_FRONT_URL:https://web-7-9-wy-fe.vercel.app}
 
   site:
     domain: "${custom.dev.domain}"

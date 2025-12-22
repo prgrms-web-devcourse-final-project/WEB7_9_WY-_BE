@@ -71,5 +71,5 @@ jobs:
               SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
               SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
               java -jar \
-              -Dspring.profiles.active=dev \
+              -Dspring.profiles.active=prod \
               /home/${{ secrets.EC2_USER }}/*.jar > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
