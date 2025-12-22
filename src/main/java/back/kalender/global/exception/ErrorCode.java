@@ -10,7 +10,6 @@ public enum ErrorCode {
     UNAUTHORIZED("002",HttpStatus.UNAUTHORIZED,"로그인이 필요합니다."),
     INTERNAL_SERVER_ERROR("003",HttpStatus.INTERNAL_SERVER_ERROR,"서버에서 오류가 발생했습니다."),
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
-
     // User 1000
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
     DUPLICATE_NICKNAME("1002", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
@@ -79,13 +78,13 @@ public enum ErrorCode {
     PASSWORD_RESET_TOKEN_NOT_FOUND("7011", HttpStatus.NOT_FOUND, "비밀번호 재설정 토큰을 찾을 수 없습니다."),
     PASSWORD_RESET_TOKEN_ALREADY_USED("7012", HttpStatus.BAD_REQUEST, "이미 사용된 비밀번호 재설정 토큰입니다."),
     PASSWORD_MISMATCH("7013", HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
-    
+
     // 7014-7019: 이메일 발송 관련
     EMAIL_CONFIGURATION_ERROR("7014", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 서버 설정이 올바르지 않습니다."),
     INVALID_EMAIL_ADDRESS("7015", HttpStatus.BAD_REQUEST, "유효하지 않은 이메일 주소입니다."),
     EMAIL_TEMPLATE_ERROR("7016", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 템플릿 처리 중 오류가 발생했습니다."),
     EMAIL_SEND_FAILED("7017", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 발송에 실패했습니다."),
-    
+
     // 7018-7023: JWT 토큰 검증 관련
     JWT_TOKEN_NULL_OR_EMPTY("7018", HttpStatus.UNAUTHORIZED, "JWT 토큰이 없거나 비어있습니다."),
     JWT_TOKEN_EXPIRED("7019", HttpStatus.UNAUTHORIZED, "JWT 토큰이 만료되었습니다."),
@@ -109,7 +108,17 @@ public enum ErrorCode {
     LEADER_CANNOT_LEAVE("8201", HttpStatus.BAD_REQUEST, "파티장은 채팅방을 나갈 수 없습니다."),
     CANNOT_KICK_YOURSELF("8202", HttpStatus.BAD_REQUEST, "자기 자신을 강퇴할 수 없습니다."),
     ONLY_LEADER_CAN_KICK("8203", HttpStatus.FORBIDDEN, "파티장만 멤버를 강퇴할 수 있습니다."),
-    USER_NOT_IN_PARTY("8204", HttpStatus.NOT_FOUND, "해당 사용자는 파티 멤버가 아닙니다.");
+    USER_NOT_IN_PARTY("8204", HttpStatus.NOT_FOUND, "해당 사용자는 파티 멤버가 아닙니다."),
+
+    // Payment 9000
+    PAYMENT_NOT_FOUND("9001", HttpStatus.NOT_FOUND, "결제를 찾을 수 없습니다."),
+    PAYMENT_AMOUNT_MISMATCH("9002", HttpStatus.BAD_REQUEST, "결제 금액이 일치하지 않습니다."),
+    PAYMENT_ORDER_ID_MISMATCH("9003", HttpStatus.BAD_REQUEST, "주문 ID가 일치하지 않습니다."),
+    PAYMENT_CANNOT_CANCEL("9004", HttpStatus.BAD_REQUEST, "취소할 수 없는 결제 상태입니다."),
+    PAYMENT_ALREADY_CANCELED("9005", HttpStatus.BAD_REQUEST, "이미 취소된 결제입니다."),
+    PAYMENT_GATEWAY_ERROR("9006", HttpStatus.BAD_GATEWAY, "결제 게이트웨이 오류가 발생했습니다."),
+    PAYMENT_CANNOT_CONFIRM("9007", HttpStatus.BAD_REQUEST, "승인할 수 없는 결제 상태입니다."),
+    PAYMENT_GATEWAY_TIMEOUT("9010", HttpStatus.REQUEST_TIMEOUT, "결제 게이트웨이 타임아웃이 발생했습니다.");
 
     private final String code;
     private final HttpStatus status;
