@@ -4,7 +4,7 @@ import back.kalender.domain.booking.performanceSeat.dto.PerformanceSeatResponse;
 import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.domain.booking.waitingRoom.service.QueueAccessService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,13 +17,16 @@ public class PerformanceSeatQueryService {
     private final PerformanceSeatRepository performanceSeatRepository;
     private final QueueAccessService queueAccessService;
 
+    @Cacheable(
+            cacheNames = "seatLayout",
+            key = "#scheduleId"
+    )
     @Transactional(readOnly = true)
     public List<PerformanceSeatResponse> getSeatsByScheduleId(
             Long scheduleId,
-            String deviceId
+            String qsid
     ) {
-        // ✅ 대기열 통과(Active) 여부 체크
-        queueAccessService.checkSeatAccess(scheduleId, deviceId);
+        queueAccessService.checkSeatAccess(scheduleId, qsid);
 
         return performanceSeatRepository.findSeatResponses(scheduleId);
     }
