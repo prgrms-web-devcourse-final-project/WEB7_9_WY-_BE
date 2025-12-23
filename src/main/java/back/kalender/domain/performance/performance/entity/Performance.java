@@ -4,10 +4,7 @@ import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,6 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Builder
 public class Performance extends BaseEntity {
 
     private Long performanceHallId;

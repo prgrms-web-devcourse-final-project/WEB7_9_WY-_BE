@@ -34,4 +34,5 @@ where p.scheduleId = :scheduleId
 
     Optional<PerformanceSeat> findByIdAndScheduleId(Long id, Long scheduleId);
 
+    boolean existsByScheduleId(Long id);
 }
