@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 @Order(3)
-public class PerformanceSeatInitData implements ApplicationRunner {
+public class PerformanceSeatBaseInitData implements ApplicationRunner {
 
     private final PerformanceRepository performanceRepository;
     private final PerformanceScheduleRepository performanceScheduleRepository;
@@ -79,12 +79,9 @@ public class PerformanceSeatInitData implements ApplicationRunner {
             }
         }
 
-        System.out.println("✅ PerformanceSeat 생성 완료");
+        System.out.println(" PerformanceSeat 생성 완료");
     }
 
-    /**
-     * 좌석 위치 기반 가격 등급 분리
-     */
     private PriceGrade resolveGrade(
             HallSeat seat,
             Map<String, PriceGrade> gradeMap

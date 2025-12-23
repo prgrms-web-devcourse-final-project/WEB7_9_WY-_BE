@@ -25,7 +25,7 @@ import java.util.Set;
 @Profile("dev")
 @Order(1)
 @RequiredArgsConstructor
-public class PerformanceInitData implements ApplicationRunner {
+public class PerformanceBaseInitData implements ApplicationRunner {
 
     private final ArtistRepository artistRepository;
     private final PerformanceRepository performanceRepository;
@@ -45,7 +45,7 @@ public class PerformanceInitData implements ApplicationRunner {
 
             boolean isTarget =
                     TARGET.contains(artist.getName()) ||
-                            artist.getName().equals("NCT 127");
+                            artist.getName().equals("NCT WISH");
 
             if (!isTarget) continue;
 
@@ -73,7 +73,7 @@ public class PerformanceInitData implements ApplicationRunner {
                 .build()
         );
 
-        // 📌 Schedule(CONCERT) 생성 (여기서만!)
+        //  Schedule(CONCERT) 생성 (여기서만!)
         scheduleRepository.save(
             Schedule.builder()
                 .artistId(artist.getId())
@@ -85,7 +85,7 @@ public class PerformanceInitData implements ApplicationRunner {
                 .build()
         );
 
-        // 🎟 회차 2개
+        // 회차 2개
         createSchedule(performance, date, 1, LocalTime.of(18, 0));
         createSchedule(performance, date, 2, LocalTime.of(20, 30));
     }
