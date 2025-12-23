@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("dev")
-@Order(2)
+@Order(3)
 @RequiredArgsConstructor
 public class PriceGradeInitData implements ApplicationRunner {
 
