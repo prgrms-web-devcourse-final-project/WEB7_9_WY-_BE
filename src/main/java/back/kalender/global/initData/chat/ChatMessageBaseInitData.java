@@ -13,6 +13,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -28,6 +29,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
     private final UserRepository userRepository;
 
     @Override
+    @Transactional
     public void run(ApplicationArguments args) {
         if (chatMessageRepository.count() > 0) {
             log.info("ChatMessage base data already initialized");
