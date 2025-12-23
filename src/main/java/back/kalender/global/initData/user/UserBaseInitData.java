@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 
 @Component
-@Profile("dev")
+@Profile({"prod", "dev"})
 @RequiredArgsConstructor
 @Slf4j
 @Order(0)

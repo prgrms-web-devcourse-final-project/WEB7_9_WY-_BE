@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 @Component
-@Profile({"local", "dev"})
+@Profile({"prod", "dev"})
 @Order(7)
 @RequiredArgsConstructor
 @Slf4j

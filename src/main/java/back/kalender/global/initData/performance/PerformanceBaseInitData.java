@@ -22,7 +22,7 @@ import java.time.LocalTime;
 import java.util.Set;
 
 @Component
-@Profile("dev")
+@Profile({"prod", "dev"})
 @Order(2)
 @RequiredArgsConstructor
 public class PerformanceBaseInitData implements ApplicationRunner {
