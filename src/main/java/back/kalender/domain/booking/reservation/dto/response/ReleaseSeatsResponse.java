@@ -1,6 +1,5 @@
 package back.kalender.domain.booking.reservation.dto.response;
 
-import back.kalender.domain.booking.reservation.entity.Reservation;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
@@ -27,6 +26,9 @@ public record ReleaseSeatsResponse(
         LocalDateTime expiresAt,
 
         @Schema(description = "남은 시간(초)", example = "260")
-        Long remainingSeconds
+        Long remainingSeconds,
+
+        @Schema(description = "해제된 좌석 개수")
+        int releasedSeatCount
 ) {
 }

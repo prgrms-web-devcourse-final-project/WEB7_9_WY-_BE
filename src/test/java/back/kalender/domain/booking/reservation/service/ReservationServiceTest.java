@@ -14,6 +14,8 @@ import back.kalender.domain.booking.reservation.mapper.ReservationMapper;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
+import back.kalender.domain.booking.seatHold.service.SeatHoldService;
+import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
@@ -79,7 +81,10 @@ public class ReservationServiceTest {
     private PerformanceSeatRepository performanceSeatRepository;
     @Mock
     private PriceGradeRepository priceGradeRepository;
-
+    @Mock
+    private SeatHoldService seatHoldService;
+    @Mock
+    BookingSessionService bookingSessionService;
     @Mock
     private RedisTemplate<String, String> redisTemplate;
     @Mock
