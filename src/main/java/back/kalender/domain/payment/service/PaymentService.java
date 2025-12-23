@@ -48,19 +48,19 @@ public class PaymentService {
     @Transactional
     public PaymentCreateResponse create(PaymentCreateRequest request, String idempotencyKey, Long userId) {
         // Reservation 조회 및 검증
-        Reservation reservation = reservationRepository.findById(request.getReservationId())
+        Reservation reservation = reservationRepository.findById(request.reservationId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
         
         if (!reservation.getUserId().equals(userId)) {
             log.warn("[Payment] 예매 소유자 불일치 - reservationId: {}, 저장된 userId: {}, 요청 userId: {}",
-                    request.getReservationId(), reservation.getUserId(), userId);
+                    request.reservationId(), reservation.getUserId(), userId);
             throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
         }
         
         // Reservation의 totalAmount 사용 (클라이언트가 보낸 amount 무시)
         Integer amount = reservation.getTotalAmount();
         
-        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.getReservationId(), idempotencyKey)
+        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.reservationId(), idempotencyKey)
                 .map(existingPayment -> {
                     log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, reservationId: {}, idempotencyKey: {}",
                             existingPayment.getId(), userId, existingPayment.getReservationId(), idempotencyKey);
@@ -68,7 +68,7 @@ public class PaymentService {
                 })
                 .orElseGet(() -> {
                     try {
-                        Payment payment = PaymentMapper.create(request.getReservationId(), userId, idempotencyKey, amount, request.getCurrency(), request.getMethod());
+                        Payment payment = PaymentMapper.create(request.reservationId(), userId, idempotencyKey, amount, request.currency(), request.method());
 
                         Payment savedPayment = paymentRepository.save(payment);
                         log.info("[Payment] 결제 생성 완료 - paymentId: {}, reservationId: {}, amount: {}",
@@ -78,15 +78,15 @@ public class PaymentService {
                     } catch (DataIntegrityViolationException e) {
                         // 동시 생성 경쟁 시 재조회하여 멱등성 보장
                         log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, reservationId: {}, idempotencyKey: {}",
-                                userId, request.getReservationId(), idempotencyKey);
-                        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.getReservationId(), idempotencyKey)
+                                userId, request.reservationId(), idempotencyKey);
+                        return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.reservationId(), idempotencyKey)
                                 .map(existingPayment -> {
                                     log.info("[Payment] 멱등성: 재조회 후 기존 결제 반환 - paymentId: {}", existingPayment.getId());
                                     return PaymentMapper.toCreateResponse(existingPayment);
                                 })
                                 .orElseThrow(() -> {
                                     log.error("[Payment] 유니크 충돌 후 재조회 실패 - userId: {}, reservationId: {}, idempotencyKey: {}",
-                                            userId, request.getReservationId(), idempotencyKey);
+                                            userId, request.reservationId(), idempotencyKey);
                                     return new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
                                 });
                     }
@@ -109,16 +109,16 @@ public class PaymentService {
 
     @Transactional
     public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId, String idempotencyKey) {
-        Payment payment = paymentRepository.findByUserIdAndReservationId(userId, request.getReservationId())
+        Payment payment = paymentRepository.findByUserIdAndReservationId(userId, request.reservationId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
 
         // Reservation 조회 및 금액 검증 (클라이언트가 보낸 amount 무시, Reservation의 totalAmount 사용)
-        Reservation reservation = reservationRepository.findById(request.getReservationId())
+        Reservation reservation = reservationRepository.findById(request.reservationId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
         
         if (!reservation.getUserId().equals(userId)) {
             log.warn("[Payment] 예매 소유자 불일치 - reservationId: {}, 저장된 userId: {}, 요청 userId: {}",
-                    request.getReservationId(), reservation.getUserId(), userId);
+                    request.reservationId(), reservation.getUserId(), userId);
             throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
         }
         
@@ -179,8 +179,8 @@ public class PaymentService {
         PaymentGatewayConfirmResponse gatewayResponse;
         try {
             gatewayResponse = paymentGateway.confirm(
-                request.getPaymentKey(),
-                String.valueOf(request.getReservationId()),
+                request.paymentKey(),
+                String.valueOf(request.reservationId()),
                 payment.getAmount()
             );
         } catch (Exception e) {
@@ -198,7 +198,7 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
         }
 
-        if (gatewayResponse.isSuccess()) {
+        if (gatewayResponse.success()) {
             return handleGatewaySuccess(payment.getId(), gatewayResponse, idempotencyKey);
         } else {
             return handleGatewayFailure(payment.getId(), gatewayResponse);
@@ -215,16 +215,16 @@ public class PaymentService {
         try {
             // 조건부 UPDATE: PROCESSING → APPROVED
             int approved = paymentRepository.updateStatusToApproved(
-                paymentId, gatewayResponse.getPaymentKey(), approvedAt);
+                paymentId, gatewayResponse.paymentKey(), approvedAt);
             
             if (approved == 0) {
                 // 보상 트랜잭션: DB 업데이트 실패 시 게이트웨이 취소
                 log.error("[Payment] 승인 상태 전이 실패, 게이트웨이 취소 시도 - paymentId: {}", paymentId);
                 try {
-                    paymentGateway.cancel(gatewayResponse.getPaymentKey(), "DB 업데이트 실패");
+                    paymentGateway.cancel(gatewayResponse.paymentKey(), "DB 업데이트 실패");
                 } catch (Exception cancelException) {
                     log.error("[Payment] 게이트웨이 취소 실패 - paymentId: {}, paymentKey: {}", 
-                            paymentId, gatewayResponse.getPaymentKey(), cancelException);
+                            paymentId, gatewayResponse.paymentKey(), cancelException);
                 }
                 throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
             }
@@ -246,14 +246,14 @@ public class PaymentService {
             }
             
             log.info("[Payment] 결제 승인 완료 - paymentId: {}, paymentKey: {}", 
-                    approvedPayment.getId(), gatewayResponse.getPaymentKey());
+                    approvedPayment.getId(), gatewayResponse.paymentKey());
             
             return response;
         } catch (Exception e) {
             // 보상 트랜잭션: 예외 발생 시 게이트웨이 취소
             log.error("[Payment] 승인 처리 중 예외 발생, 게이트웨이 취소 시도 - paymentId: {}", paymentId, e);
             try {
-                paymentGateway.cancel(gatewayResponse.getPaymentKey(), "시스템 에러");
+                paymentGateway.cancel(gatewayResponse.paymentKey(), "시스템 에러");
             } catch (Exception cancelException) {
                 log.error("[Payment] 게이트웨이 취소 실패 - paymentId: {}", paymentId, cancelException);
             }
@@ -267,7 +267,7 @@ public class PaymentService {
     ) {
         // 조건부 UPDATE: PROCESSING → FAILED
         int failed = paymentRepository.updateStatusToFailed(
-                paymentId, gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
+                paymentId, gatewayResponse.failCode(), gatewayResponse.failMessage());
         if (failed == 0) {
             Payment currentPayment = paymentRepository.findById(paymentId)
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
@@ -288,7 +288,7 @@ public class PaymentService {
         }
         
         log.warn("[Payment] 결제 승인 실패 - paymentId: {}, failCode: {}, failMessage: {}",
-                failedPayment.getId(), gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
+                failedPayment.getId(), gatewayResponse.failCode(), gatewayResponse.failMessage());
 
         throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
     }
@@ -340,9 +340,9 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CANCEL);
         }
 
-        PaymentGatewayCancelResponse gatewayResponse = paymentGateway.cancel(paymentKey, request.getReason());
+        PaymentGatewayCancelResponse gatewayResponse = paymentGateway.cancel(paymentKey, request.reason());
 
-        if (gatewayResponse.isSuccess()) {
+        if (gatewayResponse.success()) {
             LocalDateTime canceledAt = LocalDateTime.now();
             int canceled = paymentRepository.updateStatusToCanceled(payment.getId(), canceledAt);
             if (canceled == 0) {
@@ -364,18 +364,18 @@ public class PaymentService {
             // Outbox 이벤트 저장
             try {
                 outboxEventService.saveOutboxEvent(canceledPayment.getId(), PaymentEventType.CANCELED, 
-                        createCanceledPayload(canceledPayment, request.getReason(), canceledAt));
+                        createCanceledPayload(canceledPayment, request.reason(), canceledAt));
             } catch (Exception e) {
                 log.error("[Payment] Outbox 이벤트 저장 실패 - paymentId: {}", canceledPayment.getId(), e);
             }
             
             log.info("[Payment] 결제 취소 완료 - paymentId: {}, paymentKey: {}, reason: {}",
-                    canceledPayment.getId(), paymentKey, request.getReason());
+                    canceledPayment.getId(), paymentKey, request.reason());
             
             return response;
         } else {
             log.warn("[Payment] 결제 취소 실패 - paymentId: {}, failCode: {}, failMessage: {}",
-                    payment.getId(), gatewayResponse.getFailCode(), gatewayResponse.getFailMessage());
+                    payment.getId(), gatewayResponse.failCode(), gatewayResponse.failMessage());
             throw new ServiceException(ErrorCode.PAYMENT_GATEWAY_ERROR);
         }
     }
@@ -428,8 +428,8 @@ public class PaymentService {
 
     private Map<String, Object> createFailedPayload(Payment payment, PaymentGatewayConfirmResponse gatewayResponse) {
         Map<String, Object> payload = createBasePayload(payment);
-        payload.put("failCode", gatewayResponse.getFailCode());
-        payload.put("failMessage", gatewayResponse.getFailMessage());
+        payload.put("failCode", gatewayResponse.failCode());
+        payload.put("failMessage", gatewayResponse.failMessage());
         return payload;
     }
 
