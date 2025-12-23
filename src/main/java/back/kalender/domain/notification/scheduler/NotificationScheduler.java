@@ -36,7 +36,6 @@ public class NotificationScheduler {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
 
-        // 파티원이 아닌 알림 신청한 사람 목록 조회
         List<NotificationTarget> targets = scheduleAlarmRepository.findNotificationTargets(startOfDay, endOfDay);
 
         if (targets.isEmpty()) {

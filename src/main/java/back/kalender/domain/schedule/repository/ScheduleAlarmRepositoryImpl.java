@@ -2,6 +2,7 @@ package back.kalender.domain.schedule.repository;
 
 import back.kalender.domain.party.dto.query.NotificationTarget;
 import back.kalender.domain.schedule.entity.QSchedule;
+import back.kalender.domain.schedule.entity.QScheduleAlarm;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
