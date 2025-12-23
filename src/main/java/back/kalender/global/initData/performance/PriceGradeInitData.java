@@ -12,7 +12,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("dev")
+@Profile("prod")
 @Order(3)
 @RequiredArgsConstructor
 public class PriceGradeInitData implements ApplicationRunner {

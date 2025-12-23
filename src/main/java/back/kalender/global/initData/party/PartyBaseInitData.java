@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@Profile({"local", "dev"})
+@Profile({"prod"})
 @Order(6)  // Schedule, User가 먼저 생성되어야 함
 @RequiredArgsConstructor
 @Slf4j

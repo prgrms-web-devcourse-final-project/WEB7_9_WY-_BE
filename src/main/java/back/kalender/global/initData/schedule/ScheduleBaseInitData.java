@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 @Component
-@Profile("dev")
+@Profile("prod")
 @Order(0)
 @RequiredArgsConstructor
 public class ScheduleBaseInitData implements ApplicationRunner {

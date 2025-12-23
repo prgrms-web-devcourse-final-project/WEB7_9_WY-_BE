@@ -13,6 +13,7 @@ import back.kalender.domain.performance.schedule.repository.PerformanceScheduleR
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
+@Profile("prod")
 @RequiredArgsConstructor
 @Order(4)
 public class PerformanceSeatBaseInitData implements ApplicationRunner {

@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.PostConstruct;
 
 @Component
-@Profile("dev")
+@Profile("prod")
 @Order(1)
 @RequiredArgsConstructor
 public class HallSeatBaseInitData implements ApplicationRunner {
