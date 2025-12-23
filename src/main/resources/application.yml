@@ -3,7 +3,7 @@ server:
 
 spring:
   config:
-    import: optional:file:.env.properties
+    import: optional:file:.env
   profiles:
     active: dev
     include: secret
@@ -71,11 +71,6 @@ custom:
     domain: ${PROD_DOMAIN:idol-kalendar.shop}
     backUrl: ${PROD_BACK_URL:https://idol-kalendar.shop}
     frontUrl: ${PROD_FRONT_URL:https://web-7-9-wy-fe.vercel.app}
-
-  site:
-    domain: "${custom.dev.domain}"
-    backUrl: "${custom.dev.backUrl}"
-    frontUrl: "${custom.dev.frontUrl}"
 
   jwt:
     tokenExpiration:
