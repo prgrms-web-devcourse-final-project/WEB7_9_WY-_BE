@@ -3,20 +3,13 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
+    driver-class-name: org.postgresql.Driver
   thymeleaf:
     cache: true
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        format_sql: false
-        highlight_sql: false
-        use_sql_comments: false
-    show-sql: false
+      ddl-auto: update
 
 logging:
   level:
@@ -32,9 +25,9 @@ logging:
 
 custom:
   site:
-    domain: "${custom.prod.domain}"
-    backUrl: "${custom.prod.backUrl}"
-    frontUrl: "${custom.prod.frontUrl}"
+    domain: ${PROD_DOMAIN:idol-kalendar.shop}
+    backUrl: ${PROD_BACK_URL:https://idol-kalendar.shop}
+    frontUrl: ${PROD_FRONT_URL:https://web-7-9-wy-fe.vercel.app}
 
   jwt:
     cookie:
