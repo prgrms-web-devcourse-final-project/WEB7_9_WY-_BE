@@ -5,7 +5,10 @@ import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -21,4 +24,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             Long userId,
             Long performanceScheduleId,
             Collection<ReservationStatus> statuses
-    );}
+    );
+
+    // 만료된 HOLD 예매 조회
+    @Query("""
+        SELECT r FROM Reservation r
+        WHERE r.status = 'HOLD'
+        AND r.expiresAt < :now
+        ORDER BY r.expiresAt ASC
+        """)
+    List<Reservation> findExpiredHoldReservations(
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
+}

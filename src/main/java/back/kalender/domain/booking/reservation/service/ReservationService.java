@@ -502,6 +502,67 @@ public class ReservationService {
         );
     }
 
+    // 예매 만료 처리 - 스케줄러에서 호출
+    @Transactional
+    public void expireReservationAndReleaseSeats(Long reservationId, Long userId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        // userId가 null이 아닐 때만 권한 체크
+        if (userId != null && !reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+        Long scheduleId = reservation.getPerformanceScheduleId();
+
+        // 2. HOLD 좌석 조회
+        List<ReservationSeat> reservationSeats =
+                reservationSeatRepository.findByReservationId(reservationId);
+
+        if (reservationSeats.isEmpty()) {
+            log.warn("[Reservation] 해제할 좌석 없음 - reservationId={}", reservationId);
+            reservation.expire();
+            reservationRepository.save(reservation);
+            return;
+        }
+
+        List<Long> seatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        // 3. DB 좌석 상태 복구
+        List<PerformanceSeat> seats = performanceSeatRepository.findAllById(seatIds);
+        for (PerformanceSeat seat : seats) {
+            if (seat.getStatus() == SeatStatus.HOLD) {
+                seat.updateStatus(SeatStatus.AVAILABLE);
+                seat.clearHoldInfo();
+            }
+        }
+        performanceSeatRepository.saveAll(seats);
+
+        // 4. Redis HOLD owner 키 삭제
+        for (Long seatId : seatIds) {
+            String holdOwnerKey = String.format(
+                    "seat:hold:owner:%d:%d",
+                    scheduleId,
+                    seatId
+            );
+            redisTemplate.delete(holdOwnerKey);
+
+            // 폴링 이벤트 발행
+            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, null);
+        }
+
+        // 5. Reservation 만료
+        reservation.expire();
+        reservationRepository.save(reservation);
+
+        // 6. ReservationSeat 삭제 (선택)
+        // reservationSeatRepository.deleteByReservationId(reservationId);
+
+        log.info("[Reservation] 예매 만료 처리 완료 - reservationId={}, seatCount={}",
+                reservationId, seatIds.size());
+    }
+
     private Reservation findAndValidateReservation(Long reservationId, Long userId) {
         Reservation r = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));

@@ -6,11 +6,13 @@ import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRe
 import back.kalender.domain.booking.reservation.entity.Reservation;
 import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
+import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,71 +27,53 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class SeatHoldExpiryScheduler {
-    private static final int BATCH_SIZE = 500;
+    private static final int BATCH_SIZE = 100;
 
-    private final PerformanceSeatRepository performanceSeatRepository;
-    private final ReservationSeatRepository reservationSeatRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationService reservationService;
 
     /**
-     * 만료된 HOLD 좌석을 주기적으로 해제하는 스케줄러
+     * 만료된 HOLD 예매를 주기적으로 해제하는 스케줄러
      * - 10초마다 실행
      */
-
     @Scheduled(fixedDelay = 10_000)
     @Transactional
     public void releaseExpiredHolds() {
         LocalDateTime now = LocalDateTime.now();
 
-        List<PerformanceSeat> expiredSeats =
-                performanceSeatRepository.findExpiredHoldSeats(
-                        SeatStatus.HOLD,
+        // 1. 만료된 예매 조회
+        List<Reservation> expiredReservations =
+                reservationRepository.findExpiredHoldReservations(
                         now,
                         PageRequest.of(0, BATCH_SIZE)
                 );
 
-        if (expiredSeats.isEmpty()) {
+        if (expiredReservations.isEmpty()) {
             return;
         }
 
-        // 1) 좌석 복구
-        for (PerformanceSeat seat : expiredSeats) {
-            seat.updateStatus(SeatStatus.AVAILABLE);
-            seat.clearHoldInfo();
-            log.info("[SeatHoldExpiryScheduler] 만료된 좌석 해제 - seatId={}", seat.getId());
-        }
-        performanceSeatRepository.saveAll(expiredSeats);
+        // 2. 각 예매별로 좌석 해제 (Service 메서드 재사용)
+        int successCount = 0;
+        int failCount = 0;
 
-        // 2) 연결된 reservation EXPIRED 처리 (HOLD/PENDING만)
-        Set<Long> seatIds = expiredSeats.stream()
-                .map(PerformanceSeat::getId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        for (Reservation reservation : expiredReservations) {
+            try {
+                //
+                reservationService.expireReservationAndReleaseSeats(
+                        reservation.getId(),
+                        null
+                );
+                successCount++;
 
-        int expiredReservationCount = 0;
-
-        if (!seatIds.isEmpty()) {
-            List<ReservationSeat> rsList = reservationSeatRepository.findByPerformanceSeatIdIn(seatIds);
-
-            Set<Long> reservationIds = rsList.stream()
-                    .map(ReservationSeat::getReservationId)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-
-            if (!reservationIds.isEmpty()) {
-                List<Reservation> reservations = reservationRepository.findAllById(reservationIds);
-
-                for (Reservation r : reservations) {
-                    if (r.getStatus() == ReservationStatus.HOLD) {
-                        r.expire();
-                        expiredReservationCount++;
-                    }
-                }
-                reservationRepository.saveAll(reservations);
+            } catch (Exception e) {
+                log.error("[SeatHoldExpiryScheduler] 예매 만료 처리 실패 - reservationId={}",
+                        reservation.getId(), e);
+                failCount++;
             }
         }
 
-        log.info("[SeatHoldExpiryScheduler] 만료된 좌석 홀드 해제 - seatCount={}, reservationExpiredCount={}",
-                expiredSeats.size(), expiredReservationCount);
+        log.info("[SeatHoldExpiryScheduler] 만료 처리 완료 - " +
+                        "total={}, success={}, fail={}",
+                expiredReservations.size(), successCount, failCount);
     }
 }
