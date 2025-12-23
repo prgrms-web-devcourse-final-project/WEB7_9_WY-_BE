@@ -1,6 +1,6 @@
 package back.kalender.domain.schedule.dto.response;
 
-import back.kalender.domain.schedule.entity.ScheduleCategory;
+import back.kalender.domain.schedule.enums.ScheduleCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

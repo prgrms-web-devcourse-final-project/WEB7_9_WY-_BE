@@ -1,10 +1,14 @@
 package back.kalender.domain.party.repository;
 
+import back.kalender.domain.party.dto.query.NotificationTarget;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.QParty;
+import back.kalender.domain.party.entity.QPartyMember;
 import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.enums.PartyType;
 import back.kalender.domain.party.enums.TransportType;
+import back.kalender.domain.schedule.entity.QSchedule;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -15,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,5 +117,31 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
 
     private BooleanExpression transportTypeEq(TransportType transportType) {
         return transportType != null ? QParty.party.transportType.eq(transportType) : null;
+    }
+
+    @Override
+    public List<NotificationTarget> findNotificationTargets(LocalDateTime start, LocalDateTime end) {
+        QSchedule schedule = QSchedule.schedule;
+        QParty party = QParty.party;
+        QPartyMember partyMember = QPartyMember.partyMember;
+
+        return queryFactory
+                .select(Projections.constructor(NotificationTarget.class,
+                        partyMember.userId,
+                        party.id,
+                        schedule.title,
+                        schedule.scheduleCategory,
+                        schedule.scheduleTime
+                ))
+                .from(schedule)
+                .join(party).on(party.scheduleId.eq(schedule.id))
+                .join(partyMember).on(partyMember.partyId.eq(party.id))
+                .where(
+                        schedule.scheduleTime.between(start, end),
+                        partyMember.leftAt.isNull(),
+                        partyMember.kickedAt.isNull(),
+                        party.status.notIn(PartyStatus.CANCELLED)
+                )
+                .fetch();
     }
 }

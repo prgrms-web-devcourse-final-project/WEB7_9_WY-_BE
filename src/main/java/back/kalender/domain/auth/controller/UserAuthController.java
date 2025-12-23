@@ -3,6 +3,7 @@ package back.kalender.domain.auth.controller;
 import back.kalender.domain.auth.dto.request.*;
 import back.kalender.domain.auth.dto.response.*;
 import back.kalender.domain.auth.service.AuthService;
+import back.kalender.global.common.constant.HttpHeaders;
 import back.kalender.global.security.util.SecurityUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,8 +26,11 @@ public class UserAuthController implements UserAuthControllerSpec {
             @Valid @RequestBody UserLoginRequest request,
             HttpServletResponse response
     ) {
-        UserLoginResponse loginResponse = authService.login(request, response);
-        return ResponseEntity.ok(loginResponse);
+        LoginResult result = authService.loginWithToken(request, response);
+        // ResponseEntity 헤더에 Authorization 직접 설정
+        return ResponseEntity.ok()
+                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(result.accessToken()))
+                .body(result.loginResponse());
     }
 
     @PostMapping("/logout")
@@ -45,8 +49,11 @@ public class UserAuthController implements UserAuthControllerSpec {
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response
     ) {
-        authService.refreshToken(refreshToken, response);
-        return ResponseEntity.ok().build();
+        String accessToken = authService.refreshToken(refreshToken, response);
+        // ResponseEntity 헤더에 Authorization 직접 설정
+        return ResponseEntity.ok()
+                .header(HttpHeaders.AUTHORIZATION, HttpHeaders.createBearerToken(accessToken))
+                .build();
     }
 
     @PostMapping("/password/send")
