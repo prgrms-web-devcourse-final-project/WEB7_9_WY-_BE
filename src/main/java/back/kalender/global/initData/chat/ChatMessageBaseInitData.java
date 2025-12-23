@@ -46,7 +46,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         }
 
         List<String> sampleMessages = List.of(
-                "안녕하세요! 잘 부탁드립니다 😊",
+                "안녕하세요! 잘 부탁드립니다",
                 "공연 너무 기대되네요 ㅎㅎ",
                 "몇 시쯤 출발하면 될까요?",
                 "저도 처음인데 같이 가요~",
@@ -77,7 +77,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
                     ChatMessage.createChatMessage(
                             party.getId(),
                             party.getLeaderId(),
-                            "파티에 오신 것을 환영합니다! 같이 즐거운 시간 보내요 😊"
+                            "파티에 오신 것을 환영합니다! 같이 즐거운 시간 보내요"
                     )
             );
             messageCount++;
