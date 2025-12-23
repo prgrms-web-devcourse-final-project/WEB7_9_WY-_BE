@@ -31,7 +31,7 @@ import java.util.List;
 
 @Component
 @Profile({"local", "dev"})
-@Order(5)  // Schedule, User가 먼저 생성되어야 함
+@Order(6)  // Schedule, User가 먼저 생성되어야 함
 @RequiredArgsConstructor
 @Slf4j
 public class PartyBaseInitData implements ApplicationRunner {

@@ -18,7 +18,7 @@ import java.util.List;
 
 @Component
 @Profile({"local", "dev"})
-@Order(6)  // Party가 먼저 생성되어야 함
+@Order(8)  // Party가 먼저 생성되어야 함
 @RequiredArgsConstructor
 @Slf4j
 public class ChatMessageBaseInitData implements ApplicationRunner {
