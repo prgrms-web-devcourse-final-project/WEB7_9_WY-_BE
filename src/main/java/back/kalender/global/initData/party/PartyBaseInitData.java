@@ -1,244 +1,204 @@
-//package back.kalender.global.initData.party;
-//
-//import back.kalender.domain.party.entity.*;
-//import back.kalender.domain.party.repository.PartyApplicationRepository;
-//import back.kalender.domain.party.repository.PartyMemberRepository;
-//import back.kalender.domain.party.repository.PartyRepository;
-//import back.kalender.domain.schedule.entity.Schedule;
-//import back.kalender.domain.schedule.enums.ScheduleCategory;
-//import back.kalender.domain.schedule.repository.ScheduleRepository;
-//import back.kalender.domain.user.entity.User;
-//import back.kalender.domain.user.repository.UserRepository;
-//import back.kalender.global.common.Enum.Gender;
-//import jakarta.annotation.PostConstruct;
-//import lombok.RequiredArgsConstructor;
-//import lombok.extern.slf4j.Slf4j;
-//import org.springframework.context.annotation.Profile;
-//import org.springframework.security.crypto.password.PasswordEncoder;
-//import org.springframework.stereotype.Component;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//
-//@Slf4j
-//@Component
-//@Profile({"local", "dev"})
-//@RequiredArgsConstructor
-//public class PartyBaseInitData {
-//
-//    private final UserRepository userRepository;
-//    private final ScheduleRepository scheduleRepository;
-//    private final PartyRepository partyRepository;
-//    private final PartyMemberRepository partyMemberRepository;
-//    private final PartyApplicationRepository partyApplicationRepository;
-//    private final PasswordEncoder passwordEncoder; // 추가!
-//
-//    @PostConstruct
-//    public void init() {
-//        if (userRepository.findByEmail("leader1@test.com").isPresent()) {
-//            log.info("===== Party 테스트 데이터가 이미 존재합니다. 초기화를 건너뜁니다. =====");
-//            return;
-//        }
-//
-//        initData();
-//    }
-//
-//    @Transactional
-//    public void initData() {
-//        log.info("===== Party 테스트 데이터 초기화 시작 =====");
-//
-//        // 1. User 데이터 생성
-//        User leader1 = createUser("leader1@test.com", "리더유저1", Gender.MALE, LocalDate.of(1995, 3, 15));
-//        User leader2 = createUser("leader2@test.com", "리더유저2", Gender.FEMALE, LocalDate.of(1998, 7, 22));
-//        User member1 = createUser("member1@test.com", "멤버유저1", Gender.MALE, LocalDate.of(2000, 1, 10));
-//        User member2 = createUser("member2@test.com", "멤버유저2", Gender.FEMALE, LocalDate.of(2002, 5, 20));
-//        User applicant1 = createUser("applicant1@test.com", "신청자1", Gender.MALE, LocalDate.of(1999, 11, 5));
-//        User applicant2 = createUser("applicant2@test.com", "신청자2", Gender.FEMALE, LocalDate.of(2001, 8, 30));
-//
-//        log.info("User 데이터 생성 완료: 총 6명");
-//        log.info("  ✅ 테스트 계정 비밀번호: password123!");
-//
-//        // 2. Schedule 데이터 생성
-//        Schedule concert1 = createSchedule(
-//                1L,
-//                "BTS 콘서트 2025",
-//                ScheduleCategory.CONCERT,
-//                LocalDateTime.of(2025, 12, 31, 19, 0),
-//                "잠실종합운동장"
-//        );
-//
-//        Schedule concert2 = createSchedule(
-//                2L,
-//                "블랙핑크 월드투어",
-//                ScheduleCategory.CONCERT,
-//                LocalDateTime.of(2025, 11, 15, 20, 0),
-//                "고척스카이돔"
-//        );
-//
-//        Schedule fanmeeting = createSchedule(
-//                1L,
-//                "세븐틴 팬미팅",
-//                ScheduleCategory.FAN_MEETING,
-//                LocalDateTime.of(2025, 10, 20, 18, 0),
-//                "올림픽공원 올림픽홀"
-//        );
-//
-//        log.info("Schedule 데이터 생성 완료: 총 3개");
-//
-//        // 3. Party 데이터 생성
-//
-//        // 3-1. 모집중인 파티 (리더1)
-//        Party party1 = createParty(
-//                concert1.getId(),
-//                leader1.getId(),
-//                PartyType.LEAVE,
-//                "즐거운 BTS 콘서트 출발팟",
-//                "같이 즐겁게 가요!",
-//                "강남역 3번출구",
-//                "잠실종합운동장",
-//                TransportType.SUBWAY,
-//                4,
-//                Gender.ANY,
-//                PreferredAge.TWENTY
-//        );
-//
-//        createPartyMember(party1.getId(), leader1.getId(), MemberRole.LEADER);
-//        createPartyMember(party1.getId(), member1.getId(), MemberRole.MEMBER);
-//        party1.incrementCurrentMembers();
-//
-//        createPartyApplication(party1.getId(), applicant1.getId(), leader1.getId(), ApplicationStatus.PENDING);
-//
-//        // 3-2. 모집 마감된 파티 (리더1)
-//        Party party2 = createParty(
-//                concert1.getId(),
-//                leader1.getId(),
-//                PartyType.ARRIVE,
-//                "BTS 콘서트 복귀팟",
-//                "공연 끝나고 같이 돌아가요",
-//                "잠실종합운동장",
-//                "강남역",
-//                TransportType.TAXI,
-//                3,
-//                Gender.FEMALE,
-//                PreferredAge.TWENTY
-//        );
-//        party2.changeStatus(PartyStatus.CLOSED);
-//
-//        createPartyMember(party2.getId(), leader1.getId(), MemberRole.LEADER);
-//        createPartyMember(party2.getId(), member1.getId(), MemberRole.MEMBER);
-//        createPartyMember(party2.getId(), member2.getId(), MemberRole.MEMBER);
-//        party2.incrementCurrentMembers();
-//        party2.incrementCurrentMembers();
-//
-//        // 3-3. 블랙핑크 파티 (리더2)
-//        Party party3 = createParty(
-//                concert2.getId(),
-//                leader2.getId(),
-//                PartyType.LEAVE,
-//                "블핑 콘서트 같이 가요",
-//                "20대 여성분들 환영합니다",
-//                "신림역",
-//                "고척스카이돔",
-//                TransportType.BUS,
-//                5,
-//                Gender.FEMALE,
-//                PreferredAge.TWENTY
-//        );
-//
-//        createPartyMember(party3.getId(), leader2.getId(), MemberRole.LEADER);
-//        createPartyMember(party3.getId(), member2.getId(), MemberRole.MEMBER);
-//        party3.incrementCurrentMembers();
-//
-//        createPartyApplication(party3.getId(), applicant2.getId(), leader2.getId(), ApplicationStatus.PENDING);
-//        PartyApplication rejectedApp = createPartyApplication(party3.getId(), applicant1.getId(), leader2.getId(), ApplicationStatus.PENDING);
-//        rejectedApp.reject();
-//
-//        // 3-4. 세븐틴 팬미팅 파티 (리더2)
-//        Party party4 = createParty(
-//                fanmeeting.getId(),
-//                leader2.getId(),
-//                PartyType.LEAVE,
-//                "세븐틴 팬미팅 출발",
-//                "같이 가실 분~",
-//                "홍대입구역",
-//                "올림픽공원",
-//                TransportType.SUBWAY,
-//                4,
-//                Gender.ANY,
-//                PreferredAge.ANY
-//        );
-//
-//        createPartyMember(party4.getId(), leader2.getId(), MemberRole.LEADER);
-//
-//        log.info("Party 데이터 생성 완료: 총 4개");
-//        log.info("PartyMember 데이터 생성 완료: 총 7개");
-//        log.info("PartyApplication 데이터 생성 완료: 총 3개");
-//
-//        log.info("===== Party 테스트 데이터 초기화 완료 =====");
-//    }
-//
-//    private User createUser(String email, String nickname, Gender gender, LocalDate birthDate) {
-//        // 수정: 비밀번호를 암호화하여 저장
-//        String encodedPassword = passwordEncoder.encode("password123!");
-//
-//        User user = User.builder()
-//                .email(email)
-//                .password(encodedPassword) // 암호화된 비밀번호
-//                .nickname(nickname)
-//                .profileImage("https://example.com/profile/" + email + ".jpg")
-//                .gender(gender)
-//                .level(1)
-//                .birthDate(birthDate)
-//                .emailVerified(true)
-//                .build();
-//        return userRepository.save(user);
-//    }
-//
-//    private Schedule createSchedule(Long artistId, String title, ScheduleCategory category,
-//                                    LocalDateTime scheduleTime, String location) {
-//        Schedule schedule = Schedule.builder()
-//                .artistId(artistId)
-//                .performanceId(100L + artistId)
-//                .title(title)
-//                .scheduleCategory(category)
-//                .link("https://example.com/schedule/" + title)
-//                .scheduleTime(scheduleTime)
-//                .location(location)
-//                .build();
-//        return scheduleRepository.save(schedule);
-//    }
-//
-//    private Party createParty(Long scheduleId, Long leaderId, PartyType partyType, String partyTitle,
-//                              String description, String departureLocation, String arrivalLocation,
-//                              TransportType transportType, Integer maxMembers, Gender preferredGender,
-//                              PreferredAge preferredAge) {
-//        Party party = Party.builder()
-//                .scheduleId(scheduleId)
-//                .leaderId(leaderId)
-//                .partyType(partyType)
-//                .partyTitle(partyTitle)
-//                .description(description)
-//                .departureLocation(departureLocation)
-//                .arrivalLocation(arrivalLocation)
-//                .transportType(transportType)
-//                .maxMembers(maxMembers)
-//                .preferredGender(preferredGender)
-//                .preferredAge(preferredAge)
-//                .build();
-//        return partyRepository.save(party);
-//    }
-//
-//    private PartyMember createPartyMember(Long partyId, Long userId, MemberRole role) {
-//        PartyMember member = role == MemberRole.LEADER
-//                ? PartyMember.createLeader(partyId, userId)
-//                : PartyMember.createMember(partyId, userId);
-//        return partyMemberRepository.save(member);
-//    }
-//
-//    private PartyApplication createPartyApplication(Long partyId, Long applicantId, Long leaderId,
-//                                                    ApplicationStatus status) {
-//        PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
-//        return partyApplicationRepository.save(application);
-//    }
-//}
+package back.kalender.global.initData.party;
+
+import back.kalender.domain.chat.entity.ChatMessage;
+import back.kalender.domain.chat.entity.ChatRoom;
+import back.kalender.domain.chat.repository.ChatMessageRepository;
+import back.kalender.domain.chat.repository.ChatRoomRepository;
+import back.kalender.domain.party.entity.Party;
+import back.kalender.domain.party.entity.PartyMember;
+import back.kalender.domain.party.enums.PartyStatus;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.PreferredAge;
+import back.kalender.domain.party.enums.TransportType;
+import back.kalender.domain.party.repository.PartyMemberRepository;
+import back.kalender.domain.party.repository.PartyRepository;
+import back.kalender.domain.schedule.entity.Schedule;
+import back.kalender.domain.schedule.repository.ScheduleRepository;
+import back.kalender.domain.user.entity.User;
+import back.kalender.domain.user.repository.UserRepository;
+import back.kalender.global.common.enums.Gender;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+@Profile({"local", "dev"})
+@Order(5)  // Schedule, User가 먼저 생성되어야 함
+@RequiredArgsConstructor
+@Slf4j
+public class PartyBaseInitData implements ApplicationRunner {
+
+    private final PartyRepository partyRepository;
+    private final PartyMemberRepository partyMemberRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ScheduleRepository scheduleRepository;
+    private final UserRepository userRepository;
+
+    @Override
+    @Transactional
+    public void run(ApplicationArguments args) {
+        if (partyRepository.count() > 0) {
+            log.info("Party base data already initialized");
+            return;
+        }
+        createParties();
+    }
+
+    private void createParties() {
+        List<User> users = userRepository.findAll();
+        List<Schedule> schedules = scheduleRepository.findAll();
+
+        if (users.isEmpty() || schedules.isEmpty()) {
+            log.warn("Not enough users or schedules to create parties");
+            log.warn("Users: {}, Schedules: {}", users.size(), schedules.size());
+            return;
+        }
+
+        if (users.size() < 10) {
+            log.warn("Too few users ({}) to create diverse parties. Need at least 10 users.", users.size());
+            return;
+        }
+
+        List<PartySeed> seeds = createPartySeedList();
+
+        // PartyStatus 배열 (골고루 분배)
+        PartyStatus[] statuses = {
+                PartyStatus.RECRUITING, PartyStatus.RECRUITING, PartyStatus.RECRUITING,
+                PartyStatus.RECRUITING, PartyStatus.RECRUITING, PartyStatus.RECRUITING,
+                PartyStatus.RECRUITING, PartyStatus.RECRUITING, PartyStatus.RECRUITING,
+                PartyStatus.RECRUITING, PartyStatus.RECRUITING, PartyStatus.RECRUITING,
+                PartyStatus.CLOSED, PartyStatus.CLOSED, PartyStatus.CLOSED,
+                PartyStatus.CLOSED, PartyStatus.CLOSED, PartyStatus.CLOSED,
+                PartyStatus.CLOSED, PartyStatus.CLOSED, PartyStatus.CLOSED,
+                PartyStatus.CLOSED, PartyStatus.CLOSED, PartyStatus.CLOSED,
+                PartyStatus.COMPLETED, PartyStatus.COMPLETED, PartyStatus.COMPLETED,
+                PartyStatus.COMPLETED, PartyStatus.COMPLETED, PartyStatus.COMPLETED,
+                PartyStatus.COMPLETED, PartyStatus.COMPLETED, PartyStatus.COMPLETED,
+                PartyStatus.COMPLETED, PartyStatus.COMPLETED, PartyStatus.COMPLETED,
+                PartyStatus.CANCELLED, PartyStatus.CANCELLED, PartyStatus.CANCELLED,
+                PartyStatus.CANCELLED, PartyStatus.CANCELLED, PartyStatus.CANCELLED
+        };
+
+        int partyCount = 0;
+
+        for (int i = 0; i < seeds.size() && i < statuses.length; i++) {
+            Schedule schedule = schedules.get(i % schedules.size());
+            User leader = users.get(i % users.size());
+            PartySeed seed = seeds.get(i);
+            PartyStatus status = statuses[i];
+
+            // Party 생성 (currentMembers = 1, 리더만)
+            Party party = Party.builder()
+                    .scheduleId(schedule.getId())
+                    .leaderId(leader.getId())
+                    .partyType(seed.partyType())
+                    .partyName(seed.partyName())
+                    .description(seed.description())
+                    .departureLocation(seed.departureLocation())
+                    .arrivalLocation(seed.arrivalLocation())
+                    .transportType(seed.transportType())
+                    .maxMembers(seed.maxMembers())
+                    .preferredGender(seed.preferredGender())
+                    .preferredAge(seed.preferredAge())
+                    .build();
+
+            party.changeStatus(status);
+            partyRepository.save(party);
+
+            // PartyMember (LEADER만) 생성
+            partyMemberRepository.save(
+                    PartyMember.createLeader(party.getId(), leader.getId())
+            );
+
+            // ChatRoom 생성
+            chatRoomRepository.save(
+                    ChatRoom.create(party.getId(), party.getPartyName())
+            );
+
+            // 리더 JOIN 메시지 생성
+            chatMessageRepository.save(
+                    ChatMessage.createJoinMessage(party.getId(), leader.getId())
+            );
+
+            partyCount++;
+        }
+
+        log.info("=".repeat(60));
+        log.info("Party base data initialized: {} parties with leaders only", partyCount);
+        log.info("Users available: {}, Schedules available: {}", users.size(), schedules.size());
+        log.info("=".repeat(60));
+    }
+
+    private List<PartySeed> createPartySeedList() {
+        List<PartySeed> seeds = new ArrayList<>();
+
+        // LEAVE 파티들 (25개)
+        seeds.add(new PartySeed("콘서트 함께 가실 분!", "같이 즐겁게 공연 보고 싶어요", "강남역 3번 출구", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.FEMALE, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("지하철로 함께 가요", "혼자 가기 심심해서 같이 가실 분 구해요", "홍대입구역", "잠실실내체육관", TransportType.SUBWAY, 3, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("택시 같이 타실 분", "택시비 나눠내실 분 찾아요", "강남역", "잠실실내체육관", TransportType.TAXI, 4, Gender.MALE, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("카풀 함께 하실 분", "자차로 이동하는데 같이 가요", "수원역", "잠실실내체육관", TransportType.CARPOOL, 3, Gender.ANY, PreferredAge.THIRTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("버스 타고 같이 가요", "버스로 편하게 같이 가실 분", "신촌역", "잠실실내체육관", TransportType.BUS, 4, Gender.FEMALE, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("공연 같이 가실 분~", "처음인데 같이 가요!", "서울역", "잠실실내체육관", TransportType.SUBWAY, 5, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("20대 여자만 모집", "또래끼리 편하게 가요", "신림역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.FEMALE, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("30대 직장인 파티", "퇴근하고 같이 가실 분", "여의도역", "잠실실내체육관", TransportType.SUBWAY, 3, Gender.ANY, PreferredAge.THIRTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("학생들 모여라!", "대학생끼리 가요~", "건대입구역", "잠실실내체육관", TransportType.SUBWAY, 6, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("남자만 모집합니다", "남자끼리 편하게", "구로디지털단지역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.MALE, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("지방에서 올라와요", "같은 지역 분 찾아요", "용산역", "잠실실내체육관", TransportType.SUBWAY, 5, Gender.ANY, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("택시비 나눠요", "4명만 모집해요", "선릉역", "잠실실내체육관", TransportType.TAXI, 4, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("응원봉 들고 가요", "같이 응원해요!", "삼성역", "잠실실내체육관", TransportType.SUBWAY, 5, Gender.FEMALE, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("조용히 갈 분만", "말 없이 편하게 가요", "교대역", "잠실실내체육관", TransportType.SUBWAY, 3, Gender.ANY, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("수다 떨면서 가요", "신나게 떠들면서!", "사당역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.FEMALE, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("카카오택시 같이 타요", "강남에서 출발", "역삼역", "잠실실내체육관", TransportType.TAXI, 4, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("대학로에서 출발", "2호선 타고 가요", "혜화역", "잠실실내체육관", TransportType.SUBWAY, 3, Gender.FEMALE, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("강북에서 출발!", "북쪽 분들 모여요", "노원역", "잠실실내체육관", TransportType.SUBWAY, 5, Gender.ANY, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("부산에서 올라와요", "KTX 같이 타요", "서울역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("경기도에서 출발", "GTX 타고 가요", "수서역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.ANY, PreferredAge.ANY, PartyType.LEAVE));
+        seeds.add(new PartySeed("일찍 도착해요", "MD 같이 사러 가요", "잠실새내역", "잠실실내체육관", TransportType.WALK, 3, Gender.FEMALE, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("콘서트 처음이에요", "초보 환영해요!", "건대입구역", "잠실실내체육관", TransportType.SUBWAY, 4, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("VIP석 가시는 분", "같은 구역 분들", "선릉역", "잠실실내체육관", TransportType.TAXI, 3, Gender.ANY, PreferredAge.THIRTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("스탠딩석 가요", "체력 좋은 분만!", "홍대입구역", "잠실실내체육관", TransportType.SUBWAY, 5, Gender.ANY, PreferredAge.TWENTY, PartyType.LEAVE));
+        seeds.add(new PartySeed("공연장 근처 산다", "동네 분 구해요", "석촌역", "잠실실내체육관", TransportType.WALK, 3, Gender.ANY, PreferredAge.ANY, PartyType.LEAVE));
+
+        // AFTER 파티들 (17개)
+        seeds.add(new PartySeed("공연 후 회식 파티", "공연 끝나고 같이 밥 먹어요~", "잠실실내체육관", "잠실역 맛집 거리", TransportType.WALK, 6, Gender.ANY, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("공연 후 숙소 같이 가요", "공연 끝나고 숙소 같이 가실 분", "잠실실내체육관", "홍대 게스트하우스", TransportType.SUBWAY, 5, Gender.FEMALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("공연 후 2차 가실 분", "공연 후 술 한잔 하실 분~", "잠실실내체육관", "잠실 포차거리", TransportType.WALK, 5, Gender.ANY, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("끝나고 카페 가요", "따뜻한 거 마셔요", "잠실실내체육관", "롯데월드몰", TransportType.WALK, 4, Gender.FEMALE, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("끝나고 노래방!", "2차로 노래방 가요", "잠실실내체육관", "잠실역 노래방", TransportType.WALK, 6, Gender.ANY, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("야식 먹을 분", "치맥 하실 분~", "잠실실내체육관", "송파구청역", TransportType.SUBWAY, 5, Gender.ANY, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("포토카드 교환해요", "굿즈 교환하실 분", "잠실실내체육관", "카페", TransportType.WALK, 4, Gender.FEMALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("감상평 나눠요", "공연 리뷰 같이 해요", "잠실실내체육관", "스타벅스", TransportType.WALK, 4, Gender.ANY, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("심야버스 같이 타요", "밤늦게 귀가하시는 분", "잠실실내체육관", "각자 집", TransportType.BUS, 5, Gender.FEMALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("택시 나눠타요", "귀가길 같은 방향", "잠실실내체육관", "강남 방면", TransportType.TAXI, 4, Gender.ANY, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("끝나고 산책해요", "한강 산책 가실 분", "잠실실내체육관", "석촌호수", TransportType.WALK, 3, Gender.FEMALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("밤샘 각오!", "끝나고 클럽 가요", "잠실실내체육관", "강남 클럽", TransportType.TAXI, 6, Gender.ANY, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("숙소 같이 가요", "게스트하우스 예약했어요", "잠실실내체육관", "홍대", TransportType.SUBWAY, 4, Gender.FEMALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("PC방 가실 분", "게임 하실 분", "잠실실내체육관", "잠실역 PC방", TransportType.WALK, 4, Gender.MALE, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("찜질방 가요", "끝나고 찜질방 각", "잠실실내체육관", "24시 찜질방", TransportType.SUBWAY, 5, Gender.FEMALE, PreferredAge.ANY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("새벽 라면 먹어요", "끝나고 라면 먹을 분", "잠실실내체육관", "24시 분식", TransportType.WALK, 4, Gender.ANY, PreferredAge.TWENTY, PartyType.ARRIVE));
+        seeds.add(new PartySeed("파티룸 대관했어요", "같이 놀 분 모집", "잠실실내체육관", "강남 파티룸", TransportType.TAXI, 8, Gender.ANY, PreferredAge.TWENTY, PartyType.ARRIVE));
+
+        return seeds;
+    }
+
+    private record PartySeed(
+            String partyName,
+            String description,
+            String departureLocation,
+            String arrivalLocation,
+            TransportType transportType,
+            Integer maxMembers,
+            Gender preferredGender,
+            PreferredAge preferredAge,
+            PartyType partyType
+    ) {}
+}
