@@ -62,11 +62,11 @@ public class NotificationScheduler {
         String content;
         String url = "/party/" + target.partyId();
 
-        if (target.category() == ScheduleCategory.BIRTHDAY) {
-            content = String.format("오늘은 [%s]입니다. 다함께 축하해주세요! 🎂", target.scheduleTitle());
+        if (target.category() == ScheduleCategory.BIRTHDAY || target.category() == ScheduleCategory.ANNIVERSARY) {
+            content = String.format("오늘은 %s입니다. 다함께 축하해주세요! 🎂", target.scheduleTitle());
         } else {
             String timeStr = target.scheduleTime().format(DateTimeFormatter.ofPattern("HH시 mm분"));
-            content = String.format("오늘 %s에 [%s] 일정이 있습니다!", timeStr, target.scheduleTitle());
+            content = String.format("오늘 %s에 %s 일정이 있습니다!", timeStr, target.scheduleTitle());
         }
 
         notificationService.send(
