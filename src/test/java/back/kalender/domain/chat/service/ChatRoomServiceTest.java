@@ -74,7 +74,6 @@ class ChatRoomServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // 테스트 유저 생성
         testUser = User.builder()
                 .email("test@example.com")
                 .password("password")
@@ -85,7 +84,6 @@ class ChatRoomServiceTest {
                 .build();
         setId(testUser, 1L);
 
-        // 다른 유저 생성
         otherUser = User.builder()
                 .email("other@example.com")
                 .password("password")
@@ -96,10 +94,9 @@ class ChatRoomServiceTest {
                 .build();
         setId(otherUser, 2L);
 
-        // 테스트 파티 생성
         testParty = Party.builder()
                 .scheduleId(1L)
-                .leaderId(1L)
+                .leaderId(testUser.getId())
                 .partyType(PartyType.LEAVE)
                 .partyName("테스트 파티")
                 .description("테스트")
@@ -114,13 +111,13 @@ class ChatRoomServiceTest {
         setCreatedAt(testParty, LocalDateTime.now());
         testParty.incrementCurrentMembers(); // 2명
 
-        // 테스트 채팅방 생성
         testChatRoom = ChatRoom.create(1L, "테스트 파티");
         setId(testChatRoom, 1L);
+        setCreatedAt(testChatRoom, LocalDateTime.now());
 
-        // 테스트 메시지 생성
         testMessage = ChatMessage.createChatMessage(1L, 1L, "안녕하세요");
         setId(testMessage, 1L);
+        setCreatedAt(testMessage, LocalDateTime.now());
     }
 
     private void setId(Object entity, Long id) throws Exception {
@@ -140,35 +137,36 @@ class ChatRoomServiceTest {
     class CreateChatRoomTest {
 
         @Test
-        @DisplayName("성공: 채팅방을 생성한다")
+        @DisplayName("성공: 채팅방을 생성하고 저장한다")
         void createChatRoom_Success() {
-            // given
+            
             Long partyId = 1L;
             String partyName = "테스트 파티";
 
             given(chatRoomRepository.existsByPartyId(partyId)).willReturn(false);
             given(chatRoomRepository.save(any(ChatRoom.class))).willReturn(testChatRoom);
 
-            // when
             chatRoomService.createChatRoom(partyId, partyName);
 
-            // then
-            then(chatRoomRepository).should().save(any(ChatRoom.class));
+            then(chatRoomRepository).should().existsByPartyId(partyId);
+            then(chatRoomRepository).should().save(argThat(room ->
+                    room.getPartyId().equals(partyId) &&
+                            room.getRoomName().equals(partyName)
+            ));
         }
 
         @Test
         @DisplayName("성공: 이미 존재하는 채팅방이면 생성하지 않는다")
         void createChatRoom_AlreadyExists() {
-            // given
+            
             Long partyId = 1L;
             String partyName = "테스트 파티";
 
             given(chatRoomRepository.existsByPartyId(partyId)).willReturn(true);
-
-            // when
+            
             chatRoomService.createChatRoom(partyId, partyName);
 
-            // then
+            then(chatRoomRepository).should().existsByPartyId(partyId);
             then(chatRoomRepository).should(never()).save(any(ChatRoom.class));
         }
     }
@@ -178,31 +176,29 @@ class ChatRoomServiceTest {
     class CloseChatRoomTest {
 
         @Test
-        @DisplayName("성공: 채팅방을 종료한다")
+        @DisplayName("성공: 채팅방을 비활성화한다")
         void closeChatRoom_Success() {
-            // given
+            
             Long partyId = 1L;
 
             given(chatRoomRepository.findByPartyId(partyId))
                     .willReturn(Optional.of(testChatRoom));
 
-            // when
             chatRoomService.closeChatRoom(partyId);
-
-            // then
+            
             assertThat(testChatRoom.getIsActive()).isFalse();
+            then(chatRoomRepository).should().findByPartyId(partyId);
         }
 
         @Test
         @DisplayName("실패: 존재하지 않는 채팅방")
         void closeChatRoom_ChatRoomNotFound() {
-            // given
+            
             Long partyId = 999L;
 
             given(chatRoomRepository.findByPartyId(partyId))
                     .willReturn(Optional.empty());
 
-            // when & then
             assertThatThrownBy(() -> chatRoomService.closeChatRoom(partyId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.CHAT_ROOM_NOT_FOUND.getMessage());
@@ -216,7 +212,7 @@ class ChatRoomServiceTest {
         @Test
         @DisplayName("성공: 채팅방 정보를 조회한다")
         void getChatRoomInfo_Success() {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -226,22 +222,27 @@ class ChatRoomServiceTest {
             given(chatRoomRepository.findByPartyId(partyId))
                     .willReturn(Optional.of(testChatRoom));
 
-            // when
+            
             ChatRoomInfoResponse response = chatRoomService.getChatRoomInfo(partyId, userEmail);
-
-            // then
+            
             assertThat(response).isNotNull();
             assertThat(response.partyId()).isEqualTo(1L);
             assertThat(response.partyName()).isEqualTo("테스트 파티");
             assertThat(response.participantCount()).isEqualTo(2);
             assertThat(response.maxParticipants()).isEqualTo(4);
             assertThat(response.isActive()).isTrue();
+            assertThat(response.createdAt()).isNotNull();
+
+            then(userRepository).should().findByEmail(userEmail);
+            then(partyRepository).should().findById(partyId);
+            then(partyMemberRepository).should().existsActiveMember(partyId, 1L);
+            then(chatRoomRepository).should().findByPartyId(partyId);
         }
 
         @Test
         @DisplayName("실패: 파티 멤버가 아닌 사용자")
         void getChatRoomInfo_NotPartyMember() {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -249,10 +250,26 @@ class ChatRoomServiceTest {
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(false);
 
-            // when & then
             assertThatThrownBy(() -> chatRoomService.getChatRoomInfo(partyId, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.UNAUTHORIZED_PARTY_ACCESS.getMessage());
+        }
+
+        @Test
+        @DisplayName("실패: 채팅방이 존재하지 않음")
+        void getChatRoomInfo_ChatRoomNotFound() {
+            
+            Long partyId = 1L;
+            String userEmail = "test@example.com";
+
+            given(userRepository.findByEmail(userEmail)).willReturn(Optional.of(testUser));
+            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
+            given(chatRoomRepository.findByPartyId(partyId)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> chatRoomService.getChatRoomInfo(partyId, userEmail))
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessageContaining(ErrorCode.CHAT_ROOM_NOT_FOUND.getMessage());
         }
     }
 
@@ -261,9 +278,9 @@ class ChatRoomServiceTest {
     class GetParticipantsTest {
 
         @Test
-        @DisplayName("성공: 참여자 목록을 조회한다 (파티장이 맨 앞)")
+        @DisplayName("성공: 참여자 목록을 조회한다 (파티장이 맨 앞, N+1 방지)")
         void getParticipants_Success() {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -274,29 +291,29 @@ class ChatRoomServiceTest {
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
             given(partyMemberRepository.findActiveMembers(partyId))
-                    .willReturn(new ArrayList<>(List.of(member, leader))); // ArrayList로 변경
+                    .willReturn(new ArrayList<>(List.of(member, leader)));
             given(userRepository.findAllById(anyList()))
-                    .willReturn(new ArrayList<>(List.of(testUser, otherUser))); // ArrayList로 변경
+                    .willReturn(new ArrayList<>(List.of(testUser, otherUser)));
 
-            // when
+            
             ParticipantListResponse response = chatRoomService.getParticipants(partyId, userEmail);
 
-            // then
+            
             assertThat(response).isNotNull();
             assertThat(response.partyId()).isEqualTo(1L);
             assertThat(response.participants()).hasSize(2);
 
-            // 파티장이 첫 번째
             ParticipantListResponse.ParticipantInfo first = response.participants().get(0);
             assertThat(first.userId()).isEqualTo(1L);
             assertThat(first.isLeader()).isTrue();
             assertThat(first.nickname()).isEqualTo("테스터");
 
-            // 일반 멤버가 두 번째
             ParticipantListResponse.ParticipantInfo second = response.participants().get(1);
             assertThat(second.userId()).isEqualTo(2L);
             assertThat(second.isLeader()).isFalse();
             assertThat(second.nickname()).isEqualTo("다른유저");
+
+            then(userRepository).should().findAllById(anyList());
         }
     }
 
@@ -305,63 +322,60 @@ class ChatRoomServiceTest {
     class GetChatHistoryTest {
 
         @Test
-        @DisplayName("성공: 채팅 히스토리를 조회한다 (오래된 순으로 반환)")
+        @DisplayName("성공: 채팅 히스토리를 오래된 순으로 반환하고 페이징 정보를 포함한다")
         void getChatHistory_Success() throws Exception {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
-            ChatMessage oldMessage =
-                    ChatMessage.createChatMessage(partyId, 1L, "첫 번째 메시지");
+            ChatMessage oldMessage = ChatMessage.createChatMessage(partyId, 1L, "첫 번째 메시지");
             setId(oldMessage, 1L);
             setCreatedAt(oldMessage, LocalDateTime.now().minusMinutes(10));
 
-            ChatMessage newMessage =
-                    ChatMessage.createChatMessage(partyId, 2L, "두 번째 메시지");
+            ChatMessage newMessage = ChatMessage.createChatMessage(partyId, 2L, "두 번째 메시지");
             setId(newMessage, 2L);
             setCreatedAt(newMessage, LocalDateTime.now().minusMinutes(5));
 
-            // DB는 최신순(DESC)
             Page<ChatMessage> messagePage = new PageImpl<>(
                     List.of(newMessage, oldMessage),
                     PageRequest.of(0, 20),
                     2
             );
 
-            given(userRepository.findByEmail(userEmail))
-                    .willReturn(Optional.of(testUser));
-
-            given(partyMemberRepository.existsActiveMember(partyId, testUser.getId()))
-                    .willReturn(true);
-
+            given(userRepository.findByEmail(userEmail)).willReturn(Optional.of(testUser));
+            given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
             given(chatMessageRepository.findByPartyIdOrderByCreatedAtDesc(
                     eq(partyId), any(PageRequest.class)))
                     .willReturn(messagePage);
-
             given(userRepository.findAllById(anyList()))
                     .willReturn(List.of(testUser, otherUser));
 
-            // when
-            ChatHistoryResponse response =
-                    chatRoomService.getChatHistory(partyId, 0, 20, userEmail);
+            
+            ChatHistoryResponse response = chatRoomService.getChatHistory(
+                    partyId, 0, 20, userEmail);
 
-            // then
+            
             assertThat(response).isNotNull();
             assertThat(response.partyId()).isEqualTo(partyId);
             assertThat(response.messages()).hasSize(2);
 
-            // 오래된 → 최신
+            assertThat(response.currentPage()).isEqualTo(0);
+            assertThat(response.totalPages()).isEqualTo(1);
+            assertThat(response.totalMessages()).isEqualTo(2);
+            assertThat(response.hasNext()).isFalse();
+
             assertThat(response.messages().get(0).messageId()).isEqualTo(1L);
             assertThat(response.messages().get(0).message()).isEqualTo("첫 번째 메시지");
-
             assertThat(response.messages().get(1).messageId()).isEqualTo(2L);
             assertThat(response.messages().get(1).message()).isEqualTo("두 번째 메시지");
+
+            then(userRepository).should().findAllById(anyList());
         }
 
         @Test
         @DisplayName("성공: KICK 메시지의 메타데이터를 파싱한다")
         void getChatHistory_WithKickMessage() throws Exception {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -369,9 +383,8 @@ class ChatRoomServiceTest {
             setId(kickMsg, 1L);
             setCreatedAt(kickMsg, LocalDateTime.now());
 
-            List<ChatMessage> messages = new ArrayList<>(List.of(kickMsg));
             Page<ChatMessage> messagePage = new PageImpl<>(
-                    messages,
+                    List.of(kickMsg),
                     PageRequest.of(0, 20),
                     1
             );
@@ -382,13 +395,13 @@ class ChatRoomServiceTest {
                     eq(partyId), any(PageRequest.class)))
                     .willReturn(messagePage);
             given(userRepository.findAllById(anyList()))
-                    .willReturn(new ArrayList<>(List.of(testUser, otherUser)));
+                    .willReturn(List.of(testUser, otherUser));
 
-            // when
+            
             ChatHistoryResponse response = chatRoomService.getChatHistory(
                     partyId, 0, 20, userEmail);
 
-            // then
+            
             assertThat(response.messages()).hasSize(1);
             ChatHistoryResponse.ChatMessageDto msg = response.messages().get(0);
             assertThat(msg.type()).isEqualTo(MessageType.KICK);
@@ -400,7 +413,7 @@ class ChatRoomServiceTest {
         @Test
         @DisplayName("성공: 메시지가 없으면 빈 리스트를 반환한다")
         void getChatHistory_Empty() {
-            // given
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -416,13 +429,14 @@ class ChatRoomServiceTest {
                     eq(partyId), any(PageRequest.class)))
                     .willReturn(emptyPage);
 
-            // when
+            
             ChatHistoryResponse response = chatRoomService.getChatHistory(
                     partyId, 0, 20, userEmail);
 
-            // then
+            
             assertThat(response.messages()).isEmpty();
             assertThat(response.totalMessages()).isZero();
+            assertThat(response.totalPages()).isZero();
         }
     }
 
@@ -431,9 +445,9 @@ class ChatRoomServiceTest {
     class GetMyChatRoomsTest {
 
         @Test
-        @DisplayName("성공: 내 채팅방 목록을 조회한다")
+        @DisplayName("성공: 내 채팅방 목록을 최신 메시지 순으로 조회한다")
         void getMyChatRooms_Success() throws Exception {
-            // given
+            
             String userEmail = "test@example.com";
 
             PartyMember membership1 = PartyMember.createMember(1L, 1L);
@@ -487,28 +501,34 @@ class ChatRoomServiceTest {
             given(chatMessageRepository.findLastMessagesByPartyIds(anyList()))
                     .willReturn(new ArrayList<>(List.of(lastMsg1, lastMsg2)));
 
-            // when
+            
             MyChatRoomsResponse response = chatRoomService.getMyChatRooms(userEmail);
 
-            // then
+            
             assertThat(response).isNotNull();
             assertThat(response.chatRooms()).hasSize(2);
             assertThat(response.totalCount()).isEqualTo(2);
 
-            // 첫 번째 채팅방 (최신 메시지 순)
-            MyChatRoomsResponse.ChatRoomItem room1 = response.chatRooms().get(0);
-            assertThat(room1.partyId()).isEqualTo(1L);
-            assertThat(room1.partyName()).isEqualTo("파티1");
-            assertThat(room1.participantCount()).isEqualTo(2);
-            assertThat(room1.lastMessage()).isEqualTo("파티1 메시지");
+            MyChatRoomsResponse.ChatRoomItem first = response.chatRooms().get(0);
+            assertThat(first.partyId()).isEqualTo(1L);
+            assertThat(first.partyName()).isEqualTo("파티1");
+            assertThat(first.participantCount()).isEqualTo(2);
+            assertThat(first.lastMessage()).isEqualTo("파티1 메시지");
+
+            MyChatRoomsResponse.ChatRoomItem second = response.chatRooms().get(1);
+            assertThat(second.partyId()).isEqualTo(2L);
+            assertThat(second.partyName()).isEqualTo("파티2");
+
+            // N+1 방지 확인
+            then(partyRepository).should().findAllById(anyList());
+            then(chatMessageRepository).should().findLastMessagesByPartyIds(anyList());
         }
 
         @Test
         @DisplayName("성공: 1명인 파티는 목록에서 제외된다")
         void getMyChatRooms_ExcludeSingleMemberParty() throws Exception {
-            // given
+            
             String userEmail = "test@example.com";
-
             PartyMember membership = PartyMember.createMember(1L, 1L);
 
             Party singleParty = Party.builder()
@@ -524,8 +544,7 @@ class ChatRoomServiceTest {
                     .preferredAge(PreferredAge.ANY)
                     .build();
             setId(singleParty, 1L);
-            setCreatedAt(singleParty, LocalDateTime.now());
-            // currentMembers = 1 (기본값)
+            setCreatedAt(singleParty, LocalDateTime.now()); // currentMembers = 1
 
             given(userRepository.findByEmail(userEmail)).willReturn(Optional.of(testUser));
             given(partyMemberRepository.findByUserId(1L))
@@ -533,10 +552,10 @@ class ChatRoomServiceTest {
             given(partyRepository.findAllById(anyList()))
                     .willReturn(new ArrayList<>(List.of(singleParty)));
 
-            // when
+            
             MyChatRoomsResponse response = chatRoomService.getMyChatRooms(userEmail);
 
-            // then
+            
             assertThat(response.chatRooms()).isEmpty();
             assertThat(response.totalCount()).isZero();
         }
@@ -544,9 +563,8 @@ class ChatRoomServiceTest {
         @Test
         @DisplayName("성공: 마지막 메시지가 없으면 빈 문자열을 표시한다")
         void getMyChatRooms_NoLastMessage() throws Exception {
-            // given
+            
             String userEmail = "test@example.com";
-
             PartyMember membership = PartyMember.createMember(1L, 1L);
 
             Party party = Party.builder()
@@ -571,12 +589,12 @@ class ChatRoomServiceTest {
             given(partyRepository.findAllById(anyList()))
                     .willReturn(new ArrayList<>(List.of(party)));
             given(chatMessageRepository.findLastMessagesByPartyIds(anyList()))
-                    .willReturn(Collections.emptyList()); // 메시지 없음
+                    .willReturn(Collections.emptyList());
 
-            // when
+            
             MyChatRoomsResponse response = chatRoomService.getMyChatRooms(userEmail);
 
-            // then
+            
             assertThat(response.chatRooms()).hasSize(1);
             MyChatRoomsResponse.ChatRoomItem room = response.chatRooms().get(0);
             assertThat(room.lastMessage()).isEmpty();
@@ -584,9 +602,9 @@ class ChatRoomServiceTest {
         }
 
         @Test
-        @DisplayName("성공: 메시지 타입별 마지막 메시지 포맷팅")
+        @DisplayName("성공: 메시지 타입별 마지막 메시지를 적절히 포맷팅한다")
         void getMyChatRooms_MessageTypeFormatting() throws Exception {
-            // given
+            
             String userEmail = "test@example.com";
 
             PartyMember membership1 = PartyMember.createMember(1L, 1L);
@@ -616,11 +634,9 @@ class ChatRoomServiceTest {
                     .willReturn(new ArrayList<>(List.of(party1, party2, party3)));
             given(chatMessageRepository.findLastMessagesByPartyIds(anyList()))
                     .willReturn(new ArrayList<>(List.of(joinMsg, leaveMsg, kickMsg)));
-
-            // when
+            
             MyChatRoomsResponse response = chatRoomService.getMyChatRooms(userEmail);
-
-            // then
+            
             Map<Long, String> lastMessages = response.chatRooms().stream()
                     .collect(java.util.stream.Collectors.toMap(
                             MyChatRoomsResponse.ChatRoomItem::partyId,

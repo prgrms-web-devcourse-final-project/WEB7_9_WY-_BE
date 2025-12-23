@@ -8,10 +8,6 @@ import back.kalender.domain.chat.enums.MessageType;
 import back.kalender.domain.chat.repository.ChatMessageRepository;
 import back.kalender.domain.chat.repository.ChatRoomRepository;
 import back.kalender.domain.party.entity.Party;
-import back.kalender.domain.party.entity.PartyMember;
-import back.kalender.domain.party.enums.PartyType;
-import back.kalender.domain.party.enums.PreferredAge;
-import back.kalender.domain.party.enums.TransportType;
 import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
 import back.kalender.domain.party.service.PartyService;
@@ -20,6 +16,9 @@ import back.kalender.domain.user.repository.UserRepository;
 import back.kalender.global.common.enums.Gender;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
+import back.kalender.domain.party.enums.PartyType;
+import back.kalender.domain.party.enums.PreferredAge;
+import back.kalender.domain.party.enums.TransportType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,7 +30,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -91,7 +89,7 @@ class ChatServiceTest {
 
         testParty = Party.builder()
                 .scheduleId(1L)
-                .leaderId(1L)
+                .leaderId(testUser.getId())
                 .partyType(PartyType.LEAVE)
                 .partyName("테스트 파티")
                 .description("테스트")
@@ -122,8 +120,9 @@ class ChatServiceTest {
     class JoinRoomTest {
 
         @Test
-        @DisplayName("성공: 파티 멤버가 채팅방에 입장한다")
+        @DisplayName("성공: 파티 멤버가 채팅방에 입장하고 JOIN 메시지가 저장된다")
         void joinRoom_Success() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
             Long userId = 1L;
@@ -139,14 +138,16 @@ class ChatServiceTest {
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testMessage);
 
+            
             RoomJoinedResponse response = chatService.joinRoom(partyId, userEmail);
 
+            
             assertThat(response.type()).isEqualTo(MessageType.JOIN);
             assertThat(response.userId()).isEqualTo(userId);
-            assertThat(testParty.getLeaderId()).isEqualTo(1L); // Party 조회 의미 명확화
 
-            then(partyMemberRepository)
-                    .should().existsActiveMember(partyId, userId);
+            then(partyMemberRepository).should().existsActiveMember(partyId, userId);
+
+            then(partyRepository).should().findById(partyId);
 
             then(chatMessageRepository).should().save(argThat(msg ->
                     msg.getMessageType() == MessageType.JOIN &&
@@ -154,15 +155,16 @@ class ChatServiceTest {
             ));
         }
 
-
         @Test
         @DisplayName("실패: 존재하지 않는 유저")
         void joinRoom_UserNotFound() {
+            
             Long partyId = 1L;
             String userEmail = "notfound@example.com";
 
             given(userRepository.findByEmail(userEmail)).willReturn(Optional.empty());
 
+            
             assertThatThrownBy(() -> chatService.joinRoom(partyId, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.USER_NOT_FOUND.getMessage());
@@ -171,12 +173,14 @@ class ChatServiceTest {
         @Test
         @DisplayName("실패: 파티 멤버가 아님")
         void joinRoom_NotPartyMember() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
             given(userRepository.findByEmail(userEmail)).willReturn(Optional.of(testUser));
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(false);
 
+            
             assertThatThrownBy(() -> chatService.joinRoom(partyId, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.UNAUTHORIZED_PARTY_ACCESS.getMessage());
@@ -185,6 +189,7 @@ class ChatServiceTest {
         @Test
         @DisplayName("실패: 비활성화된 채팅방")
         void joinRoom_ChatRoomNotActive() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -193,6 +198,7 @@ class ChatServiceTest {
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
             given(chatRoomRepository.findActiveByPartyId(partyId)).willReturn(Optional.empty());
 
+            
             assertThatThrownBy(() -> chatService.joinRoom(partyId, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.CHAT_ROOM_NOT_ACTIVE.getMessage());
@@ -206,6 +212,7 @@ class ChatServiceTest {
         @Test
         @DisplayName("성공: 채팅 메시지를 전송한다")
         void sendMessage_Success() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
             SendMessageRequest request = new SendMessageRequest("안녕하세요!");
@@ -214,20 +221,26 @@ class ChatServiceTest {
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
             given(chatMessageRepository.save(any(ChatMessage.class))).willReturn(testMessage);
 
+            
             ChatMessageResponse response = chatService.sendMessage(partyId, request, userEmail);
 
+            
             assertThat(response).isNotNull();
             assertThat(response.type()).isEqualTo(MessageType.CHAT);
             assertThat(response.senderId()).isEqualTo(1L);
             assertThat(response.senderNickname()).isEqualTo("테스터");
             assertThat(response.message()).isEqualTo("안녕하세요!");
 
-            then(chatMessageRepository).should().save(any(ChatMessage.class));
+            then(chatMessageRepository).should().save(argThat(msg ->
+                    msg.getMessageType() == MessageType.CHAT &&
+                            msg.getContent().equals("안녕하세요!")
+            ));
         }
 
         @Test
         @DisplayName("실패: 파티 멤버가 아닌 사용자가 메시지 전송")
         void sendMessage_NotPartyMember() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";
             SendMessageRequest request = new SendMessageRequest("메시지");
@@ -235,6 +248,7 @@ class ChatServiceTest {
             given(userRepository.findByEmail(userEmail)).willReturn(Optional.of(testUser));
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(false);
 
+            
             assertThatThrownBy(() -> chatService.sendMessage(partyId, request, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.UNAUTHORIZED_PARTY_ACCESS.getMessage());
@@ -246,8 +260,9 @@ class ChatServiceTest {
     class LeaveRoomTest {
 
         @Test
-        @DisplayName("성공: 일반 멤버가 채팅방을 나간다")
+        @DisplayName("성공: 일반 멤버가 채팅방을 나가고 PartyService에 위임된다")
         void leaveRoom_Success() {
+            
             Long partyId = 1L;
             String userEmail = "target@example.com";
             Long userId = 2L;
@@ -260,15 +275,19 @@ class ChatServiceTest {
                     .willReturn(Optional.of(testParty));
             given(chatMessageRepository.save(any(ChatMessage.class)))
                     .willReturn(testMessage);
+            willDoNothing().given(partyService).removePartyMember(partyId, userId);
 
+            
             LeaveRoomResponse response = chatService.leaveRoom(partyId, userEmail);
 
+            
             assertThat(response.type()).isEqualTo(MessageType.LEAVE);
-            assertThat(testParty.getLeaderId()).isNotEqualTo(userId); // Party 조회 이유 명확
+            assertThat(response.userId()).isEqualTo(userId);
 
-            then(partyMemberRepository)
-                    .should().existsActiveMember(partyId, userId);
+            
+            then(partyService).should().removePartyMember(partyId, userId);
 
+            
             then(chatMessageRepository).should().save(argThat(msg ->
                     msg.getMessageType() == MessageType.LEAVE &&
                             msg.getSenderId().equals(userId)
@@ -278,6 +297,7 @@ class ChatServiceTest {
         @Test
         @DisplayName("실패: 파티장은 채팅방을 나갈 수 없다")
         void leaveRoom_LeaderCannotLeave() {
+            
             Long partyId = 1L;
             String userEmail = "test@example.com";  // 파티장
 
@@ -285,10 +305,12 @@ class ChatServiceTest {
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> chatService.leaveRoom(partyId, userEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.LEADER_CANNOT_LEAVE.getMessage());
 
+            
             then(partyService).should(never()).removePartyMember(anyLong(), anyLong());
         }
     }
@@ -298,8 +320,9 @@ class ChatServiceTest {
     class KickMemberTest {
 
         @Test
-        @DisplayName("성공: 파티장이 멤버를 강퇴한다")
+        @DisplayName("성공: 파티장이 멤버를 강퇴하고 PartyService에 위임된다")
         void kickMember_Success() {
+            
             Long partyId = 1L;
             Long targetMemberId = 2L;
             String leaderEmail = "test@example.com";
@@ -313,9 +336,11 @@ class ChatServiceTest {
             willDoNothing().given(partyService).kickPartyMember(partyId, targetMemberId);
             given(chatMessageRepository.save(any(ChatMessage.class))).willReturn(testMessage);
 
+            
             KickMemberResponse response = chatService.kickMember(
                     partyId, targetMemberId, leaderEmail);
 
+            
             assertThat(response).isNotNull();
             assertThat(response.type()).isEqualTo(MessageType.KICK);
             assertThat(response.kickedMemberId()).isEqualTo(targetMemberId);
@@ -324,12 +349,17 @@ class ChatServiceTest {
             assertThat(response.kickedByLeaderNickname()).isEqualTo("테스터");
 
             then(partyService).should().kickPartyMember(partyId, targetMemberId);
-            then(chatMessageRepository).should().save(any(ChatMessage.class));
+
+            then(chatMessageRepository).should().save(argThat(msg ->
+                    msg.getMessageType() == MessageType.KICK &&
+                            msg.getSenderId().equals(targetMemberId)
+            ));
         }
 
         @Test
         @DisplayName("실패: 파티장이 아닌 사용자가 강퇴 시도")
         void kickMember_OnlyLeaderCanKick() {
+            
             Long partyId = 1L;
             Long targetMemberId = 3L;
             String memberEmail = "target@example.com";  // 일반 멤버
@@ -338,15 +368,19 @@ class ChatServiceTest {
             given(partyMemberRepository.existsActiveMember(partyId, 2L)).willReturn(true);
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> chatService.kickMember(
                     partyId, targetMemberId, memberEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.ONLY_LEADER_CAN_KICK.getMessage());
+
+            then(partyService).should(never()).kickPartyMember(anyLong(), anyLong());
         }
 
         @Test
         @DisplayName("실패: 자기 자신을 강퇴할 수 없다")
         void kickMember_CannotKickYourself() {
+            
             Long partyId = 1L;
             Long targetMemberId = 1L;  // 파티장 자신
             String leaderEmail = "test@example.com";
@@ -355,15 +389,19 @@ class ChatServiceTest {
             given(partyMemberRepository.existsActiveMember(partyId, 1L)).willReturn(true);
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> chatService.kickMember(
                     partyId, targetMemberId, leaderEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.CANNOT_KICK_YOURSELF.getMessage());
+
+            then(partyService).should(never()).kickPartyMember(anyLong(), anyLong());
         }
 
         @Test
         @DisplayName("실패: 존재하지 않는 멤버를 강퇴 시도")
         void kickMember_UserNotInParty() {
+            
             Long partyId = 1L;
             Long targetMemberId = 999L;
             String leaderEmail = "test@example.com";
@@ -374,11 +412,13 @@ class ChatServiceTest {
             given(userRepository.findById(targetMemberId)).willReturn(Optional.of(targetUser));
             given(partyMemberRepository.existsActiveMember(partyId, targetMemberId))
                     .willReturn(false);
-
+            
             assertThatThrownBy(() -> chatService.kickMember(
                     partyId, targetMemberId, leaderEmail))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.USER_NOT_IN_PARTY.getMessage());
+
+            then(partyService).should(never()).kickPartyMember(anyLong(), anyLong());
         }
     }
 }
