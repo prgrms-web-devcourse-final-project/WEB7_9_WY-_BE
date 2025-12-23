@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-@Order(3)
+@Order(4)
 public class PerformanceSeatBaseInitData implements ApplicationRunner {
 
     private final PerformanceRepository performanceRepository;
