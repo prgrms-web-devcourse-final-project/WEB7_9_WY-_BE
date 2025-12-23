@@ -9,6 +9,7 @@ import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
 import back.kalender.domain.schedule.entity.Schedule;
 import back.kalender.domain.schedule.enums.ScheduleCategory;
+import back.kalender.domain.schedule.repository.ScheduleAlarmRepository;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,14 +30,14 @@ import java.util.List;
 public class NotificationScheduler {
 
     private final NotificationService notificationService;
-    private final PartyRepository partyRepository;
-
+    private final ScheduleAlarmRepository scheduleAlarmRepository;
     @Scheduled(cron = "0 0 0 * * *")
     public void sendScheduledNotifications() {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
 
-        List<NotificationTarget> targets = partyRepository.findNotificationTargets(startOfDay, endOfDay);
+        // 파티원이 아닌 알림 신청한 사람 목록 조회
+        List<NotificationTarget> targets = scheduleAlarmRepository.findNotificationTargets(startOfDay, endOfDay);
 
         if (targets.isEmpty()) {
             log.info("오늘은 예정된 일정이 없습니다.");
@@ -60,7 +61,7 @@ public class NotificationScheduler {
     private void sendNotification(NotificationTarget target) {
         String title = "오늘의 일정 알림";
         String content;
-        String url = "/party/" + target.partyId();
+        String url = "/schedule/" + target.scheduleTitle();
 
         if (target.category() == ScheduleCategory.BIRTHDAY || target.category() == ScheduleCategory.ANNIVERSARY) {
             content = String.format("오늘은 %s입니다. 다함께 축하해주세요! 🎂", target.scheduleTitle());
