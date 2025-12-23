@@ -3,10 +3,7 @@ package back.kalender.domain.performance.schedule.entity;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -16,6 +13,7 @@ import java.time.LocalTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@Builder
 public class PerformanceSchedule extends BaseEntity {
     private Long performanceId;
 

@@ -9,6 +9,8 @@ import back.kalender.domain.chat.entity.ChatMessage;
 import back.kalender.domain.chat.enums.MessageType;
 import back.kalender.domain.chat.repository.ChatMessageRepository;
 import back.kalender.domain.chat.repository.ChatRoomRepository;
+import back.kalender.domain.notification.enums.NotificationType;
+import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyMember;
 import back.kalender.domain.party.repository.PartyMemberRepository;
@@ -35,6 +37,7 @@ public class ChatService {
     private final PartyMemberRepository partyMemberRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final PartyService partyService;
+    private final NotificationService notificationService;
 
     private User validateUserAndPartyMember(Long partyId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
@@ -155,6 +158,8 @@ public class ChatService {
 
         Party updatedParty = validateParty(partyId);
 
+        sendKickNotification(party, targetMember);
+
         return new KickMemberResponse(
                 MessageType.KICK,
                 partyId,
@@ -166,5 +171,26 @@ public class ChatService {
                 kickMessage.getCreatedAt(),
                 updatedParty.getCurrentMembers()
         );
+    }
+
+    private void sendKickNotification(Party party, User targetMember) {
+        try {
+            String title = "파티에서 강퇴되었습니다";
+
+            String content = String.format("\"%s\" 파티에서 강퇴되었습니다. 참여자들을 평가해주세요.", party.getPartyName());
+
+            // TODO: 클릭 시 이동할 URL (평가 페이지 등)
+            String url = "/reviews/party/" + party.getId();
+
+            notificationService.send(
+                    targetMember.getId(),       // 수신자: 강퇴 당한 사람
+                    NotificationType.KICK,      // 타입: 강퇴
+                    title,
+                    content,
+                    url
+            );
+        } catch (Exception e) {
+            log.error("강퇴 알림 전송 실패 (TargetId: {}): {}", targetMember.getId(), e.getMessage());
+        }
     }
 }
