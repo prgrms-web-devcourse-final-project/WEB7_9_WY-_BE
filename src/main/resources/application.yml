@@ -84,6 +84,9 @@ custom:
     secret: ${JWT_SECRET}
     cookie:
       secure: false
+  payment:
+    idempotency:
+      ttlDays: ${PAYMENT_IDEMPOTENCY_TTL_DAYS:7}
   redis:
     redisson:
       address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}

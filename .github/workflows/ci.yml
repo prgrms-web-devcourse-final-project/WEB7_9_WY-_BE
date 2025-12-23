@@ -52,6 +52,17 @@ jobs:
           name: build-artifacts
           path: ./
 
+      - name: Upload to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 10m
+          source: "*.jar"
+          target: "/home/${{ secrets.EC2_USER }}/"
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -59,17 +70,15 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: "*.jar"
-          target: "/home/${{ secrets.EC2_USER }}/"
-
+          timeout: 10m
+          envs: DB_URL,DB_USERNAME,DB_PASSWORD,REDIS_PASSWORD,RABBITMQ_USER,RABBITMQ_PASSWORD, JWT_SECRET
           script: |
-            pgrep -f java | xargs -r kill -9
-            rm -f /home/${{ secrets.EC2_USER }}/*.jar
-            
-            nohup env \
-              SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}" \
-              SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}" \
-              SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              java -jar \
-              -Dspring.profiles.active=prod \
-              /home/${{ secrets.EC2_USER }}/*.jar > /home/${{ secrets.EC2_USER }}/app.log 2>&1 &
+            export SPRING_DATASOURCE_URL="${{ secrets.DB_URL }}"
+            export SPRING_DATASOURCE_USERNAME="${{ secrets.DB_USERNAME }}"
+            export SPRING_DATASOURCE_PASSWORD="${{ secrets.DB_PASSWORD }}"
+            export REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}"
+            export RABBITMQ_USER="${{ secrets.RABBITMQ_USER }}"
+            export RABBITMQ_PASSWORD="${{ secrets.RABBITMQ_PASSWORD }}"
+            export JWT_SECRET="${{ secrets.JWT_SECRET }}"
+            export SPRING_PROFILES_ACTIVE=prod
+            ./deploy.sh
