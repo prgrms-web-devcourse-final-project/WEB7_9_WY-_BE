@@ -569,4 +569,53 @@ public class ReservationService {
         if (!r.isOwnedBy(userId)) throw new ServiceException(ErrorCode.UNAUTHORIZED);
         return r;
     }
+
+    /**
+     * TODO: 결제 완료 시 좌석을 SOLD로 표시 (C파트에서 호출)
+     */
+    @Transactional
+    public void markSeatsAsSold(Long scheduleId, Long reservationId) {
+        // 1. ReservationSeat 조회
+        List<ReservationSeat> seats = reservationSeatRepository
+                .findByReservationId(reservationId);
+
+        List<Long> seatIds = seats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        // 2. DB: HOLD → SOLD
+        List<PerformanceSeat> performanceSeats =
+                performanceSeatRepository.findAllById(seatIds);
+
+        for (PerformanceSeat seat : performanceSeats) {
+            seat.updateStatus(SeatStatus.SOLD);
+            seat.clearHoldInfo(); // holdUserId, holdExpiredAt 제거
+        }
+        performanceSeatRepository.saveAll(performanceSeats);
+
+        // 3. Redis: HOLD owner 삭제 + SOLD set 추가
+        String soldSetKey = String.format("seat:sold:%d", scheduleId);
+
+        for (Long seatId : seatIds) {
+            // HOLD owner 키 삭제
+            String holdOwnerKey = String.format(
+                    "seat:hold:owner:%d:%d",
+                    scheduleId,
+                    seatId
+            );
+            redisTemplate.delete(holdOwnerKey);
+
+            // SOLD set에 추가
+            redisTemplate.opsForSet().add(
+                    soldSetKey,
+                    seatId.toString()
+            );
+
+            // 변경 이벤트 발행
+            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.SOLD, null);
+        }
+
+        log.info("[Reservation] 좌석 SOLD 처리 완료 - reservationId={}, seatCount={}",
+                reservationId, seatIds.size());
+    }
 }
