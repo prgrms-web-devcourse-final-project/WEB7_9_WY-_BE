@@ -51,4 +51,5 @@ where p.scheduleId = :scheduleId
             @Param("now") LocalDateTime now,
             Pageable pageable
     );
+    boolean existsByScheduleId(Long id);
 }

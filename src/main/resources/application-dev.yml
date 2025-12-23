@@ -12,3 +12,9 @@ logging:
   level:
     root: INFO
     com.back: DEBUG
+
+custom:
+  site:
+    domain: "${custom.dev.domain}"
+    backUrl: "${custom.dev.backUrl}"
+    frontUrl: "${custom.dev.frontUrl}"
