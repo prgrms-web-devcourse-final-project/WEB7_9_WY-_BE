@@ -13,7 +13,6 @@ import back.kalender.domain.payment.mapper.PaymentMapper;
 import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
 import back.kalender.domain.booking.reservation.entity.Reservation;
-import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -240,18 +239,8 @@ public class PaymentService {
             Payment approvedPayment = paymentRepository.findById(paymentId)
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
             
-            // Reservation 상태를 PAID로 업데이트
-            Reservation reservation = reservationRepository.findById(approvedPayment.getReservationId())
-                    .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
-            
-            if (reservation.getStatus() != ReservationStatus.PAID) {
-                reservation.updateStatus(ReservationStatus.PAID);
-                reservationRepository.save(reservation);
-                log.info("[Payment] 예매 상태 업데이트 완료 - reservationId: {}, status: PAID", 
-                        reservation.getId());
-            }
-            
             // TODO: 다른 브랜치 작업 - markSeatsAsSold 함수는 다른 도메인에 구현될 예정
+            // markSeatsAsSold 함수가 호출되면 Reservation 상태 변경도 함께 처리됨
             // 결제 승인 후 예매된 좌석들을 SOLD 상태로 변경
             // try {
             //     // 다른 도메인의 서비스에서 markSeatsAsSold 함수 호출
@@ -260,7 +249,7 @@ public class PaymentService {
             // } catch (Exception e) {
             //     // 좌석 상태 변경 실패는 로그만 남기고 결제는 유지 (보상 트랜잭션 고려 필요)
             //     log.error("[Payment] 좌석 SOLD 상태 변경 실패 - reservationId: {}, paymentId: {}", 
-            //             reservation.getId(), paymentId, e);
+            //             approvedPayment.getReservationId(), paymentId, e);
             // }
             
             PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(approvedPayment);

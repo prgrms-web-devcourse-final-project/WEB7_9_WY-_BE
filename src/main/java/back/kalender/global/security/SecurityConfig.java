@@ -107,7 +107,7 @@ public class SecurityConfig {
                 "/api/v1/auth/email/send",
                 "/api/v1/auth/email/verify",
                 "/api/v1/user",                    // 회원가입
-                "/api/v1/schedule/public/**",      // 공개 일정 조회
+                "/api/v1/schedule/**",      // 공개 일정 조회
                 "/api/v1/artist/**",               // 아티스트 정보 조회
                 "/favicon.ico",
                 "/swagger-ui/**",                  // Swagger UI
