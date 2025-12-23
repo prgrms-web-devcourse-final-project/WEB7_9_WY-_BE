@@ -23,14 +23,20 @@ public class BookingSessionService {
      * - value에는 scheduleId만 저장
      */
     public String create(Long userId, Long scheduleId) {
-        String bookingSessionId = UUID.randomUUID().toString();
+        // 기존 세션 확인
+        String existingKey = BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId;
+        String existing = redisTemplate.opsForValue().get(existingKey);
 
+        if (existing != null) {
+            return existing; // 기존 세션 재사용
+        }
+
+        String bookingSessionId = UUID.randomUUID().toString();
         String key = BOOKING_SESSION_KEY_PREFIX + bookingSessionId;
-        redisTemplate.opsForValue().set(
-                key,
-                scheduleId.toString(),
-                BOOKING_SESSION_TTL
-        );
+
+        redisTemplate.opsForValue().set(key, scheduleId.toString(), BOOKING_SESSION_TTL);
+        redisTemplate.opsForValue().set(existingKey, bookingSessionId, BOOKING_SESSION_TTL);
+
 
         return bookingSessionId;
     }
