@@ -3,7 +3,6 @@ package back.kalender.domain.booking.reservation.entity;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 
@@ -91,7 +90,6 @@ public class Reservation extends BaseEntity {
     public void updateTotalAmount(Integer totalAmount) {
         this.totalAmount = totalAmount;
     }
-
     // 예매 취소
     public void cancel() {
         this.status = ReservationStatus.CANCELLED;

@@ -116,7 +116,10 @@ public class SecurityConfig {
                 "/api/v1/notifications/**",          // 알림
                 "/api/v1/performance-seats/**",
                 "/api/v1/queue/**",
-                "/ws-chat/**"                      // WebSocket 연결 허용
+                "/ws-chat/**",                     // WebSocket 연결 허용
+                "/payment-test.html",               // 결제 테스트 페이지
+                "/payment/**",                      // 결제 관련 정적 파일
+                "/api/v1/payments/client-key"      // 결제 클라이언트 키 조회 (인증 불필요)
         ));
         
         // 개발 환경에서만 H2 콘솔 허용
