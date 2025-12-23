@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 
 @Component
-@Profile("prod")
+@Profile({"prod", "dev"})
 @Order(0)
 @RequiredArgsConstructor
 public class PerformanceHallBaseInitData implements ApplicationRunner {

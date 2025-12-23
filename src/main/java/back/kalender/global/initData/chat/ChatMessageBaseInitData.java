@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Component
-@Profile({"prod"})
+@Profile({"prod", "dev"})
 @Order(8)  // Party가 먼저 생성되어야 함
 @RequiredArgsConstructor
 @Slf4j

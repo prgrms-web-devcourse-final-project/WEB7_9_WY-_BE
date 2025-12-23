@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
-@Profile("prod")
+@Profile({"prod", "dev"})
 @RequiredArgsConstructor
 @Order(4)
 public class PerformanceSeatBaseInitData implements ApplicationRunner {
