@@ -31,6 +31,6 @@ public class PerformanceHallBaseInitData implements ApplicationRunner {
                 )
         );
 
-        System.out.println("✅ PerformanceHall 초기 데이터 생성 완료");
+        System.out.println("PerformanceHall 초기 데이터 생성 완료");
     }
 }

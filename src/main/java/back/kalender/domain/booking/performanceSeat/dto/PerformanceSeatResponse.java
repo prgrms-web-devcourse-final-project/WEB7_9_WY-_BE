@@ -12,11 +12,11 @@ public class PerformanceSeatResponse {
 
     private Integer floor;
     private String block;
+    private String subBlock;
+
     private Integer rowNumber;
     private Integer seatNumber;
 
-    private Integer x;
-    private Integer y;
 
     private Long priceGradeId;
 
@@ -25,10 +25,9 @@ public class PerformanceSeatResponse {
                 seat.getId(),
                 seat.getFloor(),
                 seat.getBlock(),
+                seat.getSubBlock(),
                 seat.getRowNumber(),
                 seat.getSeatNumber(),
-                seat.getX(),
-                seat.getY(),
                 seat.getPriceGradeId()
         );
     }

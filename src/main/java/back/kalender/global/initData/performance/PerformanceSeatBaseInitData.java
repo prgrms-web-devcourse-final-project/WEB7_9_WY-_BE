@@ -40,24 +40,21 @@ public class PerformanceSeatBaseInitData implements ApplicationRunner {
 
         if (performanceSeatRepository.count() > 0) return;
 
-        // 공연장 좌석 설계도 (14950)
         List<HallSeat> hallSeats =
-            hallSeatRepository.findByPerformanceHall_Id(1L);
+                hallSeatRepository.findByPerformanceHall_Id(1L);
 
         for (Performance performance : performanceRepository.findAll()) {
 
-            // 공연 회차
             List<PerformanceSchedule> schedules =
-                performanceScheduleRepository.findByPerformanceId(performance.getId());
+                    performanceScheduleRepository.findByPerformanceId(performance.getId());
 
-            // 가격 등급 Map (gradeName 기준)
             Map<String, PriceGrade> gradeMap =
-                priceGradeRepository.findByPerformanceId(performance.getId())
-                    .stream()
-                    .collect(Collectors.toMap(
-                        PriceGrade::getGradeName,
-                        g -> g
-                    ));
+                    priceGradeRepository.findByPerformanceId(performance.getId())
+                            .stream()
+                            .collect(Collectors.toMap(
+                                    PriceGrade::getGradeName,
+                                    g -> g
+                            ));
 
             for (PerformanceSchedule schedule : schedules) {
                 for (HallSeat seat : hallSeats) {
@@ -65,17 +62,18 @@ public class PerformanceSeatBaseInitData implements ApplicationRunner {
                     PriceGrade grade = resolveGrade(seat, gradeMap);
 
                     performanceSeatRepository.save(
-                        PerformanceSeat.create(
-                            schedule.getId(),
-                            seat.getId(),
-                            grade.getId(),
-                            seat.getFloor(),
-                            seat.getBlock(),
-                            seat.getRowNumber(),
-                            seat.getSeatNumber(),
-                            seat.getX(),
-                            seat.getY()
-                        )
+                            PerformanceSeat.create(
+                                    schedule.getId(),
+                                    seat.getId(),
+                                    grade.getId(),
+                                    seat.getFloor(),
+                                    seat.getBlock(),
+                                    seat.getSubBlock(),   //  A1 ~ A10
+                                    seat.getRowNumber(),
+                                    seat.getSeatNumber(),
+                                    null,                 // x
+                                    null                  // y
+                            )
                     );
                 }
             }
