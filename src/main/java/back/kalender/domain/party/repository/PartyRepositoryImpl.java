@@ -10,6 +10,7 @@ import back.kalender.domain.party.enums.TransportType;
 import back.kalender.domain.schedule.entity.QSchedule;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Repository
@@ -61,6 +63,7 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
+
     @Override
     public Page<CompletedPartyWithType> findCompletedPartiesByUserId(
             Long userId,
@@ -69,38 +72,47 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
     ) {
         QParty party = QParty.party;
 
-        List<Party> createdParties = queryFactory
-                .selectFrom(party)
+        // CREATED 파티들 (내가 만든 파티)
+        List<CompletedPartyWithType> createdParties = queryFactory
+                .select(Projections.constructor(
+                        CompletedPartyWithType.class,
+                        party,
+                        Expressions.constant("CREATED")
+                ))
+                .from(party)
                 .where(
                         party.leaderId.eq(userId),
                         party.status.eq(PartyStatus.COMPLETED)
                 )
                 .fetch();
 
-        List<Party> joinedParties = joinedPartyIds.isEmpty()
-                ? new ArrayList<>()
-                : queryFactory
-                .selectFrom(party)
-                .where(
-                        party.id.in(joinedPartyIds),
-                        party.leaderId.ne(userId),
-                        party.status.eq(PartyStatus.COMPLETED)
-                )
-                .fetch();
+        List<CompletedPartyWithType> joinedParties = new ArrayList<>();
+        if (!joinedPartyIds.isEmpty()) {  // ← 비어있는지 체크
+            joinedParties = queryFactory
+                    .select(Projections.constructor(
+                            CompletedPartyWithType.class,
+                            party,
+                            Expressions.constant("JOINED")
+                    ))
+                    .from(party)
+                    .where(
+                            party.id.in(joinedPartyIds),  // ← joinedPartyIds 사용!
+                            party.leaderId.ne(userId),
+                            party.status.eq(PartyStatus.COMPLETED)
+                    )
+                    .fetch();
+        }
 
+        // 합치고 정렬
         List<CompletedPartyWithType> allParties = new ArrayList<>();
+        allParties.addAll(createdParties);
+        allParties.addAll(joinedParties);
 
-        for (Party p : createdParties) {
-            allParties.add(new CompletedPartyWithType(p, "CREATED"));
-        }
+        allParties.sort(Comparator
+                .comparing((CompletedPartyWithType p) -> p.party().getUpdatedAt())
+                .reversed());
 
-        for (Party p : joinedParties) {
-            allParties.add(new CompletedPartyWithType(p, "JOINED"));
-        }
-
-        allParties.sort((a, b) ->
-                b.party().getUpdatedAt().compareTo(a.party().getUpdatedAt()));
-
+        // 페이징
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), allParties.size());
 

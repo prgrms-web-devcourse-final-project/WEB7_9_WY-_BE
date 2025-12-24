@@ -513,7 +513,6 @@ class PartyServiceTest {
         @Test
         @DisplayName("성공: 파티장이 신청을 승인하고 알림이 전송된다")
         void acceptApplication_Success() {
-            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -521,17 +520,15 @@ class PartyServiceTest {
 
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
 
-            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(testParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
             given(partyMemberRepository.save(any(PartyMember.class)))
                     .willReturn(PartyMember.createMember(partyId, applicantId));
 
-            
             AcceptApplicationResponse response = partyService.acceptApplication(
                     partyId, applicationId, leaderId);
 
-            
             assertThat(response).isNotNull();
             assertThat(response.applicantId()).isEqualTo(applicantId);
             assertThat(response.partyTitle()).isEqualTo("즐거운 파티");
@@ -551,7 +548,6 @@ class PartyServiceTest {
         @Test
         @DisplayName("성공: 마지막 멤버 승인 시 파티 상태가 CLOSED로 변경된다")
         void acceptApplication_PartyFullAfterAccept() throws Exception {
-            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -565,7 +561,7 @@ class PartyServiceTest {
                     .departureLocation("강남역")
                     .arrivalLocation("잠실")
                     .transportType(TransportType.TAXI)
-                    .maxMembers(2)  // 최대 2명
+                    .maxMembers(2)
                     .preferredGender(Gender.ANY)
                     .preferredAge(PreferredAge.ANY)
                     .build();
@@ -573,14 +569,14 @@ class PartyServiceTest {
 
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
 
-            given(partyRepository.findById(partyId)).willReturn(Optional.of(smallParty));
+            given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(smallParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
             given(partyMemberRepository.save(any(PartyMember.class)))
                     .willReturn(PartyMember.createMember(partyId, applicantId));
 
             partyService.acceptApplication(partyId, applicationId, leaderId);
-            
+
             assertThat(smallParty.getCurrentMembers()).isEqualTo(2);
             assertThat(smallParty.getStatus()).isEqualTo(PartyStatus.CLOSED);
         }
@@ -588,7 +584,6 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 이미 꽉 찬 파티에 신청 승인 시도")
         void acceptApplication_PartyAlreadyFull() throws Exception {
-            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -607,11 +602,11 @@ class PartyServiceTest {
                     .preferredAge(PreferredAge.ANY)
                     .build();
             setId(fullParty, 1L);
-            fullParty.incrementCurrentMembers(); // currentMembers = 2 (꽉 참)
+            fullParty.incrementCurrentMembers();
 
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
 
-            given(partyRepository.findById(partyId)).willReturn(Optional.of(fullParty));
+            given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(fullParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
@@ -624,12 +619,11 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 파티장이 아닌 사용자가 승인 시도")
         void acceptApplication_NotLeader() {
-            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long notLeaderId = 999L;
 
-            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(testParty));
 
             assertThatThrownBy(() -> partyService.acceptApplication(
                     partyId, applicationId, notLeaderId))
@@ -640,7 +634,6 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 이미 처리된 신청을 승인 시도")
         void acceptApplication_AlreadyProcessed() {
-            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -649,7 +642,7 @@ class PartyServiceTest {
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
             application.approve();
 
-            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(testParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
