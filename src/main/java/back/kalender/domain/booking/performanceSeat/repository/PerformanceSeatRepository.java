@@ -33,11 +33,8 @@ where p.scheduleId = :scheduleId
     );
 
 
-    List<PerformanceSeat> findByScheduleIdAndBlock(Long scheduleId, String block);
-
     Optional<PerformanceSeat> findByIdAndScheduleId(Long id, Long scheduleId);
 
-    // 만료된 hold 좌석 조회 (배치 처리)
     @Query("""
         select p
         from PerformanceSeat p
@@ -51,5 +48,4 @@ where p.scheduleId = :scheduleId
             @Param("now") LocalDateTime now,
             Pageable pageable
     );
-    boolean existsByScheduleId(Long id);
 }

@@ -63,6 +63,9 @@ dependencies {
     implementation 'org.webjars:stomp-websocket:2.3.4'
 
     implementation 'org.redisson:redisson:3.24.3'
+
+    implementation platform("software.amazon.awssdk:bom:2.25.60")
+    implementation "software.amazon.awssdk:s3"
 }
 
 tasks.named('test') {

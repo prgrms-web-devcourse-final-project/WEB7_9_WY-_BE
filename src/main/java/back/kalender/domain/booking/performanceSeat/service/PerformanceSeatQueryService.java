@@ -24,9 +24,9 @@ public class PerformanceSeatQueryService {
     @Transactional(readOnly = true)
     public List<PerformanceSeatResponse> getSeatsByScheduleId(
             Long scheduleId,
-            String qsid
+            String bookingSessionId
     ) {
-        queueAccessService.checkSeatAccess(scheduleId, qsid);
+        queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
 
         return performanceSeatRepository.findSeatResponses(scheduleId);
     }

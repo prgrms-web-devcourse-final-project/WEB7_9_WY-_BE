@@ -86,3 +86,9 @@ custom:
     redisson:
       address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}
       password: ${REDIS_PASSWORD:}
+aws:
+  s3:
+    bucket: wya-kalendar-profile-images-v1
+    region: ap-northeast-2
+    profile-prefix: profile/
+    presign-expire-minutes: 10
