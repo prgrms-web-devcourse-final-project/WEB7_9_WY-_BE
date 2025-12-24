@@ -2,6 +2,7 @@ package back.kalender.global.security.jwt;
 
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ErrorResponse;
+import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,8 +35,9 @@ public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
         }
 
         // 인증 성공 상태에서는 비즈니스 예외이므로 GlobalExceptionHandler가 처리하도록 무시
+        // AnonymousAuthenticationToken은 isAuthenticated()가 true일 수 있으므로 principal 타입으로 확인
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails) {
             return;
         }
 

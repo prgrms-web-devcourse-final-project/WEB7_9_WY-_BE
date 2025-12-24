@@ -1,6 +1,7 @@
 package back.kalender.global.security.jwt;
 
 import back.kalender.global.common.constant.HttpHeaders;
+import back.kalender.global.common.constant.SecurityConstants;
 import back.kalender.global.exception.ServiceException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,9 +25,6 @@ import java.io.IOException;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    
-    // 인증 필터에서 발생한 비즈니스 예외를 저장하는 request attribute 키
-    private static final String AUTH_FILTER_EXCEPTION_ATTR = "AUTH_FILTER_EXCEPTION";
 
     @Override
     protected void doFilterInternal(
@@ -48,7 +46,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     // 사용자 조회 실패는 비즈니스 예외이므로 request attribute에 저장하여 SecurityUtil에서 처리
                     log.warn("[JwtAuthFilter] 사용자 조회 실패 - errorCode: {}, message: {}", 
                             e.getErrorCode().getCode(), e.getErrorCode().getMessage());
-                    request.setAttribute(AUTH_FILTER_EXCEPTION_ATTR, e);
+                    request.setAttribute(SecurityConstants.AUTH_FILTER_EXCEPTION_ATTR, e);
                 }
             } catch (ServiceException e) {
                 // 토큰 검증 실패는 인증 실패로 간주하여 AuthenticationEntryPoint가 401 반환

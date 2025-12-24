@@ -1,5 +1,6 @@
 package back.kalender.global.security.util;
 
+import back.kalender.global.common.constant.SecurityConstants;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import back.kalender.global.security.user.CustomUserDetails;
@@ -10,9 +11,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 public class SecurityUtil {
-
-    // JwtAuthFilter에서 설정한 request attribute 키
-    private static final String AUTH_FILTER_EXCEPTION_ATTR = "AUTH_FILTER_EXCEPTION";
 
     public static Long getCurrentUserId() {
         Authentication authentication = getAuthentication();
@@ -61,7 +59,7 @@ public class SecurityUtil {
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
-                Object exception = request.getAttribute(AUTH_FILTER_EXCEPTION_ATTR);
+                Object exception = request.getAttribute(SecurityConstants.AUTH_FILTER_EXCEPTION_ATTR);
                 if (exception instanceof ServiceException) {
                     return (ServiceException) exception;
                 }
@@ -75,8 +73,11 @@ public class SecurityUtil {
 
     public static String getCurrentUserEmail() {
         Authentication authentication = getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            return authentication.getName();
+        if (authentication != null) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof CustomUserDetails) {
+                return ((CustomUserDetails) principal).getEmail();
+            }
         }
         return null;
     }
