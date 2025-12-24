@@ -2,6 +2,8 @@ package back.kalender.domain.booking.reservation.entity;
 
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 public enum ReservationStatus {
     PENDING("초기 상태"),
@@ -41,5 +43,9 @@ public enum ReservationStatus {
 
     public boolean canCancel() {
         return this == HOLD;
+    }
+
+    public static List<ReservationStatus> activeStatuses() {
+        return List.of(PENDING, HOLD);
     }
 }

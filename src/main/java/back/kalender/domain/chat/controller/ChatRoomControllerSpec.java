@@ -202,7 +202,7 @@ public interface ChatRoomControllerSpec {
                     
                     **페이징:**
                     - 기본 50개씩 조회
-                    - 오래된 메시지부터 정렬 (위→아래)
+                    - 최신 메시지부터 정렬 (최신 메세지 id = 0)
                     - hasNext: true면 더 이전 메시지 존재
                     
                     **권한:** 파티 멤버만 조회 가능

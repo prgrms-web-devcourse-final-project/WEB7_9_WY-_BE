@@ -13,7 +13,14 @@ import back.kalender.domain.payment.mapper.PaymentMapper;
 import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
 import back.kalender.domain.booking.reservation.entity.Reservation;
+import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
+import back.kalender.domain.booking.reservation.service.ReservationService;
+import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
+import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
+import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
+import back.kalender.domain.booking.performanceSeat.entity.SeatStatus;
+import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -38,6 +46,9 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentIdempotencyRepository paymentIdempotencyRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationSeatRepository reservationSeatRepository;
+    private final PerformanceSeatRepository performanceSeatRepository;
+    private final ReservationService reservationService;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
     private final OutboxEventService outboxEventService;
@@ -57,8 +68,36 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
         }
         
+        // 예매 상태 검증: HOLD 상태여야만 결제 생성 가능
+        if (reservation.getStatus() != ReservationStatus.HOLD) {
+            log.warn("[Payment] 예매 상태가 HOLD가 아님 - reservationId: {}, status: {}", 
+                    request.reservationId(), reservation.getStatus());
+            throw new ServiceException(ErrorCode.RESERVATION_NOT_HOLD);
+        }
+        
+        // 만료 여부 검증
+        if (reservation.isExpired()) {
+            log.warn("[Payment] 예매가 만료됨 - reservationId: {}, expiresAt: {}", 
+                    request.reservationId(), reservation.getExpiresAt());
+            throw new ServiceException(ErrorCode.RESERVATION_EXPIRED);
+        }
+        
+        // 실제로 홀드된 좌석이 있는지 확인
+        List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(request.reservationId());
+        if (reservationSeats.isEmpty()) {
+            log.warn("[Payment] 홀드된 좌석이 없음 - reservationId: {}", request.reservationId());
+            throw new ServiceException(ErrorCode.NO_SEATS_HELD);
+        }
+        
         // Reservation의 totalAmount 사용 (클라이언트가 보낸 amount 무시)
         Integer amount = reservation.getTotalAmount();
+        
+        // totalAmount가 0이면 좌석이 홀드되지 않은 상태이므로 결제 생성 불가
+        if (amount == null || amount <= 0) {
+            log.warn("[Payment] 결제 금액이 0 이하 - reservationId: {}, totalAmount: {}", 
+                    request.reservationId(), amount);
+            throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
+        }
         
         return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.reservationId(), idempotencyKey)
                 .map(existingPayment -> {
@@ -122,6 +161,20 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
         }
         
+        // 예매 상태 검증: HOLD 상태여야만 결제 승인 가능
+        if (reservation.getStatus() != ReservationStatus.HOLD) {
+            log.warn("[Payment] 예매 상태가 HOLD가 아님 - reservationId: {}, status: {}", 
+                    request.reservationId(), reservation.getStatus());
+            throw new ServiceException(ErrorCode.RESERVATION_NOT_HOLD);
+        }
+        
+        // 만료 여부 검증
+        if (reservation.isExpired()) {
+            log.warn("[Payment] 예매가 만료됨 - reservationId: {}, expiresAt: {}", 
+                    request.reservationId(), reservation.getExpiresAt());
+            throw new ServiceException(ErrorCode.RESERVATION_EXPIRED);
+        }
+        
         // Payment에 저장된 금액과 Reservation의 totalAmount 비교
         if (!payment.getAmount().equals(reservation.getTotalAmount())) {
             log.warn("[Payment] 결제 금액 불일치 - paymentId: {}, paymentAmount: {}, reservationTotalAmount: {}",
@@ -146,10 +199,46 @@ public class PaymentService {
                 return parseConfirmResponse(existingIdempotency.get().getResultJson(), payment);
             }
             
-            // 멱등성 레코드가 없어도 이미 APPROVED이므로 Payment 엔티티에서 응답 생성
+            // 멱등성 레코드가 없는 경우: 좌석 SOLD 상태 확인 후 멱등성 저장
+            boolean seatSoldSuccess = checkSeatsSoldStatus(reservation.getId());
+            
             PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(payment);
-            // 멱등성 저장 (재요청 방지)
-            saveIdempotency(payment.getId(), PaymentOperation.CONFIRM, idempotencyKey, response);
+            
+            if (seatSoldSuccess) {
+                // 좌석이 모두 SOLD 상태면 멱등성 저장
+                saveIdempotency(payment.getId(), PaymentOperation.CONFIRM, idempotencyKey, response);
+                log.info("[Payment] 이미 승인된 결제, 좌석 SOLD 확인 후 멱등성 저장 - paymentId: {}, reservationId: {}", 
+                        payment.getId(), reservation.getId());
+            } else {
+                // 좌석이 HOLD 상태면 좌석 SOLD 재처리 시도
+                log.warn("[Payment] 이미 승인된 결제지만 좌석이 HOLD 상태, 재처리 시도 - paymentId: {}, reservationId: {}", 
+                        payment.getId(), reservation.getId());
+                try {
+                    reservationService.markSeatsAsSold(
+                            reservation.getPerformanceScheduleId(),
+                            reservation.getId()
+                    );
+                    // 재처리 성공 시 멱등성 저장
+                    saveIdempotency(payment.getId(), PaymentOperation.CONFIRM, idempotencyKey, response);
+                    log.info("[Payment] 좌석 SOLD 재처리 성공, 멱등성 저장 - paymentId: {}, reservationId: {}", 
+                            payment.getId(), reservation.getId());
+                } catch (Exception e) {
+                    // 재처리 실패 시 Outbox 이벤트 저장
+                    log.error("[Payment] 좌석 SOLD 재처리 실패, Outbox 이벤트 저장 - paymentId: {}, reservationId: {}", 
+                            payment.getId(), reservation.getId(), e);
+                    try {
+                        outboxEventService.saveOutboxEvent(
+                                payment.getId(),
+                                PaymentEventType.SEAT_SOLD_RETRY,
+                                createSeatSoldRetryPayload(payment, reservation)
+                        );
+                    } catch (Exception outboxException) {
+                        log.error("[Payment] 좌석 SOLD 재처리 이벤트 저장 실패 - paymentId: {}", payment.getId(), outboxException);
+                    }
+                    // 멱등성 저장하지 않음 (재시도 가능하도록)
+                }
+            }
+            
             return response;
         }
 
@@ -232,10 +321,52 @@ public class PaymentService {
             Payment approvedPayment = paymentRepository.findById(paymentId)
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
             
+            // 결제 승인 후 예매된 좌석들을 SOLD 상태로 변경
+            boolean seatSoldSuccess = false;
+            try {
+                Reservation reservation = reservationRepository.findById(approvedPayment.getReservationId())
+                        .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+                
+                // 좌석을 SOLD로 표시
+                reservationService.markSeatsAsSold(
+                        reservation.getPerformanceScheduleId(),
+                        reservation.getId()
+                );
+                
+                seatSoldSuccess = true;
+                log.info("[Payment] 좌석 SOLD 처리 완료 - reservationId: {}, paymentId: {}", 
+                        approvedPayment.getReservationId(), paymentId);
+            } catch (Exception e) {
+                // 좌석 상태 변경 실패 시 Outbox 이벤트 저장 (재처리용)
+                log.error("[Payment] 좌석 SOLD 상태 변경 실패, 재처리 이벤트 저장 - reservationId: {}, paymentId: {}", 
+                        approvedPayment.getReservationId(), paymentId, e);
+                try {
+                    Reservation reservation = reservationRepository.findById(approvedPayment.getReservationId())
+                            .orElse(null);
+                    if (reservation != null) {
+                        outboxEventService.saveOutboxEvent(
+                                paymentId, 
+                                PaymentEventType.SEAT_SOLD_RETRY, 
+                                createSeatSoldRetryPayload(approvedPayment, reservation)
+                        );
+                        log.info("[Payment] 좌석 SOLD 재처리 이벤트 저장 완료 - paymentId: {}, reservationId: {}", 
+                                paymentId, approvedPayment.getReservationId());
+                    }
+                } catch (Exception outboxException) {
+                    log.error("[Payment] 좌석 SOLD 재처리 이벤트 저장 실패 - paymentId: {}", paymentId, outboxException);
+                }
+            }
+            
             PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(approvedPayment);
             
-            // 멱등성 저장 (같은 트랜잭션에서 원자성 보장)
-            saveIdempotency(paymentId, PaymentOperation.CONFIRM, idempotencyKey, response);
+            // 멱등성 저장은 좌석 SOLD 성공 후에만 수행 (재시도 가능하도록)
+            if (seatSoldSuccess) {
+                saveIdempotency(paymentId, PaymentOperation.CONFIRM, idempotencyKey, response);
+            } else {
+                // 좌석 SOLD 실패 시 멱등성 저장하지 않음 (재시도 가능하도록)
+                log.warn("[Payment] 좌석 SOLD 실패로 인해 멱등성 저장 생략 - paymentId: {}, reservationId: {}", 
+                        paymentId, approvedPayment.getReservationId());
+            }
             
             // Outbox 이벤트 저장 (REQUIRES_NEW로 분리)
             try {
@@ -392,6 +523,49 @@ public class PaymentService {
         return PaymentMapper.toCancelResponse(payment);
     }
 
+    /**
+     * 예매의 모든 좌석이 SOLD 상태인지 확인
+     * @param reservationId 예매 ID
+     * @return 모든 좌석이 SOLD 상태면 true, 하나라도 HOLD 상태면 false
+     */
+    private boolean checkSeatsSoldStatus(Long reservationId) {
+        try {
+            // ReservationSeat 조회
+            List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(reservationId);
+            
+            if (reservationSeats.isEmpty()) {
+                log.warn("[Payment] 예매된 좌석이 없음 - reservationId: {}", reservationId);
+                return false;
+            }
+            
+            // PerformanceSeat ID 목록 추출
+            List<Long> seatIds = reservationSeats.stream()
+                    .map(ReservationSeat::getPerformanceSeatId)
+                    .toList();
+            
+            // PerformanceSeat 조회
+            List<PerformanceSeat> performanceSeats = performanceSeatRepository.findAllById(seatIds);
+            
+            // 모든 좌석이 SOLD 상태인지 확인
+            boolean allSold = performanceSeats.stream()
+                    .allMatch(seat -> seat.getStatus() == SeatStatus.SOLD);
+            
+            if (!allSold) {
+                long holdCount = performanceSeats.stream()
+                        .filter(seat -> seat.getStatus() == SeatStatus.HOLD)
+                        .count();
+                log.warn("[Payment] 좌석 상태 확인 - reservationId: {}, 전체: {}, HOLD: {}, SOLD: {}", 
+                        reservationId, performanceSeats.size(), holdCount, 
+                        performanceSeats.size() - holdCount);
+            }
+            
+            return allSold;
+        } catch (Exception e) {
+            log.error("[Payment] 좌석 상태 확인 실패 - reservationId: {}", reservationId, e);
+            return false;
+        }
+    }
+
     // 멱등성 저장
     private void saveIdempotency(Long paymentId, PaymentOperation operation, String idempotencyKey, Object result) {
         try {
@@ -438,6 +612,14 @@ public class PaymentService {
         payload.put("paymentKey", payment.getPaymentKey());
         payload.put("cancelReason", reason);
         payload.put("canceledAt", canceledAt.toString());
+        return payload;
+    }
+
+    private Map<String, Object> createSeatSoldRetryPayload(Payment payment, Reservation reservation) {
+        Map<String, Object> payload = createBasePayload(payment);
+        payload.put("paymentKey", payment.getPaymentKey());
+        payload.put("scheduleId", reservation.getPerformanceScheduleId());
+        payload.put("reservationId", reservation.getId());
         return payload;
     }
 }

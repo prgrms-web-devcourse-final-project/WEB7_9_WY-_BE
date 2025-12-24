@@ -196,8 +196,6 @@ public class ChatRoomService {
                                 .toList()
                 );
 
-        Collections.reverse(messageDtos);
-
         log.info("채팅 히스토리 조회 완료 - partyId: {}, 메시지 수: {}", partyId, messageDtos.size());
 
         return new ChatHistoryResponse(

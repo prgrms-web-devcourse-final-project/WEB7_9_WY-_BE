@@ -82,7 +82,17 @@ custom:
   payment:
     idempotency:
       ttlDays: ${PAYMENT_IDEMPOTENCY_TTL_DAYS:7}
+    toss:
+      secretKey: ${TOSS_PAYMENT_SECRET_KEY:}
+      clientKey: ${TOSS_PAYMENT_CLIENT_KEY:}
+      baseUrl: ${TOSS_PAYMENT_BASE_URL:https://api.tosspayments.com/v1}
   redis:
     redisson:
       address: ${REDISSON_ADDRESS:redis://${spring.data.redis.host}:${spring.data.redis.port}}
       password: ${REDIS_PASSWORD:}
+aws:
+  s3:
+    bucket: wya-kalendar-profile-images-v1
+    region: ap-northeast-2
+    profile-prefix: profile/
+    presign-expire-minutes: 10

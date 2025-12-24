@@ -2,6 +2,7 @@ package back.kalender.domain.user.service;
 
 import back.kalender.domain.user.dto.request.UpdateProfileRequest;
 import back.kalender.domain.user.dto.request.UserSignupRequest;
+import back.kalender.domain.user.dto.response.PresignProfileImageResponse;
 import back.kalender.domain.user.dto.response.UploadProfileImgResponse;
 import back.kalender.domain.user.dto.response.UserProfileResponse;
 import back.kalender.domain.user.dto.response.UserSignupResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserService{
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final S3PresignService s3PresignService;
 
     // 회원가입
     @Transactional
@@ -70,37 +72,54 @@ public class UserService{
                     log.error("[User] [GetProfile] 유저를 찾을 수 없음 - userId={}", userId);
                     return new ServiceException(ErrorCode.USER_NOT_FOUND);
                 });
+        String profileImageUrl = s3PresignService.presignProfileImageGet(user.getProfileImage());
 
         log.debug("[User] [GetProfile] 프로필 조회 완료 - userId={}, nickname={}", userId, user.getNickname());
-        return UserProfileResponse.from(user);
+        return UserProfileResponse.from(user, profileImageUrl);
     }
 
     /**
-     * 프로필 이미지 업로드
+     * presigned PUT 발급
+     */
+    public PresignProfileImageResponse presignProfileImageUpload(Long userId, String contentType) {
+        log.info("[User] [PresignPut] presigned PUT 발급 - userId={}, contentType={}", userId, contentType);
+
+        if (contentType == null || contentType.isBlank()) {
+            throw new ServiceException(ErrorCode.BAD_REQUEST);
+        }
+
+        return s3PresignService.presignProfileImagePut(userId, contentType);
+    }
+
+
+    /**
+     * 업로드 완료 처리: key를 DB에 저장하고, 조회용 presigned GET URL 반환
      */
     @Transactional
-    public UploadProfileImgResponse uploadProfileImage(Long userId, MultipartFile profileImage) {
-        log.info("[User] [UploadImage] 이미지 업로드 시작 - userId={}, fileName={}",
-                userId, profileImage.getOriginalFilename());
+    public UploadProfileImgResponse completeProfileImageUpload(Long userId, String key) {
+
+        if (key == null || key.isBlank()) {
+            throw new ServiceException(ErrorCode.BAD_REQUEST);
+        }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
-                    log.error("[User] [UploadImage] 유저를 찾을 수 없음 - userId={}", userId);
+                    log.error("[User] [CompleteUpload] 유저를 찾을 수 없음 - userId={}", userId);
                     return new ServiceException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        // TODO: S3에 이미지 업로드
-        // String imageUrl = s3Service.uploadFile(profileImage, "profile");
+        String expectedPrefix = "profile/" + userId + "/";
+        if (!key.startsWith(expectedPrefix)) {
+            log.warn("[User] [CompleteUpload] 잘못된 key - userId={}, key={}", userId, key);
+            throw new ServiceException(ErrorCode.BAD_REQUEST);
+        }
 
-        // 임시 URL (실제로는 S3 업로드 후 받은 URL 사용)
-        String imageUrl = "https://s3.amazonaws.com/kalender/profile/" + userId + ".jpg";
-        log.debug("[User] [UploadImage] S3 업로드 완료 (임시) - userId={}, imageUrl={}", userId, imageUrl);
+        user.updateProfileImage(key);
 
-        user.updateProfileImage(imageUrl);
-        log.info("[User] [UploadImage] 이미지 업로드 완료 - userId={}, imageUrl={}", userId, imageUrl);
-
-        return new UploadProfileImgResponse(imageUrl);
+        String profileImageUrl = s3PresignService.presignProfileImageGet(key);
+        return new UploadProfileImgResponse(profileImageUrl);
     }
+
 
     /**
      * 내 정보 수정
@@ -118,21 +137,13 @@ public class UserService{
 
         // 닉네임 수정
         if (request.nickname() != null) {
-            log.debug("[User] [UpdateProfile] 닉네임 변경 시도 - userId={}, oldNickname={}, newNickname={}",
-                    userId, user.getNickname(), request.nickname());
             validateNickname(request.nickname(), userId);
             user.updateNickname(request.nickname());
         }
 
-        // 프로필 이미지 수정
-        if (request.profileImage() != null) {
-            log.debug("[User] [UpdateProfile] 프로필 이미지 변경 - userId={}, imageUrl={}",
-                    userId, request.profileImage());
-            user.updateProfileImage(request.profileImage());
-        }
-        log.info("[User] [UpdateProfile] 프로필 수정 완료 - userId={}", userId);
+        String profileImageUrl = s3PresignService.presignProfileImageGet(user.getProfileImage());
 
-        return UserProfileResponse.from(user);
+        return UserProfileResponse.from(user, profileImageUrl);
     }
 
     /**

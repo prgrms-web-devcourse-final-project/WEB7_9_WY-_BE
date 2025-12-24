@@ -59,7 +59,8 @@ public class ReservationMapper {
                 heldSeats,
                 totalAmount,
                 reservation.getExpiresAt(),
-                remainingSeconds
+                remainingSeconds,
+                heldSeats.size()
         );
     }
 
@@ -80,7 +81,8 @@ public class ReservationMapper {
                 remainingSeatCount,
                 totalAmount,
                 reservation.getExpiresAt(),
-                remainingSeconds
+                remainingSeconds,
+                releasedSeatIds.size()
         );
     }
 
