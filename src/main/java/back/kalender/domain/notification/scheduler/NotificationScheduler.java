@@ -50,7 +50,7 @@ public class NotificationScheduler {
                 count++;
             } catch (Exception e) {
                 log.error("스케줄러 알림 발송 실패 (UserId: {}, PartyId: {}): {}",
-                        target.userId(), target.partyId(), e.getMessage());
+                        target.userId(), target.scheduleTitle(), e.getMessage());
             }
         }
 

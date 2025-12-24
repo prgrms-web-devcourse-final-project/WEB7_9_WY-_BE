@@ -26,7 +26,6 @@ public class ScheduleAlarmRepositoryImpl implements ScheduleAlarmRepositoryCusto
         return queryFactory
                 .select(Projections.constructor(NotificationTarget.class,
                         alarm.userId,
-                        Expressions.nullExpression(Long.class), // 파티 ID는 없음 (null) -> 파티 알림이 아니기 때문
                         schedule.title,
                         schedule.scheduleCategory,
                         schedule.scheduleTime
