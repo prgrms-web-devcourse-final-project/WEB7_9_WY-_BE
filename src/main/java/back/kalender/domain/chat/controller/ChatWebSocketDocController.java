@@ -111,7 +111,7 @@ public class ChatWebSocketDocController {
     @Operation(
             summary = "채팅 메시지 전송",
             description = """
-            ⚠️ **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
+            **이 API는 문서용입니다. 실제로는 WebSocket을 사용해야 합니다.**
             
             ---
             
