@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 
 public record NotificationTarget(
         Long userId,
-        Long partyId,
         String scheduleTitle,
         ScheduleCategory category,
         LocalDateTime scheduleTime
