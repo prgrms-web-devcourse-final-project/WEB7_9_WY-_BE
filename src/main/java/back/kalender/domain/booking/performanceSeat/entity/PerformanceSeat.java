@@ -25,7 +25,6 @@ public class PerformanceSeat extends BaseEntity {
     @Column(name = "price_grade_id", nullable = false)
     private Long priceGradeId;
 
-    // 정적 좌석 구조 복사
     private Integer floor; 
     private String block;
     private Integer rowNumber;
