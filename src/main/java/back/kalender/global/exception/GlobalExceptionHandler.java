@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
-        // JSON 파싱 실패 (enum 값 불일치, 잘못된 형식 등)
+        // JSON 파싱 실패 (enum 값 불일치 등)
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(ErrorResponse.errorResponse(ErrorCode.INVALID_INPUT_VALUE));
