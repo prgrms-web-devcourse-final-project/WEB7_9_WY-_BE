@@ -249,7 +249,7 @@ public class PartyService {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        String message = String.format("%s(%d/%s)님이 '%s' 파티를 신청했습니다.",
+        String message = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
                 user.getNickname(), user.getAge(), user.getGender(), party.getPartyName());
 
         notificationService.send(

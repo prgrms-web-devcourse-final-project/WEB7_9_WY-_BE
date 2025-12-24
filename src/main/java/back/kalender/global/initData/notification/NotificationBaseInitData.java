@@ -108,7 +108,7 @@ public class NotificationBaseInitData implements ApplicationRunner {
                 .findAny()
                 .orElse(allUsers.get(0));
 
-        String content = String.format("%s(%d/%s)님이 '%s' 파티를 신청했습니다.",
+        String content = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
                 applicant.getNickname(), applicant.getAge(), applicant.getGender(), myParty.getPartyName());
 
         String url = "/party/" + myParty.getId();
