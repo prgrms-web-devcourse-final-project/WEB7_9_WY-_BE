@@ -19,7 +19,7 @@ public class ScheduleAlarmRepositoryImpl implements ScheduleAlarmRepositoryCusto
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<NotificationTarget> findNotificationTargets(LocalDateTime start, LocalDateTime end) {
+    public List<NotificationTarget> findScheduleNotificationTargets(LocalDateTime start, LocalDateTime end) {
         QSchedule schedule = QSchedule.schedule;
         QScheduleAlarm alarm = QScheduleAlarm.scheduleAlarm;
 

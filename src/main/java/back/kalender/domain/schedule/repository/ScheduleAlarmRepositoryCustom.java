@@ -6,5 +6,5 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ScheduleAlarmRepositoryCustom {
-    List<NotificationTarget> findNotificationTargets(LocalDateTime start, LocalDateTime end);
+    List<NotificationTarget> findScheduleNotificationTargets(LocalDateTime start, LocalDateTime end);
 }

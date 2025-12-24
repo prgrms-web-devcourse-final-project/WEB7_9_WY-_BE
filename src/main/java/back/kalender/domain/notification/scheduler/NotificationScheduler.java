@@ -36,7 +36,7 @@ public class NotificationScheduler {
         LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
 
-        List<NotificationTarget> targets = scheduleAlarmRepository.findNotificationTargets(startOfDay, endOfDay);
+        List<NotificationTarget> targets = scheduleAlarmRepository.findScheduleNotificationTargets(startOfDay, endOfDay);
 
         if (targets.isEmpty()) {
             log.info("오늘은 예정된 일정이 없습니다.");
