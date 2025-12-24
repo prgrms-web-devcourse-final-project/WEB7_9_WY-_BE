@@ -2,6 +2,8 @@ package back.kalender.domain.booking.waitingRoom.service;
 
 import back.kalender.domain.booking.waitingRoom.dto.QueueJoinResponse;
 import back.kalender.domain.booking.waitingRoom.dto.QueueStatusResponse;
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -38,31 +40,36 @@ public class QueueService {
 
     public QueueJoinResponse join(Long scheduleId, String deviceId) {
         if (deviceId == null || deviceId.isBlank()) {
-            throw new IllegalArgumentException("X-Device-Id header is required");
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        String qsid = UUID.randomUUID().toString();
         String qKey = queueKey(scheduleId);
+        String deviceKey = "device:" + scheduleId + ":" + deviceId;
 
-        // 대기열 등록
-        redis.opsForZSet().add(qKey, qsid, System.currentTimeMillis());
+        String oldQsid = redis.opsForValue().get(deviceKey);
+        if (oldQsid != null) {
+            redis.opsForZSet().remove(qKey, oldQsid);
+            redis.delete("qsid:" + oldQsid);
+            redis.delete(deviceKey);
+        }
+
+        String newQsid = UUID.randomUUID().toString();
+
+        redis.opsForZSet().add(qKey, newQsid, System.currentTimeMillis());
         redis.expire(qKey, JOIN_TTL);
 
-        // qsid -> deviceId:scheduleId 저장(추적용)
         redis.opsForValue().set(
-                "qsid:" + qsid,
+                "qsid:" + newQsid,
                 deviceId + ":" + scheduleId,
                 JOIN_TTL
         );
 
-        // deviceId -> qsid (인터파크식이라 "기록"만. 유지형이면 여기서 조회 분기)
-        String deviceKey = "device:" + scheduleId + ":" + deviceId;
-        redis.opsForValue().set(deviceKey, qsid, JOIN_TTL);
+        redis.opsForValue().set(deviceKey, newQsid, JOIN_TTL);
 
-        Long rank0 = redis.opsForZSet().rank(qKey, qsid);
+        Long rank0 = redis.opsForZSet().rank(qKey, newQsid);
         Long position = rank0 == null ? null : rank0 + 1;
 
-        return new QueueJoinResponse("WAITING", position, qsid);
+        return new QueueJoinResponse("WAITING", position, newQsid);
     }
 
     public QueueStatusResponse status(Long scheduleId, String qsid) {
@@ -91,11 +98,6 @@ public class QueueService {
         return token;
     }
 
-    /**
-     * ✅ B안 핵심:
-     * - capacity 계산은 "active(bookingSessionId) + admitted(qsid)" 기준으로 한다.
-     * - 그래야 waitingToken이 과하게 누적되지 않음.
-     */
     public int admitIfCapacity(Long scheduleId, int maxActive) {
         Long activeCnt = redis.opsForZSet().size(activeKey(scheduleId));
         Long admittedCnt = redis.opsForHash().size(admittedKey(scheduleId));
@@ -108,12 +110,6 @@ public class QueueService {
         return admitNext(scheduleId, (int) available);
     }
 
-    /**
-     * ✅ B안 핵심:
-     * - 여기서 active에 뭘 넣지 않는다(절대 qsid 넣지 않음)
-     * - admit 단계는 "waitingToken 발급 + admitted 등록 + queue에서 제거"까지만
-     * - 실제 active 점유는 createReservation(예매 세션 생성)에서 bookingSessionId로 한다.
-     */
     public int admitNext(Long scheduleId, int n) {
         String qKey = queueKey(scheduleId);
         String aKey = admittedKey(scheduleId);
