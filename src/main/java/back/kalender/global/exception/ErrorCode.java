@@ -65,6 +65,8 @@ public enum ErrorCode {
     INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
     CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
     NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
+    RESERVATION_NOT_HOLD("6010", HttpStatus.BAD_REQUEST, "예매가 홀드 상태가 아닙니다."),
+    NO_SEATS_HELD("6011", HttpStatus.BAD_REQUEST, "홀드된 좌석이 없습니다."),
 
     // 6100-6199: 대기열 토큰 관련
     WAITING_TOKEN_REQUIRED("6101", HttpStatus.BAD_REQUEST, "대기열 토큰이 필요합니다."),
