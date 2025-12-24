@@ -72,7 +72,6 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
     ) {
         QParty party = QParty.party;
 
-        // CREATED 파티들 (내가 만든 파티)
         List<CompletedPartyWithType> createdParties = queryFactory
                 .select(Projections.constructor(
                         CompletedPartyWithType.class,
@@ -87,7 +86,7 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
                 .fetch();
 
         List<CompletedPartyWithType> joinedParties = new ArrayList<>();
-        if (!joinedPartyIds.isEmpty()) {  // ← 비어있는지 체크
+        if (!joinedPartyIds.isEmpty()) {
             joinedParties = queryFactory
                     .select(Projections.constructor(
                             CompletedPartyWithType.class,
@@ -96,14 +95,13 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
                     ))
                     .from(party)
                     .where(
-                            party.id.in(joinedPartyIds),  // ← joinedPartyIds 사용!
+                            party.id.in(joinedPartyIds),
                             party.leaderId.ne(userId),
                             party.status.eq(PartyStatus.COMPLETED)
                     )
                     .fetch();
         }
 
-        // 합치고 정렬
         List<CompletedPartyWithType> allParties = new ArrayList<>();
         allParties.addAll(createdParties);
         allParties.addAll(joinedParties);
@@ -112,7 +110,6 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
                 .comparing((CompletedPartyWithType p) -> p.party().getUpdatedAt())
                 .reversed());
 
-        // 페이징
         int start = (int) pageable.getOffset();
         int end = Math.min(start + pageable.getPageSize(), allParties.size());
 

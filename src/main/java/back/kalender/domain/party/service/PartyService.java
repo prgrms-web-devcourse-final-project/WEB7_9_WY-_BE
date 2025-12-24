@@ -343,7 +343,6 @@ public class PartyService {
         log.info("[신청 승인 시작] partyId={}, applicationId={}, userId={}",
                 partyId, applicationId, currentUserId);
 
-        // 🔒 비관적 락 사용
         Party party = partyRepository.findByIdWithLock(partyId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
 
