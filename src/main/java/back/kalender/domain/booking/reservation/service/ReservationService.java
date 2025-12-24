@@ -92,7 +92,7 @@ public class ReservationService {
         }
 
         // 3. Reservation 엔티티 생성 및 저장
-        Reservation reservation = Reservation.create(userId, scheduleId);
+        Reservation reservation = Reservation.create(userId, scheduleId, bookingSessionId);
         Reservation savedReservation = reservationRepository.save(reservation);
 
         return reservationMapper.toCreateReservationResponse(savedReservation);
@@ -202,6 +202,7 @@ public class ReservationService {
     }
 
     // 예매 취소
+    @Transactional
     public CancelReservationResponse cancelReservation(
             Long reservationId,
             Long userId
@@ -502,7 +503,7 @@ public class ReservationService {
         );
     }
 
-    // 예매 만료 처리 - 스케줄러에서 호출
+    // 예매 만료 처리
     @Transactional
     public void expireReservationAndReleaseSeats(Long reservationId, Long userId) {
         Reservation reservation = reservationRepository.findById(reservationId)
@@ -555,9 +556,6 @@ public class ReservationService {
         // 5. Reservation 만료
         reservation.expire();
         reservationRepository.save(reservation);
-
-        // 6. ReservationSeat 삭제 (선택)
-        // reservationSeatRepository.deleteByReservationId(reservationId);
 
         log.info("[Reservation] 예매 만료 처리 완료 - reservationId={}, seatCount={}",
                 reservationId, seatIds.size());
@@ -615,7 +613,18 @@ public class ReservationService {
             recordSeatChangeEvent(scheduleId, seatId, SeatStatus.SOLD, null);
         }
 
+        // 예매 세션 삭제
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        bookingSessionService.expire(
+                reservation.getBookingSessionId(),
+                reservation.getUserId(),
+                reservation.getPerformanceScheduleId()
+        );
+
         log.info("[Reservation] 좌석 SOLD 처리 완료 - reservationId={}, seatCount={}",
                 reservationId, seatIds.size());
+
     }
 }

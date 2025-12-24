@@ -49,11 +49,15 @@ public class Reservation extends BaseEntity {
     @Column(name = "recipient_zip_code", length = 10)
     private String recipientZipCode;
 
-    public static Reservation create(Long userId, Long scheduleId) {
+    @Column(length = 100)
+    private String bookingSessionId;
+
+    public static Reservation create(Long userId, Long scheduleId, String bookingSessionId) {
 
         Reservation reservation = new Reservation();
         reservation.userId = userId;
         reservation.performanceScheduleId = scheduleId;
+        reservation.bookingSessionId = bookingSessionId;
         reservation.totalAmount = 0;
         reservation.status = ReservationStatus.PENDING;
         reservation.expiresAt = null;

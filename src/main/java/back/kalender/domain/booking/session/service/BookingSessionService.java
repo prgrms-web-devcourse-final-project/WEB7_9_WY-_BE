@@ -24,18 +24,24 @@ public class BookingSessionService {
      */
     public String create(Long userId, Long scheduleId) {
         // 기존 세션 확인
-        String existingKey = BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId;
-        String existing = redisTemplate.opsForValue().get(existingKey);
+        String mappingKey = BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId;
+        String existing = redisTemplate.opsForValue().get(mappingKey);
 
         if (existing != null) {
-            return existing; // 기존 세션 재사용
+            // 기존 세션이 아직 유효한지 확인
+            String sessionKey = BOOKING_SESSION_KEY_PREFIX + existing;
+            String sessionValue = redisTemplate.opsForValue().get(sessionKey);
+
+            if (sessionValue != null) {
+                return existing;
+            }
         }
 
         String bookingSessionId = UUID.randomUUID().toString();
         String key = BOOKING_SESSION_KEY_PREFIX + bookingSessionId;
 
         redisTemplate.opsForValue().set(key, scheduleId.toString(), BOOKING_SESSION_TTL);
-        redisTemplate.opsForValue().set(existingKey, bookingSessionId, BOOKING_SESSION_TTL);
+        redisTemplate.opsForValue().set(mappingKey, bookingSessionId, BOOKING_SESSION_TTL);
 
 
         return bookingSessionId;
@@ -82,9 +88,11 @@ public class BookingSessionService {
 
     /**
      * 예매 완료 or 명시적 종료 시
+     *  - Reservation에서 userId, scheduleId를 함께 전달받아 2개 키 모두 삭제
      */
-    public void expire(String bookingSessionId) {
+    public void expire(String bookingSessionId,Long userId, Long scheduleId) {
         redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId);
     }
 
 
