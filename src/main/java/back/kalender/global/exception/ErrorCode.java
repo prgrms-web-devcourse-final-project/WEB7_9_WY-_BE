@@ -10,6 +10,8 @@ public enum ErrorCode {
     UNAUTHORIZED("002",HttpStatus.UNAUTHORIZED,"로그인이 필요합니다."),
     INTERNAL_SERVER_ERROR("003",HttpStatus.INTERNAL_SERVER_ERROR,"서버에서 오류가 발생했습니다."),
     BAD_REQUEST("001", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    FORBIDDEN("005", HttpStatus.FORBIDDEN, "권한이 없습니다."),
+
     // User 1000
     USER_NOT_FOUND("1001", HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다."),
     DUPLICATE_NICKNAME("1002", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
@@ -63,6 +65,17 @@ public enum ErrorCode {
     INVALID_RESERVATION_STATUS("6007", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 상태입니다."),
     CANCEL_DEADLINE_PASSED("6008", HttpStatus.BAD_REQUEST, "취소 가능 기한이 지났습니다."),
     NO_SEATS_RESERVED("6009", HttpStatus.BAD_REQUEST, "예매된 좌석이 없습니다."),
+
+    // 6100-6199: 대기열 토큰 관련
+    WAITING_TOKEN_REQUIRED("6101", HttpStatus.BAD_REQUEST, "대기열 토큰이 필요합니다."),
+    WAITING_TOKEN_INVALID("6102", HttpStatus.BAD_REQUEST, "유효하지 않은 대기열 토큰입니다."),
+    WAITING_TOKEN_MISMATCH("6103", HttpStatus.BAD_REQUEST, "대기열 토큰이 일치하지 않습니다."),
+    DEVICE_ID_MISMATCH("6104", HttpStatus.BAD_REQUEST, "디바이스 ID가 일치하지 않습니다."),
+
+    // 6200-6299: 예매 세션 관련
+    BOOKING_SESSION_EXPIRED("6201", HttpStatus.UNAUTHORIZED, "예매 세션이 만료되었습니다."),
+    INVALID_BOOKING_SESSION("6202", HttpStatus.BAD_REQUEST, "유효하지 않은 예매 세션입니다."),
+    RESERVATION_ALREADY_EXISTS("6203", HttpStatus.CONFLICT, "진행 중인 예매가 이미 존재합니다."),
 
     // Auth 7000
     INVALID_CREDENTIALS("7001", HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."),

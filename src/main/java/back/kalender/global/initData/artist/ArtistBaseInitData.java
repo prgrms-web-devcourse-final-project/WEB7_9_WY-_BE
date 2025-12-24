@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-@Profile({"local", "dev"})
+@Profile({"prod", "dev"})
 @Order(0)
 @RequiredArgsConstructor
 @Slf4j

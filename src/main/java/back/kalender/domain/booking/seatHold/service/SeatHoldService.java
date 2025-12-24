@@ -73,7 +73,7 @@ public class SeatHoldService {
 
     private static final long LOCK_WAIT_TIME = 3;        // 락 획득 대기 시간 (초)
     private static final long LOCK_LEASE_TIME = 5;       // 락 자동 해제 시간 (초)
-    private static final long HOLD_TTL_SECONDS = 300;    // HOLD 만료 시간 (5분)
+    private static final long HOLD_TTL_SECONDS = 420;    // HOLD 만료 시간 (7분)
     private static final long CHANGES_TTL_SECONDS = 60;  // 변경 이벤트 TTL (60초)
 
     @Transactional
@@ -410,23 +410,45 @@ public class SeatHoldService {
         }
 
         Long currentVersion = Long.parseLong(currentVersionStr);
-        List<Map<String, Object>> changes = new ArrayList<>();
 
-        // sinceVersion+1 부터 현재 버전까지 변경 이벤트 조회
-        for(long v = sinceVersion + 1; v <= currentVersion; v++){
+        // 2. 버전 차이가 너무 크면 전체 새로고침 유도
+        long versionGap = currentVersion - sinceVersion;
+        if (versionGap > 100) {
+            log.warn("[SeatChange] 버전 차이 너무 큼 - gap={}, scheduleId={}",
+                    versionGap, scheduleId);
+
+            // 특수 응답: 프론트에 전체 좌석표 재조회 요청
+            Map<String, Object> refreshEvent = Map.of(
+                    "type", "FULL_REFRESH_REQUIRED",
+                    "currentVersion", currentVersion,
+                    "message", "Too many changes. Please refresh seat layout."
+            );
+            return List.of(refreshEvent);
+        }
+
+        // 3. 정상 범위: 최대 100개만 조회
+        List<Map<String, Object>> changes = new ArrayList<>();
+        long startVersion = sinceVersion + 1;
+        long endVersion = Math.min(currentVersion, sinceVersion + 100);
+
+        for (long v = startVersion; v <= endVersion; v++) {
             String changeKey = String.format(SEAT_CHANGES_KEY, scheduleId, v);
             String eventJson = redisTemplate.opsForValue().get(changeKey);
 
-            if(eventJson != null){
-                try{
+            if (eventJson != null) {
+                try {
                     @SuppressWarnings("unchecked")
-                    Map<String, Object> event = objectMapper.readValue(eventJson, Map.class);
+                    Map<String, Object> event = objectMapper.readValue(
+                            eventJson,
+                            Map.class
+                    );
                     event.put("version", v);
                     changes.add(event);
-                }catch(JsonProcessingException e){
-                    log.error("[SeatHold] 변경 이벤트 JSON 파싱 실패 - version={}", v, e);
+                } catch (JsonProcessingException e) {
+                    log.error("[SeatChange] JSON 파싱 실패 - version={}", v, e);
                 }
             }
+            // eventJson이 null이면 TTL 만료 → 스킵
         }
 
         return changes;

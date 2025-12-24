@@ -174,8 +174,7 @@ public class ChatRoomService {
 
         List<Long> senderIds = messages.stream()
                 .map(ChatMessage::getSenderId)
-                .distinct()
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
 
         Set<Long> leaderIds = messages.stream()
                 .filter(msg -> msg.getMessageType() == MessageType.KICK)
@@ -190,9 +189,12 @@ public class ChatRoomService {
         Map<Long, User> userMap = userRepository.findAllById(new ArrayList<>(allUserIds)).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
-        List<ChatHistoryResponse.ChatMessageDto> messageDtos = messages.stream()
-                .map(msg -> convertToDto(msg, userMap))
-                .toList();
+        List<ChatHistoryResponse.ChatMessageDto> messageDtos =
+                new ArrayList<>(
+                        messages.stream()
+                                .map(msg -> convertToDto(msg, userMap))
+                                .toList()
+                );
 
         Collections.reverse(messageDtos);
 
