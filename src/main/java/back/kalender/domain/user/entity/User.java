@@ -28,7 +28,7 @@ public class User extends BaseEntity {
     private String nickname;
 
     @Column(name = "profile_image")
-    private String profileImage;
+    private String profileImage; // S3 Object Key 저장
 
     private Gender gender;
 
@@ -44,8 +44,8 @@ public class User extends BaseEntity {
         this.nickname = nickname;
     }
 
-    public void updateProfileImage(String profileImage) {
-        this.profileImage = profileImage;
+    public void updateProfileImage(String profileImageKey) {
+        this.profileImage = profileImageKey;
     }
 
     public void updatePassword(String password) {
