@@ -16,6 +16,8 @@ import back.kalender.domain.booking.reservation.entity.Reservation;
 import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservation.service.ReservationService;
+import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
+import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -40,6 +43,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentIdempotencyRepository paymentIdempotencyRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationSeatRepository reservationSeatRepository;
     private final ReservationService reservationService;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
@@ -58,6 +62,27 @@ public class PaymentService {
             log.warn("[Payment] 예매 소유자 불일치 - reservationId: {}, 저장된 userId: {}, 요청 userId: {}",
                     request.reservationId(), reservation.getUserId(), userId);
             throw new ServiceException(ErrorCode.RESERVATION_NOT_FOUND);
+        }
+        
+        // 예매 상태 검증: HOLD 상태여야만 결제 생성 가능
+        if (reservation.getStatus() != ReservationStatus.HOLD) {
+            log.warn("[Payment] 예매 상태가 HOLD가 아님 - reservationId: {}, status: {}", 
+                    request.reservationId(), reservation.getStatus());
+            throw new ServiceException(ErrorCode.RESERVATION_NOT_HOLD);
+        }
+        
+        // 만료 여부 검증
+        if (reservation.isExpired()) {
+            log.warn("[Payment] 예매가 만료됨 - reservationId: {}, expiresAt: {}", 
+                    request.reservationId(), reservation.getExpiresAt());
+            throw new ServiceException(ErrorCode.RESERVATION_EXPIRED);
+        }
+        
+        // 실제로 홀드된 좌석이 있는지 확인
+        List<ReservationSeat> reservationSeats = reservationSeatRepository.findByReservationId(request.reservationId());
+        if (reservationSeats.isEmpty()) {
+            log.warn("[Payment] 홀드된 좌석이 없음 - reservationId: {}", request.reservationId());
+            throw new ServiceException(ErrorCode.NO_SEATS_HELD);
         }
         
         // Reservation의 totalAmount 사용 (클라이언트가 보낸 amount 무시)
