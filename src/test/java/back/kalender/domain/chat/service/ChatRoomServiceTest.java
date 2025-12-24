@@ -322,9 +322,8 @@ class ChatRoomServiceTest {
     class GetChatHistoryTest {
 
         @Test
-        @DisplayName("성공: 채팅 히스토리를 오래된 순으로 반환하고 페이징 정보를 포함한다")
+        @DisplayName("성공: 채팅 히스토리를 최신 순으로 반환하고 페이징 정보를 포함한다")
         void getChatHistory_Success() throws Exception {
-            
             Long partyId = 1L;
             String userEmail = "test@example.com";
 
@@ -337,7 +336,7 @@ class ChatRoomServiceTest {
             setCreatedAt(newMessage, LocalDateTime.now().minusMinutes(5));
 
             Page<ChatMessage> messagePage = new PageImpl<>(
-                    List.of(newMessage, oldMessage),
+                    List.of(newMessage, oldMessage),  // ← 최신(2L)이 먼저
                     PageRequest.of(0, 20),
                     2
             );
@@ -350,11 +349,9 @@ class ChatRoomServiceTest {
             given(userRepository.findAllById(anyList()))
                     .willReturn(List.of(testUser, otherUser));
 
-            
             ChatHistoryResponse response = chatRoomService.getChatHistory(
                     partyId, 0, 20, userEmail);
 
-            
             assertThat(response).isNotNull();
             assertThat(response.partyId()).isEqualTo(partyId);
             assertThat(response.messages()).hasSize(2);
@@ -364,10 +361,11 @@ class ChatRoomServiceTest {
             assertThat(response.totalMessages()).isEqualTo(2);
             assertThat(response.hasNext()).isFalse();
 
-            assertThat(response.messages().get(0).messageId()).isEqualTo(1L);
-            assertThat(response.messages().get(0).message()).isEqualTo("첫 번째 메시지");
-            assertThat(response.messages().get(1).messageId()).isEqualTo(2L);
-            assertThat(response.messages().get(1).message()).isEqualTo("두 번째 메시지");
+            assertThat(response.messages().get(0).messageId()).isEqualTo(2L);
+            assertThat(response.messages().get(0).message()).isEqualTo("두 번째 메시지");
+
+            assertThat(response.messages().get(1).messageId()).isEqualTo(1L);
+            assertThat(response.messages().get(1).message()).isEqualTo("첫 번째 메시지");
 
             then(userRepository).should().findAllById(anyList());
         }
