@@ -1,5 +1,7 @@
 package back.kalender.domain.booking.waitingRoom.service;
 
+import back.kalender.global.exception.ErrorCode;
+import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -21,7 +23,7 @@ public class QueueAccessService {
                 .score(activeKey(scheduleId), bookingSessionId) != null;
 
         if (!allowed) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS);
+            throw new ServiceException(ErrorCode.BOOKING_SESSION_EXPIRED);
         }
     }
 
@@ -30,7 +32,7 @@ public class QueueAccessService {
 
         Double score = redisTemplate.opsForZSet().score(key, bookingSessionId);
         if (score == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+            throw new ServiceException(ErrorCode.INVALID_BOOKING_SESSION);
         }
 
         redisTemplate.opsForZSet().add(key, bookingSessionId, System.currentTimeMillis());

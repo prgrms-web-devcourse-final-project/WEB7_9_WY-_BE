@@ -33,10 +33,6 @@ public class QueueController implements QueueControllerSpec {
         return ResponseEntity.ok(queueService.status(scheduleId, qsid));
     }
 
-    /**
-     * ✅ B안 기준: active는 bookingSessionId를 멤버로 관리
-     * - 좌석/배송지 화면 등 "예매 플로우"에서 프론트가 주기적으로 호출
-     */
     @PostMapping("/ping/{scheduleId}")
     public void ping(
             @PathVariable Long scheduleId,
