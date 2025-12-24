@@ -72,7 +72,6 @@ public class ReservationService {
     @Transactional
     public CreateReservationResponse createReservation(
             Long scheduleId,
-            CreateReservationRequest request,
             Long userId,
             String bookingSessionId
 

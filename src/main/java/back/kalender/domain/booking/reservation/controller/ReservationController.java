@@ -1,12 +1,10 @@
 package back.kalender.domain.booking.reservation.controller;
 
-import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
 import back.kalender.domain.booking.reservation.dto.response.*;
 import back.kalender.domain.booking.reservation.service.ReservationService;
-import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +26,10 @@ public class ReservationController implements ReservationControllerSpec {
     public ResponseEntity<CreateReservationResponse> createReservation(
             @PathVariable Long scheduleId,
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
-            @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         CreateReservationResponse response = reservationService.createReservation(
                 scheduleId,
-                request,
                 userDetails.getUserId(),
                 bookingSessionId
         );
