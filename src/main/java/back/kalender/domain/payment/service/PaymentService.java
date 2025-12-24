@@ -13,7 +13,9 @@ import back.kalender.domain.payment.mapper.PaymentMapper;
 import back.kalender.domain.payment.repository.PaymentIdempotencyRepository;
 import back.kalender.domain.payment.repository.PaymentRepository;
 import back.kalender.domain.booking.reservation.entity.Reservation;
+import back.kalender.domain.booking.reservation.entity.ReservationStatus;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
+import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentIdempotencyRepository paymentIdempotencyRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationService reservationService;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
     private final OutboxEventService outboxEventService;
@@ -239,18 +242,24 @@ public class PaymentService {
             Payment approvedPayment = paymentRepository.findById(paymentId)
                     .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
             
-            // TODO: 다른 브랜치 작업 - markSeatsAsSold 함수는 다른 도메인에 구현될 예정
-            // markSeatsAsSold 함수가 호출되면 Reservation 상태 변경도 함께 처리됨
             // 결제 승인 후 예매된 좌석들을 SOLD 상태로 변경
-            // try {
-            //     // 다른 도메인의 서비스에서 markSeatsAsSold 함수 호출
-            //     // 예: seatHoldService.markSeatsAsSold(reservation.getId(), reservation.getPerformanceScheduleId());
-            //     // 또는 reservationService.markSeatsAsSold(reservation.getId(), reservation.getPerformanceScheduleId());
-            // } catch (Exception e) {
-            //     // 좌석 상태 변경 실패는 로그만 남기고 결제는 유지 (보상 트랜잭션 고려 필요)
-            //     log.error("[Payment] 좌석 SOLD 상태 변경 실패 - reservationId: {}, paymentId: {}", 
-            //             approvedPayment.getReservationId(), paymentId, e);
-            // }
+            try {
+                Reservation reservation = reservationRepository.findById(approvedPayment.getReservationId())
+                        .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+                
+                // 좌석을 SOLD로 표시
+                reservationService.markSeatsAsSold(
+                        reservation.getPerformanceScheduleId(),
+                        reservation.getId()
+                );
+                
+                log.info("[Payment] 좌석 SOLD 처리 - reservationId: {}, paymentId: {}", 
+                        approvedPayment.getReservationId(), paymentId);
+            } catch (Exception e) {
+                // 좌석 상태 변경 실패는 로그만 남기고 결제는 유지
+                log.error("[Payment] 좌석 SOLD 상태 변경 실패 - reservationId: {}, paymentId: {}", 
+                        approvedPayment.getReservationId(), paymentId, e);
+            }
             
             PaymentConfirmResponse response = PaymentMapper.toConfirmResponse(approvedPayment);
             
