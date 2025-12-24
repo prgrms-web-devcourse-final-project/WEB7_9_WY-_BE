@@ -39,10 +39,10 @@ class NotificationSchedulerTest {
         LocalDateTime fixedTime = LocalDateTime.of(2025, 12, 25, 18, 0);
 
         NotificationTarget subscribedTarget = new NotificationTarget(
-                1L, null, "BTS 콘서트", ScheduleCategory.CONCERT, fixedTime
+                1L, "BTS 콘서트", ScheduleCategory.CONCERT, fixedTime
         );
 
-        given(scheduleAlarmRepository.findNotificationTargets(any(), any()))
+        given(scheduleAlarmRepository.findScheduleNotificationTargets(any(), any()))
                 .willReturn(List.of(subscribedTarget));
 
         notificationScheduler.sendScheduledNotifications();
@@ -59,7 +59,7 @@ class NotificationSchedulerTest {
     @Test
     @DisplayName("파티에 참여했더라도 '알림 받기'를 신청하지 않았다면 알림이 오지 않아야 한다")
     void sendScheduledNotifications_NoAlarm_IfNotSubscribed() {
-        given(scheduleAlarmRepository.findNotificationTargets(any(), any()))
+        given(scheduleAlarmRepository.findScheduleNotificationTargets(any(), any()))
                 .willReturn(List.of());
 
         notificationScheduler.sendScheduledNotifications();
