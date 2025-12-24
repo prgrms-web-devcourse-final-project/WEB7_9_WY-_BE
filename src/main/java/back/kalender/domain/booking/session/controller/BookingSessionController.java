@@ -1,5 +1,7 @@
 package back.kalender.domain.booking.session.controller;
 
+import back.kalender.domain.booking.session.dto.request.BookingSessionCreateRequest;
+import back.kalender.domain.booking.session.dto.response.BookingSessionCreateResponse;
 import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.global.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -36,7 +38,7 @@ public class BookingSessionController {
     public ResponseEntity<Void> ping(
             @PathVariable Long scheduleId,
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
-    ) {ㄴ
+    ) {
         bookingSessionService.ping(scheduleId, bookingSessionId);
         return ResponseEntity.ok().build();
     }

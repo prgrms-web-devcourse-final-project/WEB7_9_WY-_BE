@@ -1,7 +1,6 @@
 package back.kalender.domain.booking.reservation.controller;
 
 
-import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;

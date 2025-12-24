@@ -48,19 +48,19 @@ public class BookingSessionService {
         redisTemplate.opsForValue().set(
                 BOOKING_SESSION_KEY_PREFIX + bookingSessionId,
                 scheduleId.toString(),
-                30, TimeUnit.MINUTES
+                BOOKING_SESSION_TTL
         );
 
         redisTemplate.opsForValue().set(
                 BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId,
                 deviceId,
-                30, TimeUnit.MINUTES
+                BOOKING_SESSION_TTL
         );
 
         redisTemplate.opsForValue().set(
                 BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId,
                 bookingSessionId,
-                30, TimeUnit.MINUTES
+                BOOKING_SESSION_TTL
         );
 
         // 5. Active 추가
@@ -69,6 +69,9 @@ public class BookingSessionService {
                 bookingSessionId,
                 System.currentTimeMillis()
         );
+
+        log.info("[BookingSession] 생성 + Active 진입 - userId={}, scheduleId={}, sessionId={}",
+                userId, scheduleId, bookingSessionId);
 
         // 6. waitingToken 소비
         redisTemplate.delete("waiting:" + waitingToken);

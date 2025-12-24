@@ -3,7 +3,6 @@ package back.kalender.domain.booking.reservation.service;
 import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
 import back.kalender.domain.booking.performanceSeat.entity.SeatStatus;
 import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
-import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
@@ -23,7 +22,6 @@ import back.kalender.domain.performance.performanceHall.repository.PerformanceHa
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.priceGrade.repository.PriceGradeRepository;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
-import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
