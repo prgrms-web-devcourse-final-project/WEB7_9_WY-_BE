@@ -15,6 +15,7 @@ import back.kalender.domain.booking.reservation.repository.ReservationRepository
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.service.SeatHoldService;
+import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
@@ -63,6 +64,7 @@ public class ReservationService {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
     private final ReservationMapper reservationMapper;
+    private final BookingSessionService bookingSessionService;
 
     private static final int CANCEL_DEADLINE_HOURS = 1;
 
@@ -71,19 +73,25 @@ public class ReservationService {
     public CreateReservationResponse createReservation(
             Long scheduleId,
             CreateReservationRequest request,
-            Long userId
+            Long userId,
+            String bookingSessionId
+
     ) {
-        // 1. Schedule 조회 및 검증
-         PerformanceSchedule schedule = scheduleRepository.findById(scheduleId)
-             .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+        // 1. BookingSession 검증
+        bookingSessionService.validateForSchedule(bookingSessionId, scheduleId);
 
-         if(schedule.getStatus() != ScheduleStatus.AVAILABLE) {
-             throw new ServiceException(ErrorCode.SCHEDULE_NOT_AVAILABLE);
-         }
-        // TODO: 대기열 토큰 검증
-        // TODO: Schedule 상태 검증 (예매 가능한 상태인지)
+        // 2. 기존에 진행중인 예매 세션이 있는지 확인 (HOLD/PENDING)
+        boolean exists = reservationRepository.existsByUserIdAndPerformanceScheduleIdAndStatusIn(
+                userId,
+                scheduleId,
+                ReservationStatus.activeStatuses()
+        );
 
-        // 2. Reservation 엔티티 생성 및 저장
+        if(exists){
+            throw new ServiceException(ErrorCode.RESERVATION_ALREADY_EXISTS);
+        }
+
+        // 3. Reservation 엔티티 생성 및 저장
         Reservation reservation = Reservation.create(userId, scheduleId);
         Reservation savedReservation = reservationRepository.save(reservation);
 
@@ -494,10 +502,120 @@ public class ReservationService {
         );
     }
 
+    // 예매 만료 처리 - 스케줄러에서 호출
+    @Transactional
+    public void expireReservationAndReleaseSeats(Long reservationId, Long userId) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        // userId가 null이 아닐 때만 권한 체크
+        if (userId != null && !reservation.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+        Long scheduleId = reservation.getPerformanceScheduleId();
+
+        // 2. HOLD 좌석 조회
+        List<ReservationSeat> reservationSeats =
+                reservationSeatRepository.findByReservationId(reservationId);
+
+        if (reservationSeats.isEmpty()) {
+            log.warn("[Reservation] 해제할 좌석 없음 - reservationId={}", reservationId);
+            reservation.expire();
+            reservationRepository.save(reservation);
+            return;
+        }
+
+        List<Long> seatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        // 3. DB 좌석 상태 복구
+        List<PerformanceSeat> seats = performanceSeatRepository.findAllById(seatIds);
+        for (PerformanceSeat seat : seats) {
+            if (seat.getStatus() == SeatStatus.HOLD) {
+                seat.updateStatus(SeatStatus.AVAILABLE);
+                seat.clearHoldInfo();
+            }
+        }
+        performanceSeatRepository.saveAll(seats);
+
+        // 4. Redis HOLD owner 키 삭제
+        for (Long seatId : seatIds) {
+            String holdOwnerKey = String.format(
+                    "seat:hold:owner:%d:%d",
+                    scheduleId,
+                    seatId
+            );
+            redisTemplate.delete(holdOwnerKey);
+
+            // 폴링 이벤트 발행
+            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, null);
+        }
+
+        // 5. Reservation 만료
+        reservation.expire();
+        reservationRepository.save(reservation);
+
+        // 6. ReservationSeat 삭제 (선택)
+        // reservationSeatRepository.deleteByReservationId(reservationId);
+
+        log.info("[Reservation] 예매 만료 처리 완료 - reservationId={}, seatCount={}",
+                reservationId, seatIds.size());
+    }
+
     private Reservation findAndValidateReservation(Long reservationId, Long userId) {
         Reservation r = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
         if (!r.isOwnedBy(userId)) throw new ServiceException(ErrorCode.UNAUTHORIZED);
         return r;
+    }
+
+    /**
+     * TODO: 결제 완료 시 좌석을 SOLD로 표시 (C파트에서 호출)
+     */
+    @Transactional
+    public void markSeatsAsSold(Long scheduleId, Long reservationId) {
+        // 1. ReservationSeat 조회
+        List<ReservationSeat> seats = reservationSeatRepository
+                .findByReservationId(reservationId);
+
+        List<Long> seatIds = seats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        // 2. DB: HOLD → SOLD
+        List<PerformanceSeat> performanceSeats =
+                performanceSeatRepository.findAllById(seatIds);
+
+        for (PerformanceSeat seat : performanceSeats) {
+            seat.updateStatus(SeatStatus.SOLD);
+            seat.clearHoldInfo(); // holdUserId, holdExpiredAt 제거
+        }
+        performanceSeatRepository.saveAll(performanceSeats);
+
+        // 3. Redis: HOLD owner 삭제 + SOLD set 추가
+        String soldSetKey = String.format("seat:sold:%d", scheduleId);
+
+        for (Long seatId : seatIds) {
+            // HOLD owner 키 삭제
+            String holdOwnerKey = String.format(
+                    "seat:hold:owner:%d:%d",
+                    scheduleId,
+                    seatId
+            );
+            redisTemplate.delete(holdOwnerKey);
+
+            // SOLD set에 추가
+            redisTemplate.opsForSet().add(
+                    soldSetKey,
+                    seatId.toString()
+            );
+
+            // 변경 이벤트 발행
+            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.SOLD, null);
+        }
+
+        log.info("[Reservation] 좌석 SOLD 처리 완료 - reservationId={}, seatCount={}",
+                reservationId, seatIds.size());
     }
 }

@@ -23,7 +23,10 @@ public record HoldSeatsResponse(
         LocalDateTime expiresAt,
 
         @Schema(description = "남은 시간(초)", example = "280")
-        Long remainingSeconds
+        Long remainingSeconds,
+
+        @Schema(description = "선점된 좌석 개수")
+        int heldSeatCount
 ) {
     @Schema(description = "선점된 좌석 정보")
     public record HeldSeatInfo(

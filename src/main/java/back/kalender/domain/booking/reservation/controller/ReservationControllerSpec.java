@@ -27,8 +27,7 @@ public interface ReservationControllerSpec {
     @Operation(
             summary = "예매 세션 생성",
             description = """
-                    대기열 통과 후 예약 세션을 생성합니다.
-                    - 대기열 토큰 검증 후 5분간 유효한 예매 세션 생성
+                    대기열 통과 후 예매 세션을 생성합니다.
                     - 생성 즉시 좌석 선택 가능 (PENDING 상태)
                     """
     )
@@ -79,6 +78,7 @@ public interface ReservationControllerSpec {
     @PostMapping("/schedule/{scheduleId}/reservation")
     ResponseEntity<CreateReservationResponse> createReservation(
             @Parameter(description = "공연 회차 ID") @PathVariable Long scheduleId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -200,6 +200,7 @@ public interface ReservationControllerSpec {
     @PostMapping("/reservation/{reservationId}/seats:hold")
     ResponseEntity<HoldSeatsResponse> holdSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @Valid @RequestBody HoldSeatsRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
@@ -247,6 +248,7 @@ public interface ReservationControllerSpec {
     ResponseEntity<ReleaseSeatsResponse> releaseSeats(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody ReleaseSeatsRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
@@ -272,6 +274,7 @@ public interface ReservationControllerSpec {
     @GetMapping("/reservation/{reservationId}/summary")
     ResponseEntity<ReservationSummaryResponse> getReservationSummary(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
@@ -329,6 +332,7 @@ public interface ReservationControllerSpec {
     ResponseEntity<UpdateDeliveryInfoResponse> updateDeliveryInfo(
             @Parameter(description = "예매 ID") @PathVariable Long reservationId,
             @Valid @RequestBody UpdateDeliveryInfoRequest request,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
@@ -414,8 +418,9 @@ public interface ReservationControllerSpec {
             @PathVariable Long scheduleId,
 
             @Parameter(description = "마지막으로 받은 버전 (0부터 시작)", example = "0")
-            @RequestParam(defaultValue = "0") Long sinceVersion
-    );
+            @RequestParam(defaultValue = "0") Long sinceVersion,
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+            );
 
     @Operation(
             summary = "내 예매 내역 조회",
