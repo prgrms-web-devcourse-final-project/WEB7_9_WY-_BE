@@ -70,9 +70,13 @@ public enum ErrorCode {
 
     // 6100-6199: 대기열 토큰 관련
     WAITING_TOKEN_REQUIRED("6101", HttpStatus.BAD_REQUEST, "대기열 토큰이 필요합니다."),
-    WAITING_TOKEN_INVALID("6102", HttpStatus.BAD_REQUEST, "유효하지 않은 대기열 토큰입니다."),
+    INVALID_WAITING_TOKEN("6102", HttpStatus.BAD_REQUEST, "유효하지 않은 대기열 토큰입니다."),
     WAITING_TOKEN_MISMATCH("6103", HttpStatus.BAD_REQUEST, "대기열 토큰이 일치하지 않습니다."),
     DEVICE_ID_MISMATCH("6104", HttpStatus.BAD_REQUEST, "디바이스 ID가 일치하지 않습니다."),
+    SCHEDULE_MISMATCH("6105", HttpStatus.BAD_REQUEST, "회차가 일치하지 않습니다."),
+    QSID_EXPIRED("6106", HttpStatus.BAD_REQUEST, "만료된 QSID입니다."),
+    DEVICE_ALREADY_USED("6107", HttpStatus.CONFLICT, "이미 다른 기기로 접속중인 세션이 있습니다."),
+    NOT_IN_ACTIVE("6108", HttpStatus.BAD_REQUEST, "ACTIVE 상태가 아닙니다."),
 
     // 6200-6299: 예매 세션 관련
     BOOKING_SESSION_EXPIRED("6201", HttpStatus.UNAUTHORIZED, "예매 세션이 만료되었습니다."),

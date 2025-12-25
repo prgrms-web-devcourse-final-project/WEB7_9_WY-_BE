@@ -1,7 +1,6 @@
 package back.kalender.domain.booking.reservation.controller;
 
 
-import back.kalender.domain.booking.reservation.dto.request.CreateReservationRequest;
 import back.kalender.domain.booking.reservation.dto.request.HoldSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.ReleaseSeatsRequest;
 import back.kalender.domain.booking.reservation.dto.request.UpdateDeliveryInfoRequest;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public interface ReservationControllerSpec {
 
     @Operation(
-            summary = "예매 세션 생성",
+            summary = "예매 생성",
             description = """
                     대기열 통과 후 예매 세션을 생성합니다.
                     - 생성 즉시 좌석 선택 가능 (PENDING 상태)
@@ -79,7 +78,6 @@ public interface ReservationControllerSpec {
     ResponseEntity<CreateReservationResponse> createReservation(
             @Parameter(description = "공연 회차 ID") @PathVariable Long scheduleId,
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
-            @Valid @RequestBody CreateReservationRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 
