@@ -1,10 +1,11 @@
-package back.kalender.domain.notification.scheduler;
+package back.kalender.domain.notification.schedular;
 
 import back.kalender.domain.notification.enums.NotificationType;
+import back.kalender.domain.notification.scheduler.NotificationScheduler;
 import back.kalender.domain.notification.service.NotificationService;
 import back.kalender.domain.party.dto.query.NotificationTarget;
-import back.kalender.domain.party.repository.PartyRepository;
 import back.kalender.domain.schedule.enums.ScheduleCategory;
+import back.kalender.domain.schedule.repository.ScheduleAlarmRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,27 +31,19 @@ class NotificationSchedulerTest {
     private NotificationService notificationService;
 
     @Mock
-    private PartyRepository partyRepository;
+    private ScheduleAlarmRepository scheduleAlarmRepository;
 
     @Test
-    @DisplayName("카테고리별(생일, 기념일, 일반)로 알림 메시지가 다르게 발송되어야 한다")
-    void sendScheduledNotifications_ShouldSendDifferentMessagesByCategory() {
-        LocalDateTime fixedTime = LocalDateTime.of(2024, 12, 25, 0, 0);
+    @DisplayName("알림 받기를 신청한 유저에게는 정상적으로 일정 알림이 전송된다")
+    void sendScheduledNotifications_Success() {
+        LocalDateTime fixedTime = LocalDateTime.of(2025, 12, 25, 18, 0);
 
-        NotificationTarget birthdayTarget = new NotificationTarget(
-                1L, 100L, "지민 생일", ScheduleCategory.BIRTHDAY, fixedTime
+        NotificationTarget subscribedTarget = new NotificationTarget(
+                1L, "BTS 콘서트", ScheduleCategory.CONCERT, fixedTime
         );
 
-        NotificationTarget anniversaryTarget = new NotificationTarget(
-                2L, 200L, "데뷔 10주년", ScheduleCategory.ANNIVERSARY, fixedTime
-        );
-
-        NotificationTarget concertTarget = new NotificationTarget(
-                3L, 300L, "흠뻑쇼", ScheduleCategory.CONCERT, fixedTime
-        );
-
-        given(partyRepository.findNotificationTargets(any(), any()))
-                .willReturn(List.of(birthdayTarget, anniversaryTarget, concertTarget));
+        given(scheduleAlarmRepository.findScheduleNotificationTargets(any(), any()))
+                .willReturn(List.of(subscribedTarget));
 
         notificationScheduler.sendScheduledNotifications();
 
@@ -58,37 +51,18 @@ class NotificationSchedulerTest {
                 eq(1L),
                 eq(NotificationType.EVENT_REMINDER),
                 anyString(),
-                eq("오늘은 지민 생일입니다. 다함께 축하해주세요! 🎂"),
-                contains("/party/100")
+                eq("오늘 18시 00분에 BTS 콘서트 일정이 있습니다!")
         );
-
-        verify(notificationService).send(
-                eq(2L),
-                eq(NotificationType.EVENT_REMINDER),
-                anyString(),
-                eq("오늘은 데뷔 10주년입니다. 다함께 축하해주세요! 🎂"),
-                contains("/party/200")
-        );
-
-        verify(notificationService).send(
-                eq(3L),
-                eq(NotificationType.EVENT_REMINDER),
-                anyString(),
-                eq("오늘 00시 00분에 흠뻑쇼 일정이 있습니다!"),
-                contains("/party/300")
-        );
-
-        verify(notificationService, times(3)).send(any(), any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("알림 대상이 없으면 서비스 호출 없이 종료되어야 한다")
-    void sendScheduledNotifications_WhenNoTargets_ShouldNotCallService() {
-        given(partyRepository.findNotificationTargets(any(), any()))
+    @DisplayName("파티에 참여했더라도 '알림 받기'를 신청하지 않았다면 알림이 오지 않아야 한다")
+    void sendScheduledNotifications_NoAlarm_IfNotSubscribed() {
+        given(scheduleAlarmRepository.findScheduleNotificationTargets(any(), any()))
                 .willReturn(List.of());
 
         notificationScheduler.sendScheduledNotifications();
 
-        verify(notificationService, times(0)).send(any(), any(), any(), any(), any());
+        verify(notificationService, times(0)).send(any(), any(), any(), any());
     }
 }

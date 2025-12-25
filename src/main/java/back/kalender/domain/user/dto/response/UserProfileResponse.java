@@ -13,11 +13,11 @@ public record UserProfileResponse(
         Integer age,
         Gender gender
 ) {
-    public static UserProfileResponse from(User user) {
+    public static UserProfileResponse from(User user, String profileImageUrl) {
         return new UserProfileResponse(
                 user.getEmail(),
                 user.getNickname(),
-                user.getProfileImage(),
+                profileImageUrl,
                 user.getLevel(),
                 user.getAge(),
                 user.getGender()
