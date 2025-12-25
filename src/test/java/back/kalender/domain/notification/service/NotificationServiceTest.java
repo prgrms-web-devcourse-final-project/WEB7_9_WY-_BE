@@ -4,19 +4,24 @@ import back.kalender.domain.notification.entity.Notification;
 import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.repository.EmitterRepository;
 import back.kalender.domain.notification.repository.NotificationRepository;
+import back.kalender.domain.notification.response.NotificationResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -92,5 +97,36 @@ class NotificationServiceTest {
         verify(emitterRepository, times(2)).saveEventCache(anyString(), any(Notification.class));
 
         verify(emitterRepository, times(1)).findAllEmitterStartWithByMemberId(String.valueOf(userId));
+    }
+
+    @Test
+    @DisplayName("알림 목록 조회 - 리포지토리 결과를 DTO로 변환하여 반환한다")
+    void getNotifications_Success() {
+        Long userId = 1L;
+        Notification n1 = new Notification(userId, NotificationType.APPLY, "T1", "C1");
+        Notification n2 = new Notification(userId, NotificationType.ACCEPT, "T2", "C2");
+
+        n2.markAsRead();
+
+        Page<Notification> entityPage = new PageImpl<>(List.of(n1, n2));
+        given(notificationRepository.findAllByUserIdOrderByCreatedAtDesc(eq(userId), any()))
+                .willReturn(entityPage);
+
+        Page<NotificationResponse> result = notificationService.getNotifications(userId, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getContent().get(0).title()).isEqualTo("T1");
+        assertThat(result.getContent().get(0).isRead()).isFalse(); // n1은 안 읽음
+        assertThat(result.getContent().get(1).isRead()).isTrue();  // n2는 읽음
+    }
+
+    @Test
+    @DisplayName("알림 전체 읽음 처리 - 리포지토리의 markAllAsRead를 호출한다")
+    void readAllNotifications_Success() {
+        Long userId = 1L;
+
+        notificationService.readAllNotifications(userId);
+
+        verify(notificationRepository).markAllAsRead(userId);
     }
 }
