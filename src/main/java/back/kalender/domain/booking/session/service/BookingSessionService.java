@@ -180,6 +180,14 @@ public class BookingSessionService {
         redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
         redisTemplate.delete(BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId);
         redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId);
+
+        redisTemplate.opsForZSet().remove(
+                "active:" + scheduleId,
+                bookingSessionId
+        );
+
+        log.info("[BookingSession] 삭제 완료 - sessionId={}, userId={}, scheduleId={}",
+                bookingSessionId, userId, scheduleId);
     }
 
     private String checkExistingSession(
