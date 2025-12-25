@@ -19,9 +19,6 @@ public record NotificationResponse(
     @Schema(description = "알림 내용", example = "오늘 8시에 BTS 콘서트 일정이 있습니다.")
     String content,
 
-    @Schema(description = "클릭시 이동할 URL", example = "/events/1")
-    String targetUrl,
-
     @Schema(description = "읽음 여부", example = "false")
     Boolean isRead,
 
@@ -34,7 +31,6 @@ public record NotificationResponse(
                 notification.getNotificationType(),
                 notification.getTitle(),
                 notification.getContent(),
-                notification.getTargetUrl(),
                 notification.getIsRead(),
                 notification.getCreatedAt()
         );

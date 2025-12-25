@@ -1,10 +1,17 @@
 package back.kalender.domain.notification.controller;
 
 import back.kalender.domain.notification.enums.NotificationType;
+import back.kalender.domain.notification.response.NotificationResponse;
 import back.kalender.domain.notification.service.NotificationService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -23,5 +30,23 @@ public class NotificationController implements NotificationControllerSpec {
         @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     ) {
         return notificationService.subscribe(userId, lastEventId);
+    }
+
+    @Override
+    @GetMapping
+    public ResponseEntity<Page<NotificationResponse>> getNotifications(
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(notificationService.getNotifications(userId, pageable));
+    }
+
+
+    @PatchMapping("/read-all")
+    public ResponseEntity<Void> readAllNotifications(
+            @AuthenticationPrincipal(expression = "userId") Long userId
+    ) {
+        notificationService.readAllNotifications(userId);
+        return ResponseEntity.ok().build();
     }
 }

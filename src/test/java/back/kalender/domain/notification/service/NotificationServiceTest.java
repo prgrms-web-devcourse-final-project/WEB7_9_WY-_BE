@@ -76,7 +76,7 @@ class NotificationServiceTest {
         Long userId = 1L;
         String notificationContent = "알림 내용";
 
-        Notification notification = new Notification(userId, NotificationType.APPLY, "제목", notificationContent, "/url");
+        Notification notification = new Notification(userId, NotificationType.APPLY, "제목", notificationContent);
 
         Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
         emitters.put(userId + "_1", new SseEmitter());
@@ -85,7 +85,7 @@ class NotificationServiceTest {
         given(notificationRepository.save(any(Notification.class))).willReturn(notification);
         given(emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId))).willReturn(emitters);
 
-        notificationService.send(userId, NotificationType.APPLY, "제목", notificationContent, "/url");
+        notificationService.send(userId, NotificationType.APPLY, "제목", notificationContent);
 
         verify(notificationRepository, times(1)).save(any(Notification.class));
 

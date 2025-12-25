@@ -73,8 +73,7 @@ public class NotificationScheduler {
                 target.userId(),
                 NotificationType.EVENT_REMINDER,
                 title,
-                content,
-                url
+                content
         );
     }
 }

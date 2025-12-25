@@ -1,14 +1,21 @@
 package back.kalender.domain.notification.controller;
 
+import back.kalender.domain.notification.response.NotificationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -92,4 +99,18 @@ public interface NotificationControllerSpec {
             @AuthenticationPrincipal(expression = "userId") Long userId,
             @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     );
+
+    @Operation(summary = "알림 목록 조회", description = "로그인한 사용자의 알림 목록을 최신순으로 조회합니다.")
+    @GetMapping
+    public ResponseEntity<Page<NotificationResponse>> getNotifications(
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    );
+
+    @Operation(summary = "알림 전체 읽음 처리", description = "사용자의 안 읽은 알림을 모두 읽음 상태(true)로 변경합니다. (알림 버튼 클릭 시 호출)")
+    @PatchMapping("/read-all")
+    public ResponseEntity<Void> readAllNotifications(
+            @AuthenticationPrincipal(expression = "userId") Long userId
+    );
+
 }
