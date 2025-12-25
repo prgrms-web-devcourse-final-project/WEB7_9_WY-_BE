@@ -59,7 +59,6 @@ public interface NotificationControllerSpec {
                                               "type": "APPLY",
                                               "title": "파티 신청 알림",
                                               "content": "홍길동(24/남)님이 파티를 신청했습니다.",
-                                              "targetUrl": "/parties/100",
                                               "isRead": false,
                                               "createdAt": "2024-12-17T10:00:00"
                                             }

@@ -85,9 +85,8 @@ public class NotificationBaseInitData implements ApplicationRunner {
 
             String timeStr = schedule.getScheduleTime().toLocalTime().toString();
             String content = String.format("오늘 %s에 %s 일정이 있습니다!", timeStr, schedule.getTitle());
-            String url = "/schedule/" + schedule.getTitle();
 
-            saveNotification(user.getId(), NotificationType.EVENT_REMINDER, "오늘의 일정 알림", content, url);
+            saveNotification(user.getId(), NotificationType.EVENT_REMINDER, "오늘의 일정 알림", content);
             cnt++;
         }
         return cnt;
@@ -111,9 +110,7 @@ public class NotificationBaseInitData implements ApplicationRunner {
         String content = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
                 applicant.getNickname(), applicant.getAge(), applicant.getGender(), myParty.getPartyName());
 
-        String url = "/party/" + myParty.getId();
-
-        saveNotification(user.getId(), NotificationType.APPLY, "새로운 파티 신청", content, url);
+        saveNotification(user.getId(), NotificationType.APPLY, "새로운 파티 신청", content);
         return 1;
     }
 
@@ -124,14 +121,13 @@ public class NotificationBaseInitData implements ApplicationRunner {
 
         if (random.nextBoolean()) {
             String content = String.format("'%s' 파티 신청이 수락되었습니다.", party.getPartyName());
-            String url = "/party/" + party.getId();
-            saveNotification(user.getId(), NotificationType.ACCEPT, "파티 수락 알림", content, url);
+            saveNotification(user.getId(), NotificationType.ACCEPT, "파티 수락 알림", content);
             cnt++;
         }
 
         if (random.nextInt(10) < 3) {
             String content = String.format("'%s' 파티 신청이 거절되었습니다.", party.getPartyName());
-            saveNotification(user.getId(), NotificationType.REJECT, "파티 거절 알림", content, null);
+            saveNotification(user.getId(), NotificationType.REJECT, "파티 거절 알림", content);
             cnt++;
         }
         return cnt;
@@ -144,14 +140,13 @@ public class NotificationBaseInitData implements ApplicationRunner {
         Party party = parties.get(random.nextInt(parties.size()));
 
         String content = String.format("\"%s\" 파티에서 강퇴되었습니다. 참여자들을 평가해주세요.", party.getPartyName());
-        String url = "/reviews/party/" + party.getId();
 
-        saveNotification(user.getId(), NotificationType.KICK, "파티에서 강퇴되었습니다", content, url);
+        saveNotification(user.getId(), NotificationType.KICK, "파티에서 강퇴되었습니다", content);
         return 1;
     }
 
-    private void saveNotification(Long userId, NotificationType type, String title, String content, String url) {
-        Notification notification = new Notification(userId, type, title, content, url);
+    private void saveNotification(Long userId, NotificationType type, String title, String content) {
+        Notification notification = new Notification(userId, type, title, content);
 
         if (random.nextBoolean()) {
             notification.markAsRead();
