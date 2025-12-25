@@ -36,13 +36,16 @@ public class BookingSessionService {
         // 2. deviceId 검증 (대기열 진입 기기 = 예매 기기)
         validateDevice(qsid, deviceId);
 
-        // 3. 중복 세션 확인
+        // 3. waitingToken 소비
+        redisTemplate.delete("waiting:" + waitingToken);
+
+        // 4. 중복 세션 확인
         String existingSession = checkExistingSession(userId, scheduleId, deviceId);
         if (existingSession != null) {
             return existingSession;
         }
 
-        // 4. BookingSession 생성
+        // 5. BookingSession 생성
         String bookingSessionId = UUID.randomUUID().toString();
 
         redisTemplate.opsForValue().set(
@@ -63,7 +66,7 @@ public class BookingSessionService {
                 BOOKING_SESSION_TTL
         );
 
-        // 5. Active 추가
+        // 6. Active 추가
         redisTemplate.opsForZSet().add(
                 "active:" + scheduleId,
                 bookingSessionId,
@@ -72,9 +75,6 @@ public class BookingSessionService {
 
         log.info("[BookingSession] 생성 + Active 진입 - userId={}, scheduleId={}, sessionId={}",
                 userId, scheduleId, bookingSessionId);
-
-        // 6. waitingToken 소비
-        redisTemplate.delete("waiting:" + waitingToken);
 
         return bookingSessionId;
     }
