@@ -99,14 +99,122 @@ public interface NotificationControllerSpec {
             @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
     );
 
-    @Operation(summary = "알림 목록 조회", description = "로그인한 사용자의 알림 목록을 최신순으로 조회합니다.")
+    @Operation(
+            summary = "알림 목록 조회",
+            description = """
+                    로그인한 사용자의 알림 목록을 최신순으로 조회합니다.
+                    
+                    * **페이징:** `page`(0부터 시작), `size` 파라미터를 지원합니다.
+                    * **정렬:** 기본적으로 생성일자 기준 내림차순입니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = Page.class),
+                            examples = @ExampleObject(
+                                    name = "알림 목록 응답 예시",
+                                    value = """
+                                            {
+                                              "content": [
+                                                {
+                                                  "notificationId": 12,
+                                                  "notificationType": "EVENT_REMINDER",
+                                                  "title": "오늘의 일정 알림",
+                                                  "content": "오늘 18시에 BTS 콘서트 일정이 있습니다!",
+                                                  "isRead": false,
+                                                  "createdAt": "2025-12-25T09:00:00"
+                                                },
+                                                {
+                                                  "notificationId": 11,
+                                                  "notificationType": "ACCEPT",
+                                                  "title": "파티 수락 알림",
+                                                  "content": "'잠실 택시팟' 파티 신청이 수락되었습니다.",
+                                                  "isRead": true,
+                                                  "createdAt": "2025-12-24T14:30:00"
+                                                }
+                                              ],
+                                              "pageable": {
+                                                "pageNumber": 0,
+                                                "pageSize": 20,
+                                                "sort": {
+                                                  "empty": false,
+                                                  "sorted": true,
+                                                  "unsorted": false
+                                                },
+                                                "offset": 0,
+                                                "paged": true,
+                                                "unpaged": false
+                                              },
+                                              "last": true,
+                                              "totalPages": 1,
+                                              "totalElements": 2,
+                                              "size": 20,
+                                              "number": 0,
+                                              "sort": {
+                                                "empty": false,
+                                                "sorted": true,
+                                                "unsorted": false
+                                              },
+                                              "first": true,
+                                              "numberOfElements": 2,
+                                              "empty": false
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패 (토큰 없음 또는 만료)",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "code": "7004",
+                                      "message": "인증 정보가 유효하지 않습니다."
+                                    }
+                                    """)
+                    )
+            )
+    })
     @GetMapping
     public ResponseEntity<Page<NotificationResponse>> getNotifications(
             @AuthenticationPrincipal(expression = "userId") Long userId,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     );
 
-    @Operation(summary = "알림 전체 읽음 처리", description = "사용자의 안 읽은 알림을 모두 읽음 상태(true)로 변경합니다. (알림 버튼 클릭 시 호출)")
+    @Operation(
+            summary = "알림 전체 읽음 처리",
+            description = """
+                    사용자의 **안 읽은 알림(`isRead: false`)**을 모두 **읽음(`isRead: true`)** 상태로 변경합니다.
+                    
+                    * 프론트엔드에서 '알림 버튼'을 클릭하여 목록을 열 때 이 API를 호출하면 배지 카운트를 초기화할 수 있습니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "읽음 처리 성공 (Body 없음)",
+                    content = @Content(schema = @Schema(hidden = true))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "인증 실패",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "code": "7004",
+                                      "message": "인증 정보가 유효하지 않습니다."
+                                    }
+                                    """)
+                    )
+            )
+    })
     @PatchMapping("/read-all")
     public ResponseEntity<Void> readAllNotifications(
             @AuthenticationPrincipal(expression = "userId") Long userId
