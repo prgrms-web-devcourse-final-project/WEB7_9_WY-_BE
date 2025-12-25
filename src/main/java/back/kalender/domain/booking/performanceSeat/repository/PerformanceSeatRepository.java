@@ -19,10 +19,9 @@ select new back.kalender.domain.booking.performanceSeat.dto.PerformanceSeatRespo
     p.id,
     p.floor,
     p.block,
+    p.subBlock,
     p.rowNumber,
     p.seatNumber,
-    p.x,
-    p.y,
     p.priceGradeId
 )
 from PerformanceSeat p

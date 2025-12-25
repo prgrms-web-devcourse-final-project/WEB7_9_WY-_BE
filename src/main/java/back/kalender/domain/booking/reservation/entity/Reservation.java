@@ -94,7 +94,7 @@ public class Reservation extends BaseEntity {
     public void updateTotalAmount(Integer totalAmount) {
         this.totalAmount = totalAmount;
     }
-
+    
     // 예매 취소
     public void cancel() {
         this.status = ReservationStatus.CANCELLED;

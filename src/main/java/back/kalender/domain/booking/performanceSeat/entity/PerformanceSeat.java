@@ -27,6 +27,7 @@ public class PerformanceSeat extends BaseEntity {
 
     private Integer floor; 
     private String block;
+    private String subBlock;
     private Integer rowNumber;
     private Integer seatNumber;
 
@@ -49,6 +50,7 @@ public class PerformanceSeat extends BaseEntity {
             Long priceGradeId,
             Integer floor,
             String block,
+            String subBlock,
             Integer rowNumber,
             Integer seatNumber,
             Integer x,
@@ -60,6 +62,7 @@ public class PerformanceSeat extends BaseEntity {
         seat.priceGradeId = priceGradeId;
         seat.floor = floor;
         seat.block = block;
+        seat.subBlock = subBlock;
         seat.rowNumber = rowNumber;
         seat.seatNumber = seatNumber;
         seat.x = x;

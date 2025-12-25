@@ -11,6 +11,7 @@ import back.kalender.domain.payment.service.PaymentService;
 import back.kalender.global.security.util.SecurityUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,12 +21,18 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/payments")
 @RequiredArgsConstructor
 public class PaymentController implements PaymentControllerSpec {
 
     private final PaymentService paymentService;
+
+    @Value("${custom.payment.toss.clientKey:}")
+    private String clientKey;
 
     @PostMapping
     public ResponseEntity<PaymentCreateResponse> createPayment(
@@ -64,6 +71,13 @@ public class PaymentController implements PaymentControllerSpec {
     ) {
         Long userId = SecurityUtil.getCurrentUserIdOrThrow();
         PaymentResponse response = paymentService.getPayment(paymentId, userId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/client-key")
+    public ResponseEntity<Map<String, String>> getClientKey() {
+        Map<String, String> response = new HashMap<>();
+        response.put("clientKey", clientKey);
         return ResponseEntity.ok(response);
     }
 }
