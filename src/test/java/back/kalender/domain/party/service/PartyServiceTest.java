@@ -389,8 +389,7 @@ class PartyServiceTest {
                     eq(testParty.getLeaderId()),
                     eq(NotificationType.APPLY),
                     eq("새로운 파티 신청"),
-                    anyString(),
-                    eq("/party/" + partyId)
+                    anyString()
             );
         }
 
@@ -540,8 +539,7 @@ class PartyServiceTest {
                     eq(applicantId),
                     eq(NotificationType.ACCEPT),
                     eq("파티 신청 수락"),
-                    anyString(),
-                    eq("/party/" + partyId)
+                    anyString()
             );
         }
 
@@ -685,8 +683,7 @@ class PartyServiceTest {
                     eq(applicantId),
                     eq(NotificationType.REJECT),
                     eq("파티 신청 거절"),
-                    anyString(),
-                    eq("/party/" + partyId)
+                    anyString()
             );
         }
 

@@ -7,6 +7,8 @@ import back.kalender.domain.notification.repository.NotificationRepository;
 import back.kalender.domain.notification.response.NotificationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -46,9 +48,9 @@ public class NotificationService {
 
     // 다른 사용자가 알림을 보낼 수 있는 기능
     @Transactional
-    public void send(Long receiverId, NotificationType type, String title, String content, String targetUrl) {
+    public void send(Long receiverId, NotificationType type, String title, String content) {
         Notification notification = notificationRepository.save(
-                new Notification(receiverId, type, title, content, targetUrl)
+                new Notification(receiverId, type, title, content)
         );
 
         // 누구에게 보낼지 ID 설정
@@ -62,6 +64,17 @@ public class NotificationService {
 
             sendNotification(emitter, eventId, key, "notification", NotificationResponse.from(notification));
         });
+    }
+
+    @Transactional(readOnly = true)
+    public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
+        return notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable)
+                .map(NotificationResponse::from);
+    }
+
+    @Transactional
+    public void readAllNotifications(Long userId) {
+        notificationRepository.markAllAsRead(userId);
     }
 
     private String makeTimeIncludeId(Long userId) {

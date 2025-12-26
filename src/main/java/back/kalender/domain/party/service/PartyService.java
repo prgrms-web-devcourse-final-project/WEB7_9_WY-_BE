@@ -290,15 +290,14 @@ public class PartyService {
         User user = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-        String message = String.format("%s(%d/%s)님이 '%s' 파티를 신청했습니다.",
+        String message = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
                 user.getNickname(), user.getAge(), user.getGender(), party.getPartyName());
 
         notificationService.send(
-                party.getLeaderId(),
-                NotificationType.APPLY,
-                "새로운 파티 신청",
-                message,
-                "/party/" + partyId
+                party.getLeaderId(),        // 수신자: 방장
+                NotificationType.APPLY,     // 타입: 신청
+                "새로운 파티 신청",             // 제목
+                message                    // 내용
         );
 
         log.info("[파티 신청 완료] partyId={}, userId={}, applicationId={}",
@@ -384,8 +383,7 @@ public class PartyService {
                 application.getApplicantId(),
                 NotificationType.ACCEPT,
                 "파티 신청 수락",
-                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName()),
-                "/party/" + partyId
+                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName())
         );
 
         log.info("[신청 승인 완료] partyId={}, applicationId={}, applicantId={}, currentMembers={}",
@@ -427,8 +425,7 @@ public class PartyService {
                 application.getApplicantId(),
                 NotificationType.REJECT,
                 "파티 신청 거절",
-                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName()),
-                "/party/" + partyId
+                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName())
         );
 
         log.info("[신청 거절 완료] partyId={}, applicationId={}, applicantId={}",
