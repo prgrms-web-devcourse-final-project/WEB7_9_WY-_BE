@@ -36,17 +36,12 @@ public class PerformanceServiceImpl implements PerformanceService {
 
     @Override
     public PerformanceDetailResponse getPerformanceDetail(Long performanceId) {
-        log.info("[Performance] [GetDetail] 공연 정보 조회 시작 - performanceId={}", performanceId);
-
         // 공연 정보 조회
         Performance performance = performanceRepository.findById(performanceId)
                 .orElseThrow(() -> {
                     log.error("[Performance] [GetDetail] 공연을 찾을 수 없음 - performanceId={}", performanceId);
                     return new ServiceException(ErrorCode.PERFORMANCE_NOT_FOUND);
                 });
-
-        log.debug("[Performance] [GetDetail] 공연 기본 정보 조회 완료 - performanceId={}, title={}",
-                performanceId, performance.getTitle());
 
         // 공연장 정보 조회
         PerformanceHall performanceHall = performanceHallRepository.findById(performance.getPerformanceHallId())
@@ -66,21 +61,13 @@ public class PerformanceServiceImpl implements PerformanceService {
 
         // 가격 등급 정보 조회
         List<PriceGrade> priceGrades = priceGradeRepository.findAllByPerformanceId(performanceId);
-        log.debug("[Performance] [GetDetail] 가격 등급 조회 완료 - performanceId={}, priceGradeCount={}",
-                performanceId, priceGrades.size());
 
         // 예매 가능한 날짜 목록 조회
         List<LocalDate> availableDates = performanceScheduleRepository.findAvailableDatesByPerformanceId(performanceId);
-        log.debug("[Performance] [GetDetail] 예매 가능 날짜 조회 완료 - performanceId={}, availableDatesCount={}",
-                performanceId, availableDates.size());
 
         // 모든 회차 정보 조회
         List<PerformanceSchedule> schedules = performanceScheduleRepository
                 .findAllByPerformanceIdOrderByPerformanceDateAscStartTimeAsc(performanceId);
-        log.debug("[Performance] [GetDetail] 회차 정보 조회 완료 - performanceId={}, schedulesCount={}",
-                performanceId, schedules.size());
-        log.info("[Performance] [GetDetail] 공연 정보 조회 완료 - performanceId={}, title={}",
-                performanceId, performance.getTitle());
 
         // 응답 DTO 생성 및 반환
         return PerformanceDetailResponse.from(performance, performanceHall, artist, priceGrades, availableDates, schedules);

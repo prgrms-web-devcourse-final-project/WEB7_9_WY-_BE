@@ -65,8 +65,6 @@ public class UserService{
      * 내 정보 조회
      */
     public UserProfileResponse getMyProfile(Long userId) {
-        log.debug("[User] [GetProfile] 프로필 조회 시작 - userId={}", userId);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("[User] [GetProfile] 유저를 찾을 수 없음 - userId={}", userId);
@@ -74,7 +72,6 @@ public class UserService{
                 });
         String profileImageUrl = s3PresignService.presignProfileImageGet(user.getProfileImage());
 
-        log.debug("[User] [GetProfile] 프로필 조회 완료 - userId={}, nickname={}", userId, user.getNickname());
         return UserProfileResponse.from(user, profileImageUrl);
     }
 
@@ -126,9 +123,6 @@ public class UserService{
      */
     @Transactional
     public UserProfileResponse updateMyProfile(Long userId, UpdateProfileRequest request) {
-        log.info("[User] [UpdateProfile] 프로필 수정 시작 - userId={}, nickname={}",
-                userId, request.nickname());
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("[User] [UpdateProfile] 유저를 찾을 수 없음 - userId={}", userId);
