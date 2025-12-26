@@ -2,17 +2,14 @@ package back.kalender.domain.performance.service;
 
 import back.kalender.domain.artist.entity.Artist;
 import back.kalender.domain.artist.repository.ArtistRepository;
+import back.kalender.domain.performance.performance.service.PerformanceService;
 import back.kalender.domain.performance.performanceHall.entity.PerformanceHall;
 import back.kalender.domain.performance.performanceHall.repository.PerformanceHallRepository;
 import back.kalender.domain.performance.performance.dto.response.PerformanceDetailResponse;
 import back.kalender.domain.performance.performance.entity.Performance;
 import back.kalender.domain.performance.performance.repository.PerformanceRepository;
-import back.kalender.domain.performance.performance.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.performance.entity.Performance;
-import back.kalender.domain.performance.performance.repository.PerformanceRepository;
 import back.kalender.domain.performance.schedule.repository.PerformanceScheduleRepository;
 import back.kalender.domain.performance.priceGrade.repository.PriceGradeRepository;
-import back.kalender.domain.performance.performance.service.PerformanceServiceImpl;
 import back.kalender.domain.performance.priceGrade.entity.PriceGrade;
 import back.kalender.domain.performance.schedule.entity.PerformanceSchedule;
 import back.kalender.domain.performance.schedule.entity.ScheduleStatus;
@@ -58,7 +55,7 @@ class PerformanceServiceImplTest {
     private PerformanceHallRepository performanceHallRepository;
 
     @InjectMocks
-    private PerformanceServiceImpl performanceService;
+    private PerformanceService performanceService;
 
     private Performance performance;
     private PerformanceHall performanceHall;
