@@ -16,6 +16,8 @@ import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.mapper.ReservationSeatMapper;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
 import back.kalender.domain.booking.seatHold.entity.SeatHoldLog;
+import back.kalender.domain.booking.seatHold.event.SeatHoldCompletedEvent;
+import back.kalender.domain.booking.seatHold.event.SeatReleaseCompletedEvent;
 import back.kalender.domain.booking.seatHold.exception.SeatHoldConflictException;
 import back.kalender.domain.booking.seatHold.exception.SeatNotAvailableException;
 import back.kalender.domain.booking.seatHold.mapper.SeatHoldMapper;
@@ -30,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,11 +43,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * V1: 분산 락 + 폴링 버전
- *
+ * 좌석 홀드, 해제 (이벤트 기반)
  * <Redis 키 설계>
  * - seat:lock:{scheduleId}:{seatId}              : 분산 락 (Redisson)
- * - seat:hold:owner:{scheduleId}:{seatId}        : HOLD 소유자 userId (TTL 5분)
+ * - seat:hold:owner:{scheduleId}:{seatId}        : HOLD 소유자 userId (TTL 7분)
  * - seat:sold:{scheduleId}                       : SOLD 좌석 Set
  * - seat:version:{scheduleId}                    : 변경 버전 (INCR)
  * - seat:changes:{scheduleId}:{version}          : 변경 이벤트 JSON (TTL 60초)
@@ -58,6 +60,7 @@ public class SeatHoldService {
     private final RedissonClient redissonClient;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final PerformanceSeatRepository performanceSeatRepository;
     private final ReservationSeatRepository reservationSeatRepository;
@@ -80,20 +83,20 @@ public class SeatHoldService {
     public HoldSeatsResponse holdSeats(Long reservationId, HoldSeatsRequest request, Long userId) {
         LocalDateTime now = LocalDateTime.now();
 
-        // 1. 예매 조회 및 검증
+        // 예매 조회 및 검증
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
 
         validateReservation(reservation, userId);
         Long scheduleId = reservation.getPerformanceScheduleId();
 
-        // 2. 좌석별 락 획득 및 HOLD 처리
+        // 좌석별 락 획득 및 HOLD 처리
         List<Long> heldSeatIds = new ArrayList<>();
         List<RLock> acquiredLocks = new ArrayList<>();
         List<HoldSeatsFailResponse.ConflictSeat> conflicts = new ArrayList<>();
 
         try{
-            // 2-1. 모든 좌석 락 획득 (좌석 id 정렬 후 순차적 획득)
+            // 모든 좌석 락 획득 (좌석 id 정렬 후 순차적 획득)
             List<Long> sortedSeatIds = request.performanceSeatIds().stream()
                     .sorted()
                     .toList();
@@ -119,20 +122,13 @@ public class SeatHoldService {
                 throw new SeatHoldConflictException(reservationId, conflicts);
             }
 
-            // 2-2 . 좌석 상태 검증 + HOLD 처리
+            // 좌석 상태 검증 + HOLD 처리 (DB만)
             for(Long seatId : sortedSeatIds){
                 try{
-                    // 단일 좌석 HOLD 처리
-                    holdSingleSeat(reservation, scheduleId, userId, seatId, now);
+                    //DB 작업만 수행, Redis는 이벤트로 처리
+                    holdSingleSeatInDB(reservation, scheduleId, userId, seatId, now);
                     heldSeatIds.add(seatId);
                 }catch (SeatNotAvailableException e){
-                    /*
-                     * 좌석 선점 불가 상황
-                     * 1. 다른 사용자가 HOLD 중 (TTL 아직 만료X)
-                     * 2. 이미 SOLD 상태
-                     *
-                     * → 전체 롤백 필요
-                     */
                     conflicts.add(new HoldSeatsFailResponse.ConflictSeat(
                             e.getSeatId(),
                             e.getCurrentStatus().name(),
@@ -151,7 +147,7 @@ public class SeatHoldService {
                 throw new SeatHoldConflictException(reservationId, conflicts);
             }
 
-            // 3. 예매 정보 업데이트
+            // 예매 정보 업데이트
             updateReservation(reservation, now);
 
             HoldSeatsResponse response = buildHoldSeatsResponse(reservation, heldSeatIds, now);
@@ -160,33 +156,18 @@ public class SeatHoldService {
 
             return  response;
         } finally {
-            // 4. 획득한 락 해제
+            // 획득한 락 해제
             releaseLocks(acquiredLocks);
         }
     }
 
-    // 좌석 락 획득
-    private RLock acquireSeatLock(Long scheduleId, Long seatId) {
-        String lockKey = String.format(SEAT_LOCK_KEY, scheduleId, seatId);
-        RLock lock = redissonClient.getLock(lockKey);
-        try {
-            boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS);
-            return acquired ? lock : null;
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("[SeatHold] 락 획득 중 인터럽트 - seatId={}", seatId, e);
-            return null;
-        }
-    }
-
-    // 단일 좌석 HOLD 처리
-    private void holdSingleSeat(Reservation reservation, Long scheduleId, Long userId, Long seatId, LocalDateTime now) {
-        // 1. DB에서 좌석 조회
+    // 단일 좌석 HOLD 처리 (DB 작업만)
+    private void holdSingleSeatInDB(Reservation reservation, Long scheduleId, Long userId, Long seatId, LocalDateTime now) {
+        // DB에서 좌석 조회
         PerformanceSeat seat = performanceSeatRepository.findByIdAndScheduleId(seatId, scheduleId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_SEAT_NOT_FOUND));
 
-        // 3. SOLD 여부 우선 체크 (Redis sold set이 소스라면 그대로 유지)
+        // SOLD 여부 우선 체크
         String soldSetKey = String.format(SEAT_SOLD_SET_KEY, scheduleId);
         Boolean isSold = redisTemplate.opsForSet().isMember(soldSetKey, seatId.toString());
         if(Boolean.TRUE.equals(isSold) || seat.getStatus() == SeatStatus.SOLD){
@@ -194,11 +175,11 @@ public class SeatHoldService {
             throw new SeatNotAvailableException(seatId, SeatStatus.SOLD, "ALREADY_SOLD");
         }
 
-        // 4. Redis에 HOLD owner 기록 (TTL 5분)
+        // Redis에 HOLD owner 체크 (중복 홀드 방지)
         String holdOwnerKey = String.format(SEAT_HOLD_OWNER_KEY, scheduleId, seatId);
         String redisOwner = redisTemplate.opsForValue().get(holdOwnerKey);
 
-        // 4-1. Redis Owner는 없는데 DB가 HOLD인 경우 - 만료 여부로 정리
+        // Redis Owner는 없는데 DB가 HOLD인 경우 - 만료 여부로 정리
         if(redisOwner == null && seat.getStatus() == SeatStatus.HOLD){
             if(seat.isHoldExpired(now)){
                 log.warn("[SeatHold] Redis Onwer 없음, DB Hold 만료 -> AVAILABLE로 복구, seatId={}", seatId );
@@ -207,14 +188,14 @@ public class SeatHoldService {
                 performanceSeatRepository.save(seat);
 
                 // 폴링 반영 위한 복구 이벤트
-                recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, 0L);
+                eventPublisher.publishEvent(new SeatReleaseCompletedEvent(scheduleId, seatId, 0L, SeatStatus.AVAILABLE));
             }else{
                 log.warn("[SeatHold] Redis Onwer 없음, DB Hold 만료X seatId={}", seatId );
                 throw new SeatNotAvailableException(seatId, SeatStatus.HOLD, "INCONSISTENT_STATE");
             }
         }
 
-        // 5. Redis에 Owner가 있으면 이미 누군가 홀드중
+        // Redis에 Owner가 있으면 이미 누군가 홀드중
         if (redisOwner != null) {
             throw new SeatNotAvailableException(seatId, SeatStatus.HOLD, "ALREADY_HELD");
         }
@@ -224,21 +205,13 @@ public class SeatHoldService {
             throw new SeatNotAvailableException(seatId, seat.getStatus(), "NOT_AVAILABLE");
         }
 
-        // Redis에 HOLD owner 기록 (TTL)
-        redisTemplate.opsForValue().set(
-                holdOwnerKey,
-                userId.toString(),
-                HOLD_TTL_SECONDS,
-                TimeUnit.SECONDS
-        );
-
         // 6. DB 상태 업데이트
         LocalDateTime expiresAt = now.plusSeconds(HOLD_TTL_SECONDS);
         seat.updateStatus(SeatStatus.HOLD);
         seat.updateHoldInfo(userId, expiresAt);
         performanceSeatRepository.save(seat);
 
-        // 7. ReservationSeat 생성
+        // ReservationSeat 생성
         PriceGrade priceGrade = priceGradeRepository.findById(seat.getPriceGradeId())
                 .orElseThrow(() -> new ServiceException(ErrorCode.PRICE_GRADE_NOT_FOUND));
 
@@ -249,42 +222,22 @@ public class SeatHoldService {
         );
         reservationSeatRepository.save(reservationSeat);
 
-
-        // 8. SeatHoldLog 기록
+        // SeatHoldLog 기록
         SeatHoldLog holdLog = SeatHoldMapper.toHoldLog(seatId, userId, now, expiresAt);
         seatHoldLogRepository.save(holdLog);
 
-        // 9. 변경 이벤트 발행
-        recordSeatChangeEvent(scheduleId, seatId, SeatStatus.HOLD, userId);
-    }
+        // 변경 이벤트 발행
+        eventPublisher.publishEvent(
+                new SeatHoldCompletedEvent(
+                        scheduleId,
+                        seatId,
+                        userId,
+                        SeatStatus.HOLD,
+                        HOLD_TTL_SECONDS
+                )
+        );
 
-    // 변경 이벤트 기록(폴링용)
-    private void recordSeatChangeEvent(Long scheduleId, Long seatId, SeatStatus status, Long userId) {
-        // 버전 증가
-        String versionKey = String.format(SEAT_VERSION_KEY, scheduleId);
-        Long version = redisTemplate.opsForValue().increment(versionKey);
-
-        // 이벤트 JSON 생성
-        Map<String, Object> event = new HashMap<>();
-        event.put("seatId", seatId);
-        event.put("status", status.name());
-        event.put("userId", userId);
-        event.put("timestamp", LocalDateTime.now().toString());
-
-        // Redis 저장 (TTL 60초)
-        String changeKey = String.format(SEAT_CHANGES_KEY, scheduleId, version);
-
-        try{
-            String eventJson = objectMapper.writeValueAsString(event);
-            redisTemplate.opsForValue().set(
-                    changeKey,
-                    eventJson,
-                    CHANGES_TTL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-        }catch(JsonProcessingException e) {
-            log.error("[SeatHold] 변경 이벤트 JSON 변환 실패", e);
-        }
+        log.debug("[SeatHold] DB 작업 완료, 이벤트 발행 - seatId={}, userId={}", seatId, userId);
     }
 
     // HOLD 실패시 롤백처리
@@ -318,12 +271,164 @@ public class SeatHoldService {
                 seatHoldLogRepository.save(rollbackLog);
 
                 // 변경 이벤트 발행
-                recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, 0L);
-
+                eventPublisher.publishEvent(
+                        new SeatReleaseCompletedEvent(scheduleId, seatId, userId, SeatStatus.AVAILABLE)
+                );
 
             } catch (Exception e) {
                 log.error("[SeatHold] 롤백 실패 - seatId={}", seatId, e);
             }
+        }
+    }
+
+    // 좌석 RELEASE
+    @Transactional
+    public ReleaseSeatsResponse releaseSeats(Long reservationId, ReleaseSeatsRequest request, Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 예매 조회 및 검증
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        validateReservation(reservation, userId);
+        Long scheduleId = reservation.getPerformanceScheduleId();
+
+        // 전체 해제 여부 검증
+        List<ReservationSeat> allReservationSeats = reservationSeatRepository
+                .findByReservationId(reservationId);
+
+        if(request.performanceSeatIds().size() != allReservationSeats.size()){
+            log.error("[SeatHold] 전체 해제가 아닌 요청 - reservationId={}, total={}, requested={}",
+                    reservationId, allReservationSeats.size(), request.performanceSeatIds().size());
+            throw new ServiceException(ErrorCode.PARTIAL_RELEASE_NOT_ALLOWED);
+        }
+
+        // 요청딘 좌석 id가 실제 예매의 좌석 id와 일치하는지 검증
+        Set <Long> reservedSeatIds = allReservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .collect(Collectors.toSet());
+        Set<Long> requestedSeatIds = new HashSet<>(request.performanceSeatIds());
+
+        if (!reservedSeatIds.equals(requestedSeatIds)) {
+            log.error("[SeatHold] 좌석 ID 불일치 - reservationId={}", reservationId);
+            throw new ServiceException(ErrorCode.BAD_REQUEST);
+        }
+
+        log.info("[SeatHold] 전체 해제 검증 완료 - seatCount={}", allReservationSeats.size());
+
+        List<Long> sortedSeatIds = request.performanceSeatIds().stream()
+                .sorted()
+                .toList();
+
+        // 좌석별 락 획득 및 RELEASE 처리
+        List<RLock> acquiredLocks = new ArrayList<>();
+
+        try {
+            // 모든 좌석 락 획득
+            for (Long seatId : sortedSeatIds) {
+                RLock lock = acquireSeatLock(scheduleId, seatId);
+
+                if (lock == null) {
+                    log.error("[SeatHold] 락 획득 실패 - seatId={}", seatId);
+                    throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+                }
+                acquiredLocks.add(lock);
+            }
+
+            // 좌석 RELEASE 처리 (db만)
+            for (Long seatId : sortedSeatIds) {
+                releaseSingleSeatInDB(scheduleId, userId, seatId, now);
+            }
+            reservationSeatRepository.deleteByReservationId(reservationId);
+
+            // 예매 상태 업데이트
+            reservation.cancel();
+            reservationRepository.save(reservation);
+
+            // 응답 생성
+            ReleaseSeatsResponse response = ReservationMapper.toReleaseSeatsResponse(
+                    reservation,
+                    sortedSeatIds,
+                    0,
+                    0,
+                    now
+            );
+            log.info("[SeatHold] RELEASE 성공 - reservationId={}", reservationId);
+
+            return response;
+        }finally {
+            // 획득한 락 해제
+            releaseLocks(acquiredLocks);
+        }
+
+    }
+
+    // 단일 좌석 RELEASE 처리 (db 작업만 수행)
+    private void releaseSingleSeatInDB(Long scheduleId, Long userId, Long seatId, LocalDateTime now) {
+        // DB에서 좌석 조회
+        PerformanceSeat seat = performanceSeatRepository.findByIdAndScheduleId(seatId, scheduleId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_SEAT_NOT_FOUND));
+
+        // SOLD 좌석은 RELEASE 불가
+        if(seat.getStatus() == SeatStatus.SOLD){
+            return;
+        }
+
+        // 권한 검증 (owner 확인)
+        String holdOwnerKey = String.format(SEAT_HOLD_OWNER_KEY, scheduleId, seatId);
+        String currentOwner = redisTemplate.opsForValue().get(holdOwnerKey);
+
+        // TTL 만료로 Redis owner없으면 db상태만 정리
+        if(currentOwner == null){
+            // 이미 AVAILABLE이면 그냥 성공
+            if (seat.getStatus() == SeatStatus.AVAILABLE) return;
+
+            // HOLD거나 기타 상태면 강제 복구
+            seat.updateStatus(SeatStatus.AVAILABLE);
+            seat.clearHoldInfo();
+            performanceSeatRepository.save(seat);
+
+            // 폴링 반영(복구 이벤트)
+            eventPublisher.publishEvent(
+                    new SeatReleaseCompletedEvent(scheduleId, seatId, 0L, SeatStatus.AVAILABLE)
+            );
+            return;
+        }
+
+        if (!userId.toString().equals(currentOwner)) {
+            // 다른사용자가 이미 선점
+            log.error("[SeatHold] RELEASE 권한 없음 - seatId={}, owner={}, userId={}",
+                    seatId, currentOwner, userId);
+            throw new ServiceException(ErrorCode.UNAUTHORIZED);
+        }
+
+        // DB 상태 업데이트
+        seat.updateStatus(SeatStatus.AVAILABLE);
+        seat.clearHoldInfo();
+        performanceSeatRepository.save(seat);
+
+        // SeatHoldLog 기록
+        SeatHoldLog releaseLog = SeatHoldMapper.toReleaseLog(seatId, userId);
+        seatHoldLogRepository.save(releaseLog);
+
+        // RELEASE 완료 이벤트 발행
+        eventPublisher.publishEvent(new SeatReleaseCompletedEvent(scheduleId, seatId, userId, SeatStatus.AVAILABLE));
+
+        log.debug("[SeatHold] DB RELEASE 완료, 이벤트 발행 - seatId={}, userId={}", seatId, userId);
+    }
+
+    // 좌석 락 획득
+    private RLock acquireSeatLock(Long scheduleId, Long seatId) {
+        String lockKey = String.format(SEAT_LOCK_KEY, scheduleId, seatId);
+        RLock lock = redissonClient.getLock(lockKey);
+        try {
+            boolean acquired = lock.tryLock(LOCK_WAIT_TIME, LOCK_LEASE_TIME, TimeUnit.SECONDS);
+            return acquired ? lock : null;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("[SeatHold] 락 획득 중 인터럽트 - seatId={}", seatId, e);
+            return null;
         }
     }
 
@@ -411,13 +516,13 @@ public class SeatHoldService {
 
         Long currentVersion = Long.parseLong(currentVersionStr);
 
-        // 2. 버전 차이가 너무 크면 전체 새로고침 유도
+        // 버전 차이가 너무 크면 전체 새로고침 유도
         long versionGap = currentVersion - sinceVersion;
         if (versionGap > 100) {
             log.warn("[SeatChange] 버전 차이 너무 큼 - gap={}, scheduleId={}",
                     versionGap, scheduleId);
 
-            // 특수 응답: 프론트에 전체 좌석표 재조회 요청
+            // 프론트에 전체 좌석표 재조회 요청
             Map<String, Object> refreshEvent = Map.of(
                     "type", "FULL_REFRESH_REQUIRED",
                     "currentVersion", currentVersion,
@@ -426,7 +531,7 @@ public class SeatHoldService {
             return List.of(refreshEvent);
         }
 
-        // 3. 정상 범위: 최대 100개만 조회
+        // 정상 범위: 최대 100개만 조회
         List<Map<String, Object>> changes = new ArrayList<>();
         long startVersion = sinceVersion + 1;
         long endVersion = Math.min(currentVersion, sinceVersion + 100);
@@ -454,156 +559,4 @@ public class SeatHoldService {
         return changes;
     }
 
-    @Transactional
-    public ReleaseSeatsResponse releaseSeats(Long reservationId, ReleaseSeatsRequest request, Long userId) {
-        LocalDateTime now = LocalDateTime.now();
-
-        // 1. 예매 조회 및 검증
-        Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
-
-        validateReservation(reservation, userId);
-        Long scheduleId = reservation.getPerformanceScheduleId();
-
-        // 2. 전체 해제 여부 검증
-        List<ReservationSeat> allReservationSeats = reservationSeatRepository
-                .findByReservationId(reservationId);
-
-        if(request.performanceSeatIds().size() != allReservationSeats.size()){
-            log.error("[SeatHold] 전체 해제가 아닌 요청 - reservationId={}, total={}, requested={}",
-                    reservationId, allReservationSeats.size(), request.performanceSeatIds().size());
-            throw new ServiceException(ErrorCode.PARTIAL_RELEASE_NOT_ALLOWED);
-        }
-
-        // 요청딘 좌석 id가 실제 예매의 좌석 id와 일치하는지 검증
-        Set <Long> reservedSeatIds = allReservationSeats.stream()
-                .map(ReservationSeat::getPerformanceSeatId)
-                .collect(Collectors.toSet());
-        Set<Long> requestedSeatIds = new HashSet<>(request.performanceSeatIds());
-
-        if (!reservedSeatIds.equals(requestedSeatIds)) {
-            log.error("[SeatHold] 좌석 ID 불일치 - reservationId={}", reservationId);
-            throw new ServiceException(ErrorCode.BAD_REQUEST);
-        }
-
-        log.info("[SeatHold] 전체 해제 검증 완료 - seatCount={}", allReservationSeats.size());
-
-        List<Long> sortedSeatIds = request.performanceSeatIds().stream()
-                .sorted()
-                .toList();
-
-        // 3. 좌석별 락 획득 및 RELEASE 처리
-        List<RLock> acquiredLocks = new ArrayList<>();
-
-        try {
-            // 3-1. 모든 좌석 락 획득
-            for (Long seatId : sortedSeatIds) {
-                RLock lock = acquireSeatLock(scheduleId, seatId);
-
-                if (lock == null) {
-                    log.error("[SeatHold] 락 획득 실패 - seatId={}", seatId);
-                    throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
-                }
-                acquiredLocks.add(lock);
-            }
-
-            // 3-2. 좌석 RELEASE 처리
-            for (Long seatId : sortedSeatIds) {
-                releaseSingleSeat(scheduleId, userId, seatId, now);
-            }
-            reservationSeatRepository.deleteByReservationId(reservationId);
-
-            // 4. 예매 상태 업데이트
-            reservation.cancel();
-            reservationRepository.save(reservation);
-
-            // 5. 응답 생성
-            ReleaseSeatsResponse response = ReservationMapper.toReleaseSeatsResponse(
-                    reservation,
-                    sortedSeatIds,
-                    0,
-                    0,
-                    now
-            );
-            log.info("[SeatHold] RELEASE 성공 - reservationId={}", reservationId);
-
-            return response;
-        }finally {
-            // 6. 획득한 락 해제
-            releaseLocks(acquiredLocks);
-        }
-
-    }
-
-    // 단일 좌석 RELEASE 처리
-    private void releaseSingleSeat(Long scheduleId, Long userId, Long seatId, LocalDateTime now) {
-        // 1. DB에서 좌석 조회
-        PerformanceSeat seat = performanceSeatRepository.findByIdAndScheduleId(seatId, scheduleId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PERFORMANCE_SEAT_NOT_FOUND));
-
-        // SOLD 좌석은 RELEASE 불가
-        if(seat.getStatus() == SeatStatus.SOLD){
-            return;
-        }
-
-        // 2. 권한 검증 (owner확인)
-        String holdOwnerKey = String.format(SEAT_HOLD_OWNER_KEY, scheduleId, seatId);
-        String currentOwner = redisTemplate.opsForValue().get(holdOwnerKey);
-
-        // TTL 만료로 Redis owner없으면 db상태만 정리
-        if(currentOwner == null){
-            // 이미 AVAILABLE이면 그냥 성공
-            if (seat.getStatus() == SeatStatus.AVAILABLE) return;
-
-            // HOLD거나 기타 상태면 강제 복구
-            seat.updateStatus(SeatStatus.AVAILABLE);
-            seat.clearHoldInfo();
-            performanceSeatRepository.save(seat);
-
-            // 폴링 반영(복구 이벤트)
-            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, 0L);
-            return;
-        }
-
-        if (!userId.toString().equals(currentOwner)) {
-            // 다른사용자가 이미 선점
-            log.error("[SeatHold] RELEASE 권한 없음 - seatId={}, owner={}, userId={}",
-                    seatId, currentOwner, userId);
-            throw new ServiceException(ErrorCode.UNAUTHORIZED);
-        }
-
-        // 3. Redis 삭제 전 owner 백업
-        String backupOwner = currentOwner;
-
-        try{
-            //4. Redis HOLD 소유자 키 삭제
-            Boolean deleted = redisTemplate.delete(holdOwnerKey);
-
-            if(Boolean.FALSE.equals(deleted)){
-                log.warn("[SeatHold] Redis 키 삭제 실패 - key={}", holdOwnerKey);
-            }
-
-            // 5. DB 상태 업데이트
-            seat.updateStatus(SeatStatus.AVAILABLE);
-            seat.clearHoldInfo();
-            performanceSeatRepository.save(seat);
-
-            // 7. SeatHoldLog 기록
-            SeatHoldLog releaseLog = SeatHoldMapper.toReleaseLog(seatId, userId);
-            seatHoldLogRepository.save(releaseLog);
-
-            // 8. 변경 이벤트 발행
-            recordSeatChangeEvent(scheduleId, seatId, SeatStatus.AVAILABLE, userId);
-        } catch (Exception e) {
-            log.error("[SeatHold] RELEASE 실패, Redis 복원 시도 - seatId={}", seatId, e);
-
-            try {
-                redisTemplate.opsForValue().set(holdOwnerKey, backupOwner, HOLD_TTL_SECONDS, TimeUnit.SECONDS);
-            } catch (Exception restoreError) {
-                log.error("[SeatHold] Redis 키 복원 실패 - seatId={}", seatId, restoreError);
-            }
-
-            throw e;
-        }
-    }
 }
