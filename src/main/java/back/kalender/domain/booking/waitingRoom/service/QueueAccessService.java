@@ -4,9 +4,7 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -27,14 +25,4 @@ public class QueueAccessService {
         }
     }
 
-    public void ping(Long scheduleId, String bookingSessionId) {
-        String key = activeKey(scheduleId);
-
-        Double score = redisTemplate.opsForZSet().score(key, bookingSessionId);
-        if (score == null) {
-            throw new ServiceException(ErrorCode.INVALID_BOOKING_SESSION);
-        }
-
-        redisTemplate.opsForZSet().add(key, bookingSessionId, System.currentTimeMillis());
-    }
 }

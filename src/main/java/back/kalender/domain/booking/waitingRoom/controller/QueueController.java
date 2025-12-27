@@ -34,10 +34,10 @@ public class QueueController implements QueueControllerSpec {
     }
 
     @PostMapping("/ping/{scheduleId}")
-    public void ping(
+    public void waitingPing(
             @PathVariable Long scheduleId,
-            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+            @RequestHeader("X-QSID") String qsid
     ) {
-        queueAccessService.ping(scheduleId, bookingSessionId);
+        queueService.waitingPing(scheduleId, qsid);
     }
 }
