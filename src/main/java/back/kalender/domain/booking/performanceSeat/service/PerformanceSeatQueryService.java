@@ -23,11 +23,14 @@ public class PerformanceSeatQueryService {
     )
     @Transactional(readOnly = true)
     public List<PerformanceSeatResponse> getSeatsByScheduleId(
-            Long scheduleId,
-            String bookingSessionId
+        Long scheduleId,
+        String bookingSessionId
     ) {
-        queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
+    queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
 
-        return performanceSeatRepository.findSeatResponses(scheduleId);
+    return performanceSeatRepository.findAllByScheduleId(scheduleId)
+            .stream()
+            .map(PerformanceSeatResponse::from)
+            .toList();
     }
 }

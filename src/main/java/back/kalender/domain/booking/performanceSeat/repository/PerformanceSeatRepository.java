@@ -31,6 +31,7 @@ where p.scheduleId = :scheduleId
             @Param("scheduleId") Long scheduleId
     );
 
+    List<PerformanceSeat> findAllByScheduleId(Long scheduleId);
 
     Optional<PerformanceSeat> findByIdAndScheduleId(Long id, Long scheduleId);
 
