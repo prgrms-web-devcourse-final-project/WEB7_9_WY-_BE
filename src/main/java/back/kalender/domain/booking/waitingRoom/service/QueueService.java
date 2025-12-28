@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class QueueService {
@@ -133,5 +134,23 @@ public class QueueService {
         }
 
         return admittedCount;
+    }
+
+    public void waitingPing(Long scheduleId, String qsid) {
+        String waitingKey = "waiting:" + qsid;
+
+        if (!redis.hasKey(waitingKey)) {
+            throw new ServiceException(ErrorCode.QSID_EXPIRED);
+        }
+
+        // TTL 연장
+        redis.expire(waitingKey, 20, TimeUnit.SECONDS);
+
+        // queue ZSET score 갱신 (선택)
+        redis.opsForZSet().add(
+                "queue:" + scheduleId,
+                qsid,
+                System.currentTimeMillis()
+        );
     }
 }
