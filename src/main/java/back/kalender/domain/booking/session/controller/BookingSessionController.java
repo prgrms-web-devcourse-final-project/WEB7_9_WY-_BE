@@ -13,11 +13,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/booking-session")
 @RequiredArgsConstructor
-public class BookingSessionController {
+public class BookingSessionController implements BookingSessionControllerSpec {
     private final BookingSessionService bookingSessionService;
 
 
     @PostMapping("/create")
+    @Override
     public ResponseEntity<BookingSessionCreateResponse> create(
             @Valid @RequestBody BookingSessionCreateRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -35,6 +36,7 @@ public class BookingSessionController {
     }
 
     @PostMapping("/ping/{scheduleId}")
+    @Override
     public ResponseEntity<Void> ping(
             @PathVariable Long scheduleId,
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
@@ -44,6 +46,7 @@ public class BookingSessionController {
     }
 
     @PostMapping("/leave/{scheduleId}")
+    @Override
     public ResponseEntity<Void> leave(
             @PathVariable Long scheduleId,
             @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
