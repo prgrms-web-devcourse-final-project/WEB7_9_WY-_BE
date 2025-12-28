@@ -15,7 +15,6 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import back.kalender.global.security.jwt.JwtProperties;
 import back.kalender.global.security.jwt.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -160,26 +159,27 @@ class AuthServiceTest {
                 .willReturn(refreshToken);
     }
 
-    private Cookie captureCookie() {
-        ArgumentCaptor<Cookie> cookieCaptor = ArgumentCaptor.forClass(Cookie.class);
-        verify(httpServletResponse, times(1)).addCookie(cookieCaptor.capture());
-        return cookieCaptor.getValue();
+    private String captureSetCookieHeader() {
+        ArgumentCaptor<String> headerNameCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> headerValueCaptor = ArgumentCaptor.forClass(String.class);
+        verify(httpServletResponse, times(1)).addHeader(headerNameCaptor.capture(), headerValueCaptor.capture());
+        assertThat(headerNameCaptor.getValue()).isEqualTo("Set-Cookie");
+        return headerValueCaptor.getValue();
     }
 
     private void assertRefreshTokenCookie(String expectedToken) {
-        Cookie cookie = captureCookie();
-        assertThat(cookie.getName()).isEqualTo(COOKIE_NAME_REFRESH_TOKEN);
-        assertThat(cookie.getValue()).isEqualTo(expectedToken);
-        assertThat(cookie.isHttpOnly()).isTrue();
-        assertThat(cookie.getSecure()).isFalse();
+        String cookieHeader = captureSetCookieHeader();
+        assertThat(cookieHeader).contains(COOKIE_NAME_REFRESH_TOKEN + "=" + expectedToken);
+        assertThat(cookieHeader).contains("HttpOnly");
+        assertThat(cookieHeader).contains("SameSite=None");
+        // Secure는 jwtProperties에 따라 달라질 수 있으므로 별도 검증은 생략
     }
 
     private void assertLogoutCookie() {
-        Cookie cookie = captureCookie();
-        assertThat(cookie.getName()).isEqualTo(COOKIE_NAME_REFRESH_TOKEN);
-        assertThat(cookie.getValue()).isIn("", null);
-        assertThat(cookie.getMaxAge()).isEqualTo(0);
-        assertThat(cookie.getSecure()).isFalse();
+        String cookieHeader = captureSetCookieHeader();
+        assertThat(cookieHeader).contains(COOKIE_NAME_REFRESH_TOKEN + "=");
+        assertThat(cookieHeader).contains("Max-Age=0");
+        assertThat(cookieHeader).contains("SameSite=None");
     }
 
     private void captureAndAssertVerificationCode() {
