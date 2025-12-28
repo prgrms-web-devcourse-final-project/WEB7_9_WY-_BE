@@ -26,18 +26,15 @@ public class Notification extends BaseEntity {
     @Column(name = "content", length = 255)
     private String content;
 
-    @Column(name = "target_url", length = 255)
-    private String targetUrl;
 
     @Column(name = "is_read", nullable = false)
     private Boolean isRead;
 
-    public Notification(Long userId, NotificationType notificationType, String title, String content, String targetUrl) {
+    public Notification(Long userId, NotificationType notificationType, String title, String content) {
         this.userId = userId;
         this.notificationType = notificationType;
         this.title = title;
         this.content = content;
-        this.targetUrl = targetUrl;
         this.isRead = false;
     }
 

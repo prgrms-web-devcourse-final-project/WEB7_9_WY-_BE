@@ -1,8 +1,8 @@
 package back.kalender.domain.performance.performance.controller;
 
 import back.kalender.domain.performance.performance.dto.response.PerformanceDetailResponse;
-import back.kalender.domain.performance.performance.service.PerformanceService;
 
+import back.kalender.domain.performance.performance.service.PerformanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

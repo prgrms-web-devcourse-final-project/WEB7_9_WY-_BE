@@ -17,9 +17,9 @@ import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import back.kalender.global.security.jwt.JwtProperties;
 import back.kalender.global.security.jwt.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -269,7 +269,7 @@ public class AuthService {
         refreshTokenRepository.save(refreshTokenEntity);
 
         // Refresh Token 쿠키 설정 (쿠키는 HttpServletResponse에 설정)
-        response.addCookie(buildRefreshTokenCookie(refreshToken));
+        setRefreshTokenCookie(response, refreshToken);
         
         // Access Token 반환 (컨트롤러에서 ResponseEntity 헤더에 설정)
         return accessToken;
@@ -285,21 +285,25 @@ public class AuthService {
         return jwtTokenProvider.createToken(String.valueOf(user.getId()), validityInMillis);
     }
 
-    private Cookie buildRefreshTokenCookie(String token) {
-        Cookie cookie = new Cookie("refreshToken", token);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(jwtProperties.getCookie().isSecure());
-        cookie.setPath("/");
-        cookie.setMaxAge((int) jwtProperties.getTokenExpiration().getRefreshInSeconds());
-        return cookie;
+    private void setRefreshTokenCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
+                .httpOnly(true)
+                .secure(jwtProperties.getCookie().isSecure())
+                .sameSite("None")
+                .path("/")
+                .maxAge(jwtProperties.getTokenExpiration().getRefreshInSeconds())
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 
     private void clearRefreshTokenCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie("refreshToken", null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(jwtProperties.getCookie().isSecure());
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(jwtProperties.getCookie().isSecure())
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }

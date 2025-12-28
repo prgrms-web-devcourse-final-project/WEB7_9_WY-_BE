@@ -12,6 +12,8 @@ import java.util.List;
 
 public interface PartyApplicationRepository extends JpaRepository<PartyApplication, Long>, PartyApplicationRepositoryCustom  {
 
+    List<PartyApplication> findByApplicantId(Long applicantId);
+
     List<PartyApplication> findByPartyId(Long partyId);
 
     Page<PartyApplication> findByApplicantIdAndStatus(Long applicantId, ApplicationStatus status, Pageable pageable);
