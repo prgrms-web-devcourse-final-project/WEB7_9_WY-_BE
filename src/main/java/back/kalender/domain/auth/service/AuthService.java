@@ -19,6 +19,7 @@ import back.kalender.global.security.jwt.JwtProperties;
 import back.kalender.global.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -286,9 +288,13 @@ public class AuthService {
     }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
+        boolean secure = jwtProperties.getCookie().isSecure();
+        // 운영에서도 쿠키 설정 확인용 로깅 (디버깅)
+        log.debug("Setting refreshToken cookie - secure: {}, sameSite: None, path: /", secure);
+        
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
-                .secure(jwtProperties.getCookie().isSecure())
+                .secure(secure)
                 .sameSite("None")
                 .path("/")
                 .maxAge(jwtProperties.getTokenExpiration().getRefreshInSeconds())
