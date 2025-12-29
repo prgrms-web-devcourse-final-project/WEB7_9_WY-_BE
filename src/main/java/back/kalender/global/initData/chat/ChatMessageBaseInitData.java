@@ -55,6 +55,11 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         int messageCount = 0;
 
         for (Party party : parties) {
+            // COMPLETED와 CANCELLED 상태의 파티는 채팅방이 보이지 않으므로 스킵
+            if (party.getStatus() == PartyStatus.COMPLETED || party.getStatus() == PartyStatus.CANCELLED) {
+                continue;
+            }
+
             List<PartyMember> members = partyMemberRepository.findActiveMembers(party.getId());
 
             if (members.isEmpty()) {
@@ -91,6 +96,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
 
         log.info("=".repeat(60));
         log.info("ChatMessage base data initialized: {} chat messages", messageCount);
+        log.info("(Only RECRUITING and CLOSED parties have chat messages)");
         log.info("(JOIN messages were created in PartyBaseInitData and PartyApplicationBaseInitData)");
         log.info("=".repeat(60));
     }
@@ -99,17 +105,15 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         return switch (status) {
             case RECRUITING -> 5 + (int)(Math.random() * 8);
             case CLOSED -> 8 + (int)(Math.random() * 7);
-            case COMPLETED -> 10 + (int)(Math.random() * 11);
-            case CANCELLED -> 2 + (int)(Math.random() * 4);
+            default -> 0;
         };
     }
 
     private String getWelcomeMessage(PartyStatus status) {
         return switch (status) {
-            case RECRUITING -> "파티에 오신 것을 환영합니다! 같이 즐거운 시간 보내요";
-            case CLOSED -> "파티 정원이 마감되었습니다! 모두 잘 부탁드려요";
-            case COMPLETED -> "파티에 참여해주셔서 감사했습니다! 즐거웠어요";
-            case CANCELLED -> "파티가 취소되었습니다. 다음 기회에 봬요";
+            case RECRUITING -> "파티에 오신 것을 환영합니다! 같이 즐거운 시간 보내요 😊";
+            case CLOSED -> "파티 정원이 마감되었습니다! 모두 잘 부탁드려요 🎉";
+            default -> "";
         };
     }
 
@@ -120,7 +124,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
                 "안녕하세요! 잘 부탁드립니다 ^^",
                 "반가워요~",
                 "처음 뵙겠습니다!",
-                "잘 부탁드려요",
+                "잘 부탁드려요 😊",
                 "기대돼요!",
                 "같이 가요!",
                 "안녕하세요 ㅎㅎ",
@@ -174,47 +178,6 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
                     "단톡방 만들까요?",
                     "도착하면 연락주세요",
                     "기대됩니다!"
-            ));
-
-            case COMPLETED -> messages.addAll(List.of(
-                    "오늘 너무 즐거웠어요!",
-                    "공연 대박이었어요 ㅠㅠ",
-                    "감동이었습니다",
-                    "다들 고생하셨어요~",
-                    "다음에 또 만나요!",
-                    "연락 계속 해요!",
-                    "사진 공유해주세요",
-                    "영상 찍으신 분?",
-                    "포토카드 나눔해요",
-                    "굿즈 교환하실 분?",
-                    "후기 남겨주세요",
-                    "평점 높여주세요 ㅎㅎ",
-                    "덕분에 좋은 시간 보냈어요",
-                    "파티원들 최고였어요!",
-                    "다음 공연도 같이 가요",
-                    "단톡방 계속 쓸까요?",
-                    "카톡 추가해주세요",
-                    "인스타 팔로우할게요",
-                    "오늘 진짜 최고였어요",
-                    "잊지 못할 추억 ",
-                    "다들 너무 좋은 분들이셨어요",
-                    "다음에 꼭 또 만나요",
-                    "오늘 날씨도 좋았어요",
-                    "음향이 짱이었어요",
-                    "무대 연출 미쳤어요",
-                    "세트리스트 완벽",
-                    "앵콜곡 최고였어요"
-            ));
-
-            case CANCELLED -> messages.addAll(List.of(
-                    "아쉽네요 ㅠㅠ",
-                    "다음 기회에 봬요",
-                    "취소돼서 속상해요",
-                    "다음엔 꼭 같이 가요",
-                    "어쩔 수 없죠",
-                    "다른 파티 찾아볼게요",
-                    "티켓은 환불하셨나요?",
-                    "아쉽지만 할 수 없네요"
             ));
         }
 
