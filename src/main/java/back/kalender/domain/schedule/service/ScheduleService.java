@@ -48,6 +48,61 @@ public class ScheduleService {
             ScheduleCategory.BROADCAST
     );
 
+    private List<Long> resolveTargetArtistIdsForGuest(
+            List<Long> artistIds,
+            Long artistId
+    ) {
+        if (artistId != null) {
+            if (!artistIds.contains(artistId)) {
+                log.warn("[Schedule][Guest] 필터 artistId={} 가 artistIds에 없음", artistId);
+                return Collections.emptyList();
+            }
+            return List.of(artistId);
+        }
+        return artistIds;
+    }
+
+    public FollowingSchedulesListResponse getSchedulesByArtistIds(
+            int year,
+            int month,
+            List<Long> artistIds,
+            Long artistId
+    ) {
+        validateMonth(month);
+
+        if (artistIds == null || artistIds.isEmpty()) {
+            log.info("[Schedule][Guest] 선택된 아티스트 없음 → 빈 결과 반환");
+            return new FollowingSchedulesListResponse(
+                    Collections.emptyList(),
+                    Collections.emptyList()
+            );
+        }
+
+        List<Long> targetArtistIds = resolveTargetArtistIdsForGuest(artistIds, artistId);
+        if (targetArtistIds.isEmpty()) {
+            return new FollowingSchedulesListResponse(
+                    Collections.emptyList(),
+                    Collections.emptyList()
+            );
+        }
+
+        List<Schedule> monthlySchedules = fetchMonthlySchedules(targetArtistIds, year, month);
+        List<Schedule> upcomingSchedules = fetchUpcomingSchedules(targetArtistIds);
+
+        log.info("[Schedule][Guest] DB 조회 결과 - monthly: {}건, upcoming: {}건",
+                monthlySchedules.size(), upcomingSchedules.size());
+
+        Map<Long, Artist> artistMap = buildArtistMap(monthlySchedules, upcomingSchedules);
+
+        List<ScheduleResponse> monthlyResponses =
+                mapToMonthlyResponses(monthlySchedules, artistMap);
+
+        List<UpcomingEventResponse> upcomingResponses =
+                mapToUpcomingResponses(upcomingSchedules, artistMap);
+
+        return new FollowingSchedulesListResponse(monthlyResponses, upcomingResponses);
+    }
+
     public FollowingSchedulesListResponse getFollowingSchedules(
             Long userId, int year, int month, Long artistId
     ) {
