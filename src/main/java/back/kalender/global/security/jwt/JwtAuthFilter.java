@@ -50,25 +50,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
      */
     private List<String> initializePublicPaths() {
         List<String> paths = new java.util.ArrayList<>(Arrays.asList(
-                "/api/v1/auth/login",
-                "/api/v1/auth/refresh",
-                "/api/v1/auth/password/send",
-                "/api/v1/auth/password/reset",
-                "/api/v1/auth/email/send",
-                "/api/v1/auth/email/verify",
-                "/api/v1/user",
-                "/api/v1/schedule/**",
-                "/api/v1/artist/**",
-                "/favicon.ico",
-                "/swagger-ui/**",
-                "/swagger-ui.html",
-                "/v3/api-docs/**",
-                "/swagger-resources/**",
-                "/api/v1/notifications/**",
-                "/ws-chat/**",
-                "/payment-test.html",
-                "/payment/**",
-                "/api/v1/payments/client-key"
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/password/send",
+            "/api/v1/auth/password/reset",
+            "/api/v1/auth/email/send",
+            "/api/v1/auth/email/verify",
+            "/api/v1/user",                    // 회원가입
+            "/api/v1/schedule/by-artists",      //비회원 공개 일정 조회
+            "/api/v1/artist",               //비회원 아티스트 정보 조회
+            "/favicon.ico",
+            "/swagger-ui/**",                  // Swagger UI
+            "/v3/api-docs/**",                 // OpenAPI 문서
+            "/swagger-resources/**",            // Swagger 리소스
+            "/api/v1/notifications/**",          // 알림
+            "/ws-chat/**",                     // WebSocket 연결 허용
+            "/payment-test.html",               // 결제 테스트 페이지
+            "/payment/**",                      // 결제 관련 정적 파일
+            "/api/v1/payments/client-key"      // 결제 클라이언트 키 조회 (인증 불필요)
         ));
         
         // 개발 환경에서만 H2 콘솔 허용
