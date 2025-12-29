@@ -102,6 +102,9 @@ public class Party extends BaseEntity {
 
     public void incrementCurrentMembers() {
         this.currentMembers++;
+        if (isFull() && this.status == PartyStatus.RECRUITING) {
+            this.status = PartyStatus.CLOSED;
+        }
     }
 
     public void decrementCurrentMembers() {
