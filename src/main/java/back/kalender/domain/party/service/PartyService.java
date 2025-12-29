@@ -134,7 +134,7 @@ public class PartyService {
         log.debug("[파티 목록 조회] userId={}, page={}, size={}",
                 currentUserId, pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<Party> partyPage = partyRepository.findAll(pageable);
+        Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable);
 
         log.debug("[파티 목록 조회 완료] userId={}, totalElements={}",
                 currentUserId, partyPage.getTotalElements());
@@ -155,10 +155,12 @@ public class PartyService {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
 
+        // RECRUITING 상태의 파티만 조회하도록 status 파라미터 추가
         Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
                 scheduleId,
                 partyType,
                 transportType,
+                PartyStatus.RECRUITING,
                 pageable
         );
 
@@ -374,7 +376,6 @@ public class PartyService {
         party.incrementCurrentMembers();
 
         if (party.isFull()) {
-            party.changeStatus(PartyStatus.CLOSED);
             log.info("[파티 정원 마감] partyId={}, members={}/{}",
                     partyId, party.getCurrentMembers(), party.getMaxMembers());
         }

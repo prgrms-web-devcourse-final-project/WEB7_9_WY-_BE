@@ -8,6 +8,7 @@ import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.enums.PartyType;
 import back.kalender.domain.party.enums.TransportType;
 import back.kalender.domain.schedule.entity.QSchedule;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import static back.kalender.domain.party.entity.QParty.party;
+
 @Repository
 @RequiredArgsConstructor
 public class PartyRepositoryImpl implements PartyRepositoryCustom {
@@ -36,32 +39,44 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
+            PartyStatus status,  // 추가
             Pageable pageable
     ) {
-        QParty party = QParty.party;
+        BooleanBuilder builder = new BooleanBuilder();
 
+        // 스케줄 ID 필터
+        builder.and(party.scheduleId.eq(scheduleId));
+
+        // RECRUITING 상태 필터 추가
+        if (status != null) {
+            builder.and(party.status.eq(status));
+        }
+
+        // 파티 타입 필터
+        if (partyType != null) {
+            builder.and(party.partyType.eq(partyType));
+        }
+
+        // 이동 수단 필터
+        if (transportType != null) {
+            builder.and(party.transportType.eq(transportType));
+        }
+
+        // 최신순 정렬
         List<Party> content = queryFactory
                 .selectFrom(party)
-                .where(
-                        party.scheduleId.eq(scheduleId),
-                        partyTypeEq(partyType),
-                        transportTypeEq(transportType)
-                )
+                .where(builder)
+                .orderBy(party.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
-                .orderBy(party.createdAt.desc())
                 .fetch();
 
-        JPAQuery<Long> countQuery = queryFactory
-                .select(party.count())
-                .from(party)
-                .where(
-                        party.scheduleId.eq(scheduleId),
-                        partyTypeEq(partyType),
-                        transportTypeEq(transportType)
-                );
+        long total = queryFactory
+                .selectFrom(party)
+                .where(builder)
+                .fetchCount();
 
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+        return new PageImpl<>(content, pageable, total);
     }
 
     @Override
@@ -121,11 +136,11 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
     }
 
     private BooleanExpression partyTypeEq(PartyType partyType) {
-        return partyType != null ? QParty.party.partyType.eq(partyType) : null;
+        return partyType != null ? party.partyType.eq(partyType) : null;
     }
 
     private BooleanExpression transportTypeEq(TransportType transportType) {
-        return transportType != null ? QParty.party.transportType.eq(transportType) : null;
+        return transportType != null ? party.transportType.eq(transportType) : null;
     }
 
     @Override
