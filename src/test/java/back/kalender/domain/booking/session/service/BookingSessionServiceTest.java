@@ -432,18 +432,214 @@ class BookingSessionServiceTest {
     class ExpireTest {
 
         @Test
-        @DisplayName("성공: 3개 키 모두 삭제")
-        void expire_Success() {
+        @DisplayName("성공: userId, scheduleId 파라미터 활용하여 삭제")
+        void expire_Success_WithParameters() {
+            // given
+            String bookingSessionId = "bs_abc123";
+            Long userId = 1L;
+            Long scheduleId = 10L;
+
+            // when
+            bookingSessionService.expire(bookingSessionId, userId, scheduleId);
+
+            // then
+            // Active에서 제거
+            verify(zSetOps).remove("active:" + scheduleId, bookingSessionId);
+
+            // 4개 키 모두 삭제
+            verify(redisTemplate).delete("booking:session:" + bookingSessionId);
+            verify(redisTemplate).delete("booking:session:device:" + bookingSessionId);
+            verify(redisTemplate).delete("booking:session:user:" + bookingSessionId);
+            verify(redisTemplate).delete("booking:session:" + userId + ":" + scheduleId);
+
+            // Redis 조회 안 함 (파라미터 활용)
+            verify(valueOps, never()).get(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteBookingSessionBySessionId 테스트")
+    class DeleteBookingSessionBySessionIdTest {
+
+        @Test
+        @DisplayName("성공: sessionId로 조회 후 삭제")
+        void deleteBySessionId_Success() {
+            // given
+            String bookingSessionId = "bs_abc123";
+            Long userId = 1L;
+            Long scheduleId = 10L;
+
+            // scheduleId 조회
+            given(valueOps.get("booking:session:" + bookingSessionId))
+                    .willReturn(scheduleId.toString());
+
+            // userId 조회 (역매핑)
+            given(valueOps.get("booking:session:user:" + bookingSessionId))
+                    .willReturn(userId.toString());
+
+            // when
+            boolean result = bookingSessionService.deleteBookingSessionBySessionId(bookingSessionId);
+
+            // then
+            assertThat(result).isTrue();
+
+            // Redis 조회 2회 (scheduleId, userId)
+            verify(valueOps).get("booking:session:" + bookingSessionId);
+            verify(valueOps).get("booking:session:user:" + bookingSessionId);
+
+            // Active 제거
+            verify(zSetOps).remove("active:" + scheduleId, bookingSessionId);
+
+            // 4개 키 삭제
+            verify(redisTemplate, times(4)).delete(anyString());
+        }
+
+        @Test
+        @DisplayName("실패: 이미 삭제된 세션 (scheduleId 없음)")
+        void deleteBySessionId_AlreadyDeleted() {
             // given
             String bookingSessionId = "bs_abc123";
 
+            given(valueOps.get("booking:session:" + bookingSessionId))
+                    .willReturn(null);
+
             // when
-            bookingSessionService.expire(bookingSessionId, USER_ID, SCHEDULE_ID);
+            boolean result = bookingSessionService.deleteBookingSessionBySessionId(bookingSessionId);
 
             // then
-            verify(redisTemplate).delete("booking:session:" + bookingSessionId);
-            verify(redisTemplate).delete("booking:session:device:" + bookingSessionId);
-            verify(redisTemplate).delete("booking:session:" + USER_ID + ":" + SCHEDULE_ID);
+            assertThat(result).isFalse();
+
+            // 삭제 시도 안 함
+            verify(redisTemplate, never()).delete(anyString());
+        }
+
+        @Test
+        @DisplayName("경고: userId 조회 실패 시 부분 삭제")
+        void deleteBySessionId_PartialDelete_WhenUserIdMissing() {
+            // given
+            String bookingSessionId = "bs_abc123";
+            Long scheduleId = 10L;
+
+            given(valueOps.get("booking:session:" + bookingSessionId))
+                    .willReturn(scheduleId.toString());
+
+            given(valueOps.get("booking:session:user:" + bookingSessionId))
+                    .willReturn(null); // userId 없음!
+
+            // when
+            boolean result = bookingSessionService.deleteBookingSessionBySessionId(bookingSessionId);
+
+            // then
+            assertThat(result).isTrue();
+
+            // Active 제거
+            verify(zSetOps).remove("active:" + scheduleId, bookingSessionId);
+
+            // 부분 삭제 (3개 키만)
+            verify(redisTemplate, times(3)).delete(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("checkExistingSession 테스트 (Active 기반)")
+    class CheckExistingSessionTest {
+
+        @Test
+        @DisplayName("성공: Active에 있는 세션 재사용")
+        void checkExistingSession_ActiveSession_Reuse() {
+            // given
+            String existingSessionId = "bs_existing";
+            Long userId = 1L;
+            Long scheduleId = 10L;
+            String deviceId = "device-123";
+
+            // mapping 조회
+            given(valueOps.get("booking:session:" + userId + ":" + scheduleId))
+                    .willReturn(existingSessionId);
+
+            // Active 확인 (있음)
+            given(zSetOps.score("active:" + scheduleId, existingSessionId))
+                    .willReturn(1000.0);
+
+            // deviceId 확인
+            given(valueOps.get("booking:session:device:" + existingSessionId))
+                    .willReturn(deviceId);
+
+            // when
+            // createWithWaitingToken 내부에서 checkExistingSession 호출
+            String waitingToken = "wt_test";
+            String qsid = "qsid_test";
+
+            given(valueOps.get("waiting:" + waitingToken))
+                    .willReturn(qsid + ":" + scheduleId);
+            given(valueOps.get("qsid:" + qsid))
+                    .willReturn(deviceId + ":" + scheduleId);
+
+            String result = bookingSessionService.createWithWaitingToken(
+                    userId, scheduleId, waitingToken, deviceId
+            );
+
+            // then
+            assertThat(result).isEqualTo(existingSessionId);
+
+            // 새 세션 생성 안 함
+            verify(valueOps, never()).set(
+                    startsWith("booking:session:"),
+                    anyString(),
+                    any(Duration.class)
+            );
+        }
+
+        @Test
+        @DisplayName("성공: Active에 없는 세션 삭제 후 새로 생성")
+        void checkExistingSession_InactiveSession_DeleteAndCreate() {
+            // given
+            String oldSessionId = "bs_old";
+            Long userId = 1L;
+            Long scheduleId = 10L;
+            String deviceId = "device-123";
+
+            // mapping 조회 (기존 세션 발견)
+            given(valueOps.get("booking:session:" + userId + ":" + scheduleId))
+                    .willReturn(oldSessionId);
+
+            // Active 확인 (없음!)
+            given(zSetOps.score("active:" + scheduleId, oldSessionId))
+                    .willReturn(null);
+
+            // deleteBookingSessionBySessionId 호출 시 필요한 mock
+            given(valueOps.get("booking:session:" + oldSessionId))
+                    .willReturn(scheduleId.toString());
+            given(valueOps.get("booking:session:user:" + oldSessionId))
+                    .willReturn(userId.toString());
+
+            // createWithWaitingToken 관련 mock
+            String waitingToken = "wt_test";
+            String qsid = "qsid_test";
+            given(valueOps.get("waiting:" + waitingToken))
+                    .willReturn(qsid + ":" + scheduleId);
+            given(valueOps.get("qsid:" + qsid))
+                    .willReturn(deviceId + ":" + scheduleId);
+
+            // when
+            String result = bookingSessionService.createWithWaitingToken(
+                    userId, scheduleId, waitingToken, deviceId
+            );
+
+            // then
+            assertThat(result).isNotEqualTo(oldSessionId); // 새 세션 생성됨
+
+            // 기존 세션 삭제됨
+            verify(redisTemplate, atLeastOnce()).delete(
+                    "booking:session:" + oldSessionId
+            );
+
+            // 새 세션 생성됨
+            verify(valueOps, atLeastOnce()).set(
+                    startsWith("booking:session:"),
+                    anyString(),
+                    any(Duration.class)
+            );
         }
     }
 }
