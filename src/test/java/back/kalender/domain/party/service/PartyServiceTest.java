@@ -588,7 +588,7 @@ class PartyServiceTest {
         @Test
         @DisplayName("성공: 신청중인 파티 목록을 조회한다")
         void getMyPendingApplications_Success() {
-            
+
             Long currentUserId = 2L;
             Pageable pageable = PageRequest.of(0, 20);
 
@@ -602,14 +602,11 @@ class PartyServiceTest {
             given(partyRepository.findAllById(anyList())).willReturn(List.of(testParty));
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
-            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
-                    .willReturn(List.of(1L));
 
-            
             CommonPartyResponse response = partyService.getMyPendingApplications(
                     pageable, currentUserId);
 
-            
+
             assertThat(response).isNotNull();
             assertThat(response.parties()).hasSize(1);
 
@@ -641,9 +638,6 @@ class PartyServiceTest {
             given(partyRepository.findAllById(anyList())).willReturn(List.of(testParty));
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
-            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
-                    .willReturn(List.of(1L));
-
             
             CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
 
