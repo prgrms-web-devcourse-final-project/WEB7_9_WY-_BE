@@ -64,6 +64,5 @@ public class PartyMember extends BaseEntity {
 
     public void kick(LocalDateTime kickedAt) {
         this.kickedAt = kickedAt;
-        this.leftAt = kickedAt;
     }
 }

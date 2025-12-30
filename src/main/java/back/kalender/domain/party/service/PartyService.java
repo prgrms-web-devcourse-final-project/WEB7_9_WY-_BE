@@ -1,8 +1,8 @@
 package back.kalender.domain.party.service;
 
+import back.kalender.domain.chat.service.ChatRoomService;
 import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.service.NotificationService;
-import back.kalender.domain.chat.service.ChatRoomService;
 import back.kalender.domain.party.dto.request.CreatePartyRequest;
 import back.kalender.domain.party.dto.request.UpdatePartyRequest;
 import back.kalender.domain.party.dto.response.*;
@@ -27,16 +27,17 @@ import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -57,798 +58,287 @@ public class PartyService {
 
     @Transactional
     public CreatePartyResponse createParty(CreatePartyRequest request, Long currentUserId) {
-        log.info("[파티 생성 시작] userId={}, scheduleId={}, partyName={}",
+        log.info("[파티 생성] userId={}, scheduleId={}, partyName={}",
                 currentUserId, request.scheduleId(), request.partyName());
 
-        Schedule schedule = scheduleRepository.findById(request.scheduleId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+        validateScheduleExists(request.scheduleId());
 
         Party party = PartyBuilder.create(request, currentUserId);
-        Party savedParty = partyRepository.save(party);
+        partyRepository.save(party);
 
-        PartyMember leader = PartyMember.createLeader(savedParty.getId(), currentUserId);
-        partyMemberRepository.save(leader);
+        partyMemberRepository.save(PartyMember.createLeader(party.getId(), currentUserId));
+        chatRoomService.createChatRoom(party.getId(), party.getPartyName());
 
-        chatRoomService.createChatRoom(savedParty.getId(), savedParty.getPartyName());
-
-        log.info("[파티 생성 완료] partyId={}, leaderId={}, scheduleId={}",
-                savedParty.getId(), currentUserId, request.scheduleId());
-
-        return new CreatePartyResponse(
-                savedParty.getId(),
-                savedParty.getLeaderId(),
-                "생성 완료"
-        );
+        log.info("[파티 생성 완료] partyId={}", party.getId());
+        return new CreatePartyResponse(party.getId(), party.getLeaderId(), "생성 완료");
     }
 
     @Transactional
     public UpdatePartyResponse updateParty(Long partyId, UpdatePartyRequest request, Long currentUserId) {
-        log.info("[파티 수정 시작] partyId={}, userId={}", partyId, currentUserId);
+        log.info("[파티 수정] partyId={}, userId={}", partyId, currentUserId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
-        }
-
-        if (request.maxMembers() != null && request.maxMembers() < party.getCurrentMembers()) {
-            log.warn("[최대 인원 축소 실패] partyId={}, requestedMax={}, currentMembers={}",
-                    partyId, request.maxMembers(), party.getCurrentMembers());
-            throw new ServiceException(ErrorCode.CANNOT_REDUCE_MAX_MEMBERS);
-        }
+        Party party = getPartyOrThrow(partyId);
+        validateLeaderPermission(party, currentUserId, ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
+        validateMaxMembersUpdate(request.maxMembers(), party.getCurrentMembers());
 
         PartyBuilder.update(request, party);
 
-        log.info("[파티 수정 완료] partyId={}, userId={}", partyId, currentUserId);
+        log.info("[파티 수정 완료] partyId={}", partyId);
+        return new UpdatePartyResponse(party.getId(), party.getLeaderId(), "수정 완료");
+    }
 
-        return new UpdatePartyResponse(
-                party.getId(),
-                party.getLeaderId(),
-                "수정 완료"
-        );
+    @Transactional
+    public ClosePartyResponse closeParty(Long partyId, Long currentUserId) {
+        log.info("[파티 모집 마감] partyId={}, userId={}", partyId, currentUserId);
+
+        Party party = getPartyOrThrow(partyId);
+        validateLeaderPermission(party, currentUserId, ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
+        validatePartyRecruiting(party);
+
+        party.changeStatus(PartyStatus.CLOSED);
+
+        log.info("[파티 모집 마감 완료] partyId={}, currentMembers={}/{}",
+                partyId, party.getCurrentMembers(), party.getMaxMembers());
+        return new ClosePartyResponse(partyId, "모집이 마감되었습니다.");
     }
 
     @Transactional
     public void deleteParty(Long partyId, Long currentUserId) {
-        log.info("[파티 삭제 시작] partyId={}, userId={}", partyId, currentUserId);
+        log.info("[파티 삭제] partyId={}, userId={}", partyId, currentUserId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.CANNOT_DELETE_PARTY_NOT_LEADER);
-        }
+        Party party = getPartyOrThrow(partyId);
+        validateLeaderPermission(party, currentUserId, ErrorCode.CANNOT_DELETE_PARTY_NOT_LEADER);
 
         chatRoomService.closeChatRoom(partyId);
         partyRepository.delete(party);
 
-        log.info("[파티 삭제 완료] partyId={}, userId={}", partyId, currentUserId);
+        log.info("[파티 삭제 완료] partyId={}", partyId);
     }
 
-    public GetPartiesResponse getParties(Pageable pageable, Long currentUserId) {
-        log.debug("[파티 목록 조회] userId={}, page={}, size={}",
-                currentUserId, pageable.getPageNumber(), pageable.getPageSize());
+    public CommonPartyResponse getParties(Pageable pageable, Long currentUserId) {
+        log.debug("[파티 목록 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
 
-        Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable);
+        Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(
+                PartyStatus.RECRUITING, pageable);
 
-        log.debug("[파티 목록 조회 완료] userId={}, totalElements={}",
-                currentUserId, partyPage.getTotalElements());
-
-        return convertToGetPartiesResponse(partyPage, currentUserId);
+        return buildCommonPartyResponse(partyPage, currentUserId, null);
     }
 
-    public GetPartiesResponse getPartiesBySchedule(
+    public CommonPartyResponse getPartiesBySchedule(
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
             Pageable pageable,
             Long currentUserId
     ) {
-        log.debug("[일정별 파티 조회] scheduleId={}, partyType={}, transportType={}, userId={}",
-                scheduleId, partyType, transportType, currentUserId);
+        log.debug("[일정별 파티 조회] scheduleId={}, userId={}", scheduleId, currentUserId);
 
-        Schedule schedule = scheduleRepository.findById(scheduleId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
+        validateScheduleExists(scheduleId);
 
-        // RECRUITING 상태의 파티만 조회하도록 status 파라미터 추가
         Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
-                scheduleId,
-                partyType,
-                transportType,
-                PartyStatus.RECRUITING,
-                pageable
-        );
+                scheduleId, partyType, transportType, PartyStatus.RECRUITING, pageable);
 
-        log.debug("[일정별 파티 조회 완료] scheduleId={}, totalElements={}",
-                scheduleId, partyPage.getTotalElements());
-
-        return convertToGetPartiesResponse(partyPage, currentUserId);
+        return buildCommonPartyResponse(partyPage, currentUserId, null);
     }
 
-    private GetPartiesResponse convertToGetPartiesResponse(Page<Party> partyPage, Long currentUserId) {
-        List<Party> parties = partyPage.getContent();
+    public CommonPartyResponse getMyCreatedParties(Pageable pageable, Long currentUserId) {
+        log.debug("[내가 만든 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
 
-        List<Long> leaderIds = parties.stream()
-                .map(Party::getLeaderId)
-                .distinct()
+        Page<Party> partyPage = partyRepository.findActivePartiesByLeaderId(currentUserId, pageable);
+
+        if (partyPage.isEmpty()) {
+            return createEmptyResponse(pageable);
+        }
+
+        Map<Long, String> participationTypeMap = partyPage.getContent().stream()
+                .collect(Collectors.toMap(Party::getId, party -> "CREATED"));
+
+        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap);
+    }
+
+    public CommonPartyResponse getMyCompletedParties(Pageable pageable, Long currentUserId) {
+        log.debug("[종료된 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
+
+        List<Long> joinedPartyIds = getJoinedCompletedPartyIds(currentUserId);
+
+        Page<PartyRepositoryCustom.CompletedPartyWithType> completedPage =
+                partyRepository.findCompletedPartiesByUserId(currentUserId, joinedPartyIds, pageable);
+
+        if (completedPage.isEmpty()) {
+            return createEmptyResponse(pageable);
+        }
+
+        List<Party> parties = completedPage.getContent().stream()
+                .map(PartyRepositoryCustom.CompletedPartyWithType::party)
                 .toList();
 
-        List<Long> scheduleIds = parties.stream()
-                .map(Party::getScheduleId)
-                .distinct()
-                .toList();
+        Map<Long, String> participationTypeMap = completedPage.getContent().stream()
+                .collect(Collectors.toMap(
+                        data -> data.party().getId(),
+                        PartyRepositoryCustom.CompletedPartyWithType::participationType
+                ));
 
-        List<Long> partyIds = parties.stream()
-                .map(Party::getId)
-                .toList();
+        Page<Party> partyPage = new PageImpl<>(parties, pageable, completedPage.getTotalElements());
 
-        Map<Long, User> leaderMap = userRepository.findAllById(leaderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
-                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
-
-        Set<Long> appliedPartyIds = partyApplicationRepository
-                .findAppliedPartyIds(partyIds, currentUserId)
-                .stream()
-                .collect(Collectors.toSet());
-
-        List<GetPartiesResponse.PartyItem> partyItems = parties.stream()
-                .map(party -> {
-                    User leader = leaderMap.get(party.getLeaderId());
-                    Schedule schedule = scheduleMap.get(party.getScheduleId());
-
-                    if (leader == null || schedule == null) {
-                        throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
-                    }
-
-                    boolean isMyParty = party.getLeaderId().equals(currentUserId);
-                    boolean isApplied = appliedPartyIds.contains(party.getId());
-
-                    return new GetPartiesResponse.PartyItem(
-                            party.getId(),
-                            new GetPartiesResponse.Leader(
-                                    party.getLeaderId(),
-                                    leader.getNickname(),
-                                    leader.getAge(),
-                                    leader.getGender(),
-                                    leader.getProfileImage()
-                            ),
-                            new GetPartiesResponse.Event(
-                                    party.getScheduleId(),
-                                    schedule.getTitle(),
-                                    schedule.getLocation()
-                            ),
-                            new GetPartiesResponse.PartyInfo(
-                                    party.getPartyType(),
-                                    party.getPartyName(),
-                                    party.getDepartureLocation(),
-                                    party.getArrivalLocation(),
-                                    party.getTransportType(),
-                                    party.getMaxMembers(),
-                                    party.getCurrentMembers(),
-                                    party.getDescription(),
-                                    party.getStatus()
-                            ),
-                            isMyParty,
-                            isApplied
-                    );
-                })
-                .toList();
-
-        return new GetPartiesResponse(
-                partyItems,
-                (int) partyPage.getTotalElements(),
-                partyPage.getTotalPages(),
-                partyPage.getNumber()
-        );
+        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap);
     }
 
     @Transactional
     public ApplyToPartyResponse applyToParty(Long partyId, Long currentUserId) {
-        log.info("[파티 신청 시작] partyId={}, userId={}", partyId, currentUserId);
+        log.info("[파티 신청] partyId={}, userId={}", partyId, currentUserId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+        Party party = getPartyOrThrow(partyId);
+        User user = getUserOrThrow(currentUserId);
 
-        if (party.isLeader(currentUserId)) {
-            log.warn("[본인 파티 신청 시도] partyId={}, userId={}", partyId, currentUserId);
-            throw new ServiceException(ErrorCode.CANNOT_APPLY_OWN_PARTY);
-        }
-
-        if (party.isFull()) {
-            log.warn("[파티 정원 초과] partyId={}, current={}, max={}",
-                    partyId, party.getCurrentMembers(), party.getMaxMembers());
-            throw new ServiceException(ErrorCode.PARTY_FULL);
-        }
-
-        if (!party.isRecruiting()) {
-            log.warn("[모집 중 아님] partyId={}, status={}", partyId, party.getStatus());
-            throw new ServiceException(ErrorCode.PARTY_NOT_RECRUITING);
-        }
-
-        if (partyMemberRepository.existsByPartyIdAndUserId(partyId, currentUserId)) {
-            log.warn("[이미 가입한 멤버] partyId={}, userId={}", partyId, currentUserId);
-            throw new ServiceException(ErrorCode.ALREADY_JOINED_BEFORE);
-        }
-
-        if (partyApplicationRepository.existsByPartyIdAndApplicantId(partyId, currentUserId)) {
-            log.warn("[중복 신청] partyId={}, userId={}", partyId, currentUserId);
-            throw new ServiceException(ErrorCode.ALREADY_APPLIED);
-        }
+        validatePartyApplication(party, currentUserId);
 
         PartyApplication application = PartyApplication.create(
-                partyId,
-                currentUserId,
-                party.getLeaderId()
-        );
+                partyId, currentUserId, party.getLeaderId());
         partyApplicationRepository.save(application);
 
-        User user = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
-
-        String message = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
-                user.getNickname(), user.getAge(), user.getGender(), party.getPartyName());
-
-        notificationService.send(
-                party.getLeaderId(),        // 수신자: 방장
-                NotificationType.APPLY,     // 타입: 신청
-                "새로운 파티 신청",             // 제목
-                message                    // 내용
-        );
+        sendApplicationNotification(party, user);
 
         log.info("[파티 신청 완료] partyId={}, userId={}, applicationId={}",
                 partyId, currentUserId, application.getId());
-
         return new ApplyToPartyResponse(
-                user.getNickname(),
-                user.getAge(),
-                user.getGender(),
-                party.getPartyName()
-        );
+                user.getNickname(), user.getAge(), user.getGender(), party.getPartyName());
     }
 
     @Transactional
     public void cancelApplication(Long partyId, Long applicationId, Long currentUserId) {
-        log.info("[신청 취소 시작] partyId={}, applicationId={}, userId={}",
+        log.info("[신청 취소] partyId={}, applicationId={}, userId={}",
                 partyId, applicationId, currentUserId);
 
-        PartyApplication application = partyApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.APPLICATION_NOT_FOUND));
-
-        if (!application.getApplicantId().equals(currentUserId)) {
-            log.warn("[권한 없음] applicationId={}, attemptUserId={}, actualApplicantId={}",
-                    applicationId, currentUserId, application.getApplicantId());
-            throw new ServiceException(ErrorCode.UNAUTHORIZED_PARTY_ACCESS);
-        }
-
-        if (application.isApproved()) {
-            log.warn("[승인된 신청 취소 시도] applicationId={}, status={}",
-                    applicationId, application.getStatus());
-            throw new ServiceException(ErrorCode.CANNOT_CANCEL_APPROVED_APPLICATION);
-        }
+        PartyApplication application = getApplicationOrThrow(applicationId);
+        validateApplicantPermission(application, currentUserId);
+        validateApplicationNotApproved(application);
 
         partyApplicationRepository.delete(application);
 
-        log.info("[신청 취소 완료] partyId={}, applicationId={}, userId={}",
-                partyId, applicationId, currentUserId);
+        log.info("[신청 취소 완료] partyId={}, applicationId={}", partyId, applicationId);
     }
 
     @Transactional
     public AcceptApplicationResponse acceptApplication(Long partyId, Long applicationId, Long currentUserId) {
-        log.info("[신청 승인 시작] partyId={}, applicationId={}, userId={}",
+        log.info("[신청 승인] partyId={}, applicationId={}, userId={}",
                 partyId, applicationId, currentUserId);
 
         Party party = partyRepository.findByIdWithLock(partyId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
 
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.UNAUTHORIZED_PARTY_LEADER);
-        }
+        validateLeaderPermission(party, currentUserId, ErrorCode.UNAUTHORIZED_PARTY_LEADER);
 
-        PartyApplication application = partyApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.APPLICATION_NOT_FOUND));
-
-        if (application.isProcessed()) {
-            log.warn("[중복 처리 시도] applicationId={}, status={}",
-                    applicationId, application.getStatus());
-            throw new ServiceException(ErrorCode.APPLICATION_ALREADY_PROCESSED);
-        }
-
-        if (party.isFull()) {
-            log.warn("[파티 정원 초과] partyId={}, current={}, max={}",
-                    partyId, party.getCurrentMembers(), party.getMaxMembers());
-            throw new ServiceException(ErrorCode.PARTY_FULL);
-        }
+        PartyApplication application = getApplicationOrThrow(applicationId);
+        validateApplicationNotProcessed(application);
+        validatePartyNotFull(party);
 
         application.approve();
-
-        PartyMember member = PartyMember.createMember(partyId, application.getApplicantId());
-        partyMemberRepository.save(member);
-
+        partyMemberRepository.save(PartyMember.createMember(partyId, application.getApplicantId()));
         party.incrementCurrentMembers();
 
-        if (party.isFull()) {
-            log.info("[파티 정원 마감] partyId={}, members={}/{}",
-                    partyId, party.getCurrentMembers(), party.getMaxMembers());
-        }
+        sendAcceptNotification(party, application);
 
-        notificationService.send(
-                application.getApplicantId(),
-                NotificationType.ACCEPT,
-                "파티 신청 수락",
-                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName())
-        );
-
-        log.info("[신청 승인 완료] partyId={}, applicationId={}, applicantId={}, currentMembers={}",
-                partyId, applicationId, application.getApplicantId(), party.getCurrentMembers());
-
-        return new AcceptApplicationResponse(
-                application.getApplicantId(),
-                party.getPartyName(),
-                null
-        );
+        log.info("[신청 승인 완료] partyId={}, applicationId={}, currentMembers={}/{}",
+                partyId, applicationId, party.getCurrentMembers(), party.getMaxMembers());
+        return new AcceptApplicationResponse(application.getApplicantId(), party.getPartyName(), null);
     }
 
     @Transactional
     public RejectApplicationResponse rejectApplication(Long partyId, Long applicationId, Long currentUserId) {
-        log.info("[신청 거절 시작] partyId={}, applicationId={}, userId={}",
+        log.info("[신청 거절] partyId={}, applicationId={}, userId={}",
                 partyId, applicationId, currentUserId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+        Party party = getPartyOrThrow(partyId);
+        validateLeaderPermission(party, currentUserId, ErrorCode.UNAUTHORIZED_PARTY_LEADER);
 
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.UNAUTHORIZED_PARTY_LEADER);
-        }
-
-        PartyApplication application = partyApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.APPLICATION_NOT_FOUND));
-
-        if (application.isProcessed()) {
-            log.warn("[중복 처리 시도] applicationId={}, status={}",
-                    applicationId, application.getStatus());
-            throw new ServiceException(ErrorCode.APPLICATION_ALREADY_PROCESSED);
-        }
+        PartyApplication application = getApplicationOrThrow(applicationId);
+        validateApplicationNotProcessed(application);
 
         application.reject();
+        sendRejectNotification(party, application);
 
-        notificationService.send(
-                application.getApplicantId(),
-                NotificationType.REJECT,
-                "파티 신청 거절",
-                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName())
-        );
-
-        log.info("[신청 거절 완료] partyId={}, applicationId={}, applicantId={}",
-                partyId, applicationId, application.getApplicantId());
-
-        return new RejectApplicationResponse(
-                application.getApplicantId(),
-                party.getPartyName(),
-                null
-        );
+        log.info("[신청 거절 완료] partyId={}, applicationId={}", partyId, applicationId);
+        return new RejectApplicationResponse(application.getApplicantId(), party.getPartyName(), null);
     }
 
     public GetApplicantsResponse getApplicants(Long partyId, Long currentUserId) {
         log.debug("[신청자 목록 조회] partyId={}, userId={}", partyId, currentUserId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.UNAUTHORIZED_PARTY_LEADER);
-        }
+        Party party = getPartyOrThrow(partyId);
+        validateLeaderPermission(party, currentUserId, ErrorCode.UNAUTHORIZED_PARTY_LEADER);
 
         List<PartyApplication> applications = partyApplicationRepository.findByPartyId(partyId);
-
-        List<Long> applicantIds = applications.stream()
-                .map(PartyApplication::getApplicantId)
-                .distinct()
-                .toList();
-
-        Map<Long, User> userMap = userRepository.findAllById(applicantIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
+        Map<Long, User> userMap = getUserMap(applications.stream()
+                .map(PartyApplication::getApplicantId).distinct().toList());
 
         List<GetApplicantsResponse.ApplicationInfo> applicationInfos = applications.stream()
-                .map(application -> {
-                    User user = userMap.get(application.getApplicantId());
-                    if (user == null) {
-                        throw new ServiceException(ErrorCode.USER_NOT_FOUND);
-                    }
-                    return new GetApplicantsResponse.ApplicationInfo(
-                            application.getId(),
-                            new GetApplicantsResponse.ApplicantInfo(
-                                    application.getApplicantId(),
-                                    user.getNickname(),
-                                    user.getProfileImage(),
-                                    user.getGender(),
-                                    user.getAge()
-                            ),
-                            application.getStatus()
-                    );
-                })
+                .map(application -> buildApplicationInfo(application, userMap))
                 .toList();
 
-        ApplicationCounts counts = getApplicationCounts(List.of(partyId)).get(partyId);
-        if (counts == null) {
-            counts = new ApplicationCounts(0, 0, 0);
-        }
-
-        log.debug("[신청자 목록 조회 완료] partyId={}, totalApplications={}",
-                partyId, applications.size());
+        ApplicationCounts counts = getApplicationCounts(List.of(partyId))
+                .getOrDefault(partyId, new ApplicationCounts(0, 0, 0));
 
         return new GetApplicantsResponse(
                 partyId,
                 applicationInfos,
                 new GetApplicantsResponse.ApplicationSummary(
                         applications.size(),
-                        counts.pendingCount(),
-                        counts.approvedCount(),
-                        counts.rejectedCount()
+                        counts.pending(),
+                        counts.approved(),
+                        counts.rejected()
                 )
         );
-    }
-
-    private Map<Long, ApplicationCounts> getApplicationCounts(List<Long> partyIds) {
-        if (partyIds.isEmpty()) {
-            return Map.of();
-        }
-
-        List<PartyApplicationRepository.ApplicationCountProjection> projections =
-                partyApplicationRepository.countByPartyIdsGroupByStatus(partyIds);
-
-        Map<Long, Map<ApplicationStatus, Long>> groupedByParty = new HashMap<>();
-
-        for (var projection : projections) {
-            groupedByParty
-                    .computeIfAbsent(projection.getPartyId(), k -> new HashMap<>())
-                    .put(projection.getStatus(), projection.getCount());
-        }
-
-        Map<Long, ApplicationCounts> result = new HashMap<>();
-
-        for (var entry : groupedByParty.entrySet()) {
-            Long partyId = entry.getKey();
-            Map<ApplicationStatus, Long> statusCounts = entry.getValue();
-
-            int pending = statusCounts.getOrDefault(ApplicationStatus.PENDING, 0L).intValue();
-            int approved = statusCounts.getOrDefault(ApplicationStatus.APPROVED, 0L).intValue();
-            int rejected = statusCounts.getOrDefault(ApplicationStatus.REJECTED, 0L).intValue();
-
-            result.put(partyId, new ApplicationCounts(pending, approved, rejected));
-        }
-
-        return result;
     }
 
     public GetPartyMembersResponse getPartyMembers(Long partyId) {
         log.debug("[멤버 목록 조회] partyId={}", partyId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+        validatePartyExists(partyId);
 
         List<PartyMember> members = partyMemberRepository.findActiveMembers(partyId);
-
-        List<Long> userIds = members.stream()
-                .map(PartyMember::getUserId)
-                .distinct()
-                .toList();
-
-        Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
+        Map<Long, User> userMap = getUserMap(members.stream()
+                .map(PartyMember::getUserId).distinct().toList());
 
         List<GetPartyMembersResponse.MemberInfo> memberInfos = members.stream()
-                .map(member -> {
-                    User user = userMap.get(member.getUserId());
-                    if (user == null) {
-                        throw new ServiceException(ErrorCode.USER_NOT_FOUND);
-                    }
-                    return new GetPartyMembersResponse.MemberInfo(
-                            member.getId(),
-                            member.getUserId(),
-                            user.getNickname(),
-                            user.getProfileImage(),
-                            member.getRole()
-                    );
-                })
+                .map(member -> buildMemberInfo(member, userMap))
                 .toList();
 
-        log.debug("[멤버 목록 조회 완료] partyId={}, memberCount={}", partyId, members.size());
-
-        return new GetPartyMembersResponse(
-                partyId,
-                memberInfos,
-                members.size()
-        );
+        return new GetPartyMembersResponse(partyId, memberInfos, members.size());
     }
 
-    public GetMyApplicationsResponse getMyApplications(Pageable pageable, Long currentUserId) {
-        log.debug("[내 신청 목록 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
+    public CommonPartyResponse getMyPendingApplications(Pageable pageable, Long currentUserId) {
+        log.debug("[신청중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
 
         Page<PartyApplication> applicationPage = partyApplicationRepository
-                .findActiveApplicationsByApplicantId(currentUserId, pageable);
-
-        List<PartyApplication> applications = applicationPage.getContent();
-
-        if (applications.isEmpty()) {
-            log.debug("[내 신청 목록 조회 완료] userId={}, totalElements=0", currentUserId);
-            return new GetMyApplicationsResponse(List.of(), 0, 0, pageable.getPageNumber());
-        }
-
-        List<Long> partyIds = applications.stream()
-                .map(PartyApplication::getPartyId)
-                .distinct()
-                .toList();
-
-        List<Long> leaderIds = applications.stream()
-                .map(PartyApplication::getLeaderId)
-                .distinct()
-                .toList();
-
-        Map<Long, Party> partyMap = partyRepository.findAllById(partyIds).stream()
-                .collect(Collectors.toMap(Party::getId, party -> party));
-
-        List<Long> scheduleIds = partyMap.values().stream()
-                .map(Party::getScheduleId)
-                .distinct()
-                .toList();
-
-        Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
-                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
-
-        Map<Long, User> leaderMap = userRepository.findAllById(leaderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        List<GetMyApplicationsResponse.ApplicationItem> applicationItems = applications.stream()
-                .map(application -> {
-                    Party party = partyMap.get(application.getPartyId());
-                    Schedule schedule = scheduleMap.get(party.getScheduleId());
-                    User leader = leaderMap.get(application.getLeaderId());
-
-                    if (schedule == null || leader == null) {
-                        throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
-                    }
-
-                    return new GetMyApplicationsResponse.ApplicationItem(
-                            application.getId(),
-                            new GetMyApplicationsResponse.PartyInfo(
-                                    application.getPartyId(),
-                                    new GetMyApplicationsResponse.LeaderInfo(
-                                            application.getLeaderId(),
-                                            leader.getNickname(),
-                                            leader.getProfileImage()
-                                    ),
-                                    new GetMyApplicationsResponse.EventInfo(
-                                            schedule.getId(),
-                                            schedule.getTitle(),
-                                            schedule.getLocation(),
-                                            schedule.getScheduleTime()
-                                    ),
-                                    new GetMyApplicationsResponse.PartyDetailInfo(
-                                            party.getPartyType().getDescription(),
-                                            party.getDepartureLocation(),
-                                            party.getCurrentMembers(),
-                                            party.getMaxMembers()
-                                    )
-                            ),
-                            application.getStatus(),
-                            null
-                    );
-                })
-                .toList();
-
-        log.debug("[내 신청 목록 조회 완료] userId={}, totalElements={}",
-                currentUserId, applicationPage.getTotalElements());
-
-        return new GetMyApplicationsResponse(
-                applicationItems,
-                (int) applicationPage.getTotalElements(),
-                applicationPage.getTotalPages(),
-                applicationPage.getNumber()
-        );
-    }
-
-    public GetMyCreatedPartiesResponse getMyCreatedParties(Pageable pageable, Long currentUserId) {
-        log.debug("[내가 만든 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
-
-        Page<Party> partyPage = partyRepository.findActivePartiesByLeaderId(currentUserId, pageable);
-
-        List<Party> parties = partyPage.getContent();
-
-        if (parties.isEmpty()) {
-            log.debug("[내가 만든 파티 조회 완료] userId={}, totalElements=0", currentUserId);
-            return new GetMyCreatedPartiesResponse(List.of(), 0, 0, pageable.getPageNumber());
-        }
-
-        List<Long> scheduleIds = parties.stream()
-                .map(Party::getScheduleId)
-                .distinct()
-                .toList();
-
-        Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
-                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
-
-        List<Long> partyIds = parties.stream()
-                .map(Party::getId)
-                .toList();
-
-        Map<Long, ApplicationCounts> countsMap = getApplicationCounts(partyIds);
-
-        List<GetMyCreatedPartiesResponse.CreatedPartyItem> partyItems = parties.stream()
-                .map(party -> {
-                    Schedule schedule = scheduleMap.get(party.getScheduleId());
-                    if (schedule == null) {
-                        throw new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND);
-                    }
-
-                    ApplicationCounts counts = countsMap.getOrDefault(
-                            party.getId(),
-                            new ApplicationCounts(0, 0, 0)
-                    );
-
-                    return new GetMyCreatedPartiesResponse.CreatedPartyItem(
-                            party.getId(),
-                            new GetMyCreatedPartiesResponse.EventInfo(
-                                    schedule.getId(),
-                                    schedule.getTitle(),
-                                    schedule.getLocation(),
-                                    schedule.getScheduleTime()
-                            ),
-                            new GetMyCreatedPartiesResponse.PartyDetailInfo(
-                                    party.getPartyType().getDescription(),
-                                    party.getDepartureLocation(),
-                                    party.getArrivalLocation(),
-                                    party.getTransportType(),
-                                    party.getMaxMembers(),
-                                    party.getCurrentMembers(),
-                                    party.getStatus()
-                            ),
-                            new GetMyCreatedPartiesResponse.ApplicationStatistics(
-                                    counts.pendingCount(),
-                                    counts.approvedCount(),
-                                    counts.rejectedCount()
-                            ),
-                            party.getDescription(),
-                            null,
-                            party.getCreatedAt()
-                    );
-                })
-                .toList();
-
-        log.debug("[내가 만든 파티 조회 완료] userId={}, totalElements={}",
-                currentUserId, partyPage.getTotalElements());
-
-        return new GetMyCreatedPartiesResponse(
-                partyItems,
-                (int) partyPage.getTotalElements(),
-                partyPage.getTotalPages(),
-                partyPage.getNumber()
-        );
-    }
-
-    public GetCompletedPartiesResponse getMyCompletedParties(Pageable pageable, Long currentUserId) {
-        log.debug("[종료된 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
-
-        List<PartyApplication> completedApplications = partyApplicationRepository
-                .findByApplicantIdAndStatus(
+                .findByApplicantIdAndStatusWithActiveParties(
                         currentUserId,
-                        ApplicationStatus.COMPLETED,
-                        PageRequest.of(0, MAX_COMPLETED_PARTIES_FETCH)
-                ).getContent();
-
-        List<Long> joinedPartyIds = completedApplications.stream()
-                .map(PartyApplication::getPartyId)
-                .distinct()
-                .toList();
-
-        Page<PartyRepositoryCustom.CompletedPartyWithType> completedPage =
-                partyRepository.findCompletedPartiesByUserId(
-                        currentUserId,
-                        joinedPartyIds,
+                        ApplicationStatus.PENDING,
                         pageable
                 );
 
-        List<PartyRepositoryCustom.CompletedPartyWithType> pagedParties = completedPage.getContent();
-
-        if (pagedParties.isEmpty()) {
-            log.debug("[종료된 파티 조회 완료] userId={}, totalElements=0", currentUserId);
-            return new GetCompletedPartiesResponse(
-                    List.of(),
-                    0,
-                    0,
-                    pageable.getPageNumber()
-            );
-        }
-
-        List<Long> leaderIds = pagedParties.stream()
-                .map(data -> data.party().getLeaderId())
-                .distinct()
-                .toList();
-
-        List<Long> scheduleIds = pagedParties.stream()
-                .map(data -> data.party().getScheduleId())
-                .distinct()
-                .toList();
-
-        Map<Long, User> leaderMap = userRepository.findAllById(leaderIds).stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
-
-        Map<Long, Schedule> scheduleMap = scheduleRepository.findAllById(scheduleIds).stream()
-                .collect(Collectors.toMap(Schedule::getId, schedule -> schedule));
-
-        List<GetCompletedPartiesResponse.CompletedPartyItem> partyItems = pagedParties.stream()
-                .map(data -> {
-                    Party party = data.party();
-                    String participationType = data.participationType();
-
-                    User leader = leaderMap.get(party.getLeaderId());
-                    Schedule schedule = scheduleMap.get(party.getScheduleId());
-
-                    if (leader == null || schedule == null) {
-                        throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
-                    }
-
-                    return new GetCompletedPartiesResponse.CompletedPartyItem(
-                            party.getId(),
-                            participationType,
-                            new GetCompletedPartiesResponse.EventInfo(
-                                    schedule.getId(),
-                                    schedule.getTitle(),
-                                    schedule.getLocation(),
-                                    schedule.getScheduleTime()
-                            ),
-                            new GetCompletedPartiesResponse.PartyDetailInfo(
-                                    party.getPartyName(),
-                                    party.getPartyType().getDescription(),
-                                    party.getDepartureLocation(),
-                                    party.getArrivalLocation(),
-                                    party.getMaxMembers(),
-                                    party.getCurrentMembers()
-                            ),
-                            new GetCompletedPartiesResponse.LeaderInfo(
-                                    leader.getId(),
-                                    leader.getNickname()
-                            ),
-                            party.getStatus(),
-                            party.getUpdatedAt(),
-                            party.getCreatedAt()
-                    );
-                })
-                .toList();
-
-        log.debug("[종료된 파티 조회 완료] userId={}, totalElements={}",
-                currentUserId, completedPage.getTotalElements());
-
-        return new GetCompletedPartiesResponse(
-                partyItems,
-                (int) completedPage.getTotalElements(),
-                completedPage.getTotalPages(),
-                completedPage.getNumber()
-        );
+        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "PENDING");
     }
+
+    public CommonPartyResponse getMyJoinedParties(Pageable pageable, Long currentUserId) {
+        log.debug("[참여중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
+
+        Page<PartyApplication> applicationPage = partyApplicationRepository
+                .findByApplicantIdAndStatusWithActiveParties(
+                        currentUserId,
+                        ApplicationStatus.APPROVED,
+                        pageable
+                );
+
+        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "JOINED");
+    }
+
 
     @Transactional
     public void removePartyMember(Long partyId, Long userId) {
         log.info("[멤버 탈퇴] partyId={}, userId={}", partyId, userId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        PartyMember member = partyMemberRepository
-                .findByPartyIdAndUserIdAndLeftAtIsNull(partyId, userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
+        Party party = getPartyOrThrow(partyId);
+        PartyMember member = getActiveMemberOrThrow(partyId, userId);
 
         member.leave(LocalDateTime.now());
         party.decrementCurrentMembers();
@@ -861,12 +351,8 @@ public class PartyService {
     public void kickPartyMember(Long partyId, Long targetMemberId) {
         log.info("[멤버 강퇴] partyId={}, targetMemberId={}", partyId, targetMemberId);
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        PartyMember member = partyMemberRepository
-                .findByPartyIdAndUserIdAndLeftAtIsNull(partyId, targetMemberId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
+        Party party = getPartyOrThrow(partyId);
+        PartyMember member = getActiveMemberOrThrow(partyId, targetMemberId);
 
         member.kick(LocalDateTime.now());
         party.decrementCurrentMembers();
@@ -875,32 +361,378 @@ public class PartyService {
                 partyId, targetMemberId, party.getCurrentMembers());
     }
 
-    @Transactional
-    public ClosePartyResponse closeParty(Long partyId, Long currentUserId) {
-        log.info("[파티 모집 마감 시작] partyId={}, userId={}", partyId, currentUserId);
+    // 공통 Response 빌더
 
-        Party party = partyRepository.findById(partyId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
-
-        if (!party.isLeader(currentUserId)) {
-            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
-                    partyId, currentUserId, party.getLeaderId());
-            throw new ServiceException(ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
+    private CommonPartyResponse buildCommonPartyResponse(
+            Page<Party> partyPage,
+            Long currentUserId,
+            Map<Long, String> participationTypeMap
+    ) {
+        if (partyPage.isEmpty()) {
+            return createEmptyResponse(partyPage.getPageable());
         }
 
+        List<Party> parties = partyPage.getContent();
+
+        Map<Long, User> leaderMap = getUserMap(parties.stream()
+                .map(Party::getLeaderId).distinct().toList());
+        Map<Long, Schedule> scheduleMap = getScheduleMap(parties.stream()
+                .map(Party::getScheduleId).distinct().toList());
+        Set<Long> appliedPartyIds = partyApplicationRepository
+                .findAppliedPartyIds(parties.stream().map(Party::getId).toList(), currentUserId)
+                .stream().collect(Collectors.toSet());
+
+        List<CommonPartyResponse.PartyItem> partyItems = parties.stream()
+                .map(party -> buildPartyItem(
+                        party,
+                        leaderMap,
+                        scheduleMap,
+                        currentUserId,
+                        appliedPartyIds,
+                        participationTypeMap
+                ))
+                .toList();
+
+        return new CommonPartyResponse(
+                partyItems,
+                (int) partyPage.getTotalElements(),
+                partyPage.getTotalPages(),
+                partyPage.getNumber()
+        );
+    }
+
+    private CommonPartyResponse.PartyItem buildPartyItem(
+            Party party,
+            Map<Long, User> leaderMap,
+            Map<Long, Schedule> scheduleMap,
+            Long currentUserId,
+            Set<Long> appliedPartyIds,
+            Map<Long, String> participationTypeMap
+    ) {
+        User leader = leaderMap.get(party.getLeaderId());
+        Schedule schedule = scheduleMap.get(party.getScheduleId());
+
+        if (leader == null || schedule == null) {
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        return new CommonPartyResponse.PartyItem(
+                party.getId(),
+                new CommonPartyResponse.ScheduleInfo(
+                        schedule.getId(),
+                        schedule.getTitle()
+                ),
+                new CommonPartyResponse.LeaderInfo(
+                        leader.getId(),
+                        leader.getNickname()
+                ),
+                new CommonPartyResponse.PartyDetail(
+                        party.getPartyType(),
+                        party.getPartyName(),
+                        party.getDepartureLocation(),
+                        party.getArrivalLocation(),
+                        party.getTransportType(),
+                        party.getMaxMembers(),
+                        party.getCurrentMembers(),
+                        party.getPreferredGender(),
+                        party.getPreferredAge(),
+                        party.getStatus(),
+                        party.getDescription()
+                ),
+                party.getLeaderId().equals(currentUserId),
+                appliedPartyIds.contains(party.getId()),
+                participationTypeMap != null ? participationTypeMap.get(party.getId()) : null
+        );
+    }
+
+    private CommonPartyResponse buildCommonPartyResponseFromApplications(
+            Page<PartyApplication> applicationPage,
+            Long currentUserId,
+            String participationType
+    ) {
+        if (applicationPage.isEmpty()) {
+            return createEmptyResponse(applicationPage.getPageable());
+        }
+
+        List<PartyApplication> applications = applicationPage.getContent();
+
+        List<Long> partyIds = applications.stream()
+                .map(PartyApplication::getPartyId)
+                .distinct()
+                .toList();
+
+        Map<Long, Party> partyMap = getPartyMap(partyIds);
+
+        List<Party> parties = applications.stream()
+                .map(app -> partyMap.get(app.getPartyId()))
+                .filter(party -> party != null)
+                .toList();
+
+        Map<Long, User> leaderMap = getUserMap(parties.stream()
+                .map(Party::getLeaderId).distinct().toList());
+        Map<Long, Schedule> scheduleMap = getScheduleMap(parties.stream()
+                .map(Party::getScheduleId).distinct().toList());
+
+        Set<Long> appliedPartyIds = partyApplicationRepository
+                .findAppliedPartyIds(partyIds, currentUserId)
+                .stream().collect(Collectors.toSet());
+
+        Map<Long, String> participationTypeMap = parties.stream()
+                .collect(Collectors.toMap(Party::getId, party -> participationType));
+
+        List<CommonPartyResponse.PartyItem> partyItems = parties.stream()
+                .map(party -> buildPartyItem(
+                        party,
+                        leaderMap,
+                        scheduleMap,
+                        currentUserId,
+                        appliedPartyIds,
+                        participationTypeMap
+                ))
+                .toList();
+
+        return new CommonPartyResponse(
+                partyItems,
+                (int) applicationPage.getTotalElements(),
+                applicationPage.getTotalPages(),
+                applicationPage.getNumber()
+        );
+    }
+
+    // 엔티티 조회 헬퍼
+
+    private Party getPartyOrThrow(Long partyId) {
+        return partyRepository.findById(partyId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+    }
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private PartyApplication getApplicationOrThrow(Long applicationId) {
+        return partyApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.APPLICATION_NOT_FOUND));
+    }
+
+    private PartyMember getActiveMemberOrThrow(Long partyId, Long userId) {
+        return partyMemberRepository.findByPartyIdAndUserIdAndLeftAtIsNull(partyId, userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_IN_PARTY));
+    }
+
+    private Map<Long, User> getUserMap(List<Long> userIds) {
+        return toMap(userRepository.findAllById(userIds), User::getId);
+    }
+
+    private Map<Long, Party> getPartyMap(List<Long> partyIds) {
+        return toMap(partyRepository.findAllById(partyIds), Party::getId);
+    }
+
+    private Map<Long, Schedule> getScheduleMap(List<Long> scheduleIds) {
+        return toMap(scheduleRepository.findAllById(scheduleIds), Schedule::getId);
+    }
+
+    private <T, K> Map<K, T> toMap(Iterable<T> iterable, Function<T, K> keyExtractor) {
+        return ((List<T>) iterable).stream()
+                .collect(Collectors.toMap(keyExtractor, Function.identity()));
+    }
+
+    // 검증 헬퍼
+
+    private void validateScheduleExists(Long scheduleId) {
+        if (!scheduleRepository.existsById(scheduleId)) {
+            throw new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND);
+        }
+    }
+
+    private void validatePartyExists(Long partyId) {
+        if (!partyRepository.existsById(partyId)) {
+            throw new ServiceException(ErrorCode.PARTY_NOT_FOUND);
+        }
+    }
+
+    private void validateLeaderPermission(Party party, Long userId, ErrorCode errorCode) {
+        if (!party.isLeader(userId)) {
+            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
+                    party.getId(), userId, party.getLeaderId());
+            throw new ServiceException(errorCode);
+        }
+    }
+
+    private void validateApplicantPermission(PartyApplication application, Long userId) {
+        if (!application.getApplicantId().equals(userId)) {
+            log.warn("[권한 없음] applicationId={}, attemptUserId={}, actualApplicantId={}",
+                    application.getId(), userId, application.getApplicantId());
+            throw new ServiceException(ErrorCode.UNAUTHORIZED_PARTY_ACCESS);
+        }
+    }
+
+    private void validateMaxMembersUpdate(Integer requestedMaxMembers, Integer currentMembers) {
+        if (requestedMaxMembers != null && requestedMaxMembers < currentMembers) {
+            log.warn("[최대 인원 축소 실패] requestedMax={}, currentMembers={}",
+                    requestedMaxMembers, currentMembers);
+            throw new ServiceException(ErrorCode.CANNOT_REDUCE_MAX_MEMBERS);
+        }
+    }
+
+    private void validatePartyRecruiting(Party party) {
         if (!party.isRecruiting()) {
-            log.warn("[모집 중이 아님] partyId={}, status={}", partyId, party.getStatus());
+            log.warn("[모집 중이 아님] partyId={}, status={}", party.getId(), party.getStatus());
             throw new ServiceException(ErrorCode.PARTY_NOT_RECRUITING);
         }
+    }
 
-        party.changeStatus(PartyStatus.CLOSED);
+    private void validatePartyApplication(Party party, Long userId) {
+        if (party.isLeader(userId)) {
+            throw new ServiceException(ErrorCode.CANNOT_APPLY_OWN_PARTY);
+        }
+        if (party.isFull()) {
+            throw new ServiceException(ErrorCode.PARTY_FULL);
+        }
+        if (!party.isRecruiting()) {
+            throw new ServiceException(ErrorCode.PARTY_NOT_RECRUITING);
+        }
+        if (partyMemberRepository.existsByPartyIdAndUserId(party.getId(), userId)) {
+            throw new ServiceException(ErrorCode.ALREADY_JOINED_BEFORE);
+        }
+        if (partyApplicationRepository.existsByPartyIdAndApplicantId(party.getId(), userId)) {
+            throw new ServiceException(ErrorCode.ALREADY_APPLIED);
+        }
+    }
 
-        log.info("[파티 모집 마감 완료] partyId={}, currentMembers={}/{}",
-                partyId, party.getCurrentMembers(), party.getMaxMembers());
+    private void validateApplicationNotApproved(PartyApplication application) {
+        if (application.isApproved()) {
+            log.warn("[승인된 신청 취소 시도] applicationId={}, status={}",
+                    application.getId(), application.getStatus());
+            throw new ServiceException(ErrorCode.CANNOT_CANCEL_APPROVED_APPLICATION);
+        }
+    }
 
-        return new ClosePartyResponse(
-                partyId,
-                "모집이 마감되었습니다."
+    private void validateApplicationNotProcessed(PartyApplication application) {
+        if (application.isProcessed()) {
+            log.warn("[중복 처리 시도] applicationId={}, status={}",
+                    application.getId(), application.getStatus());
+            throw new ServiceException(ErrorCode.APPLICATION_ALREADY_PROCESSED);
+        }
+    }
+
+    private void validatePartyNotFull(Party party) {
+        if (party.isFull()) {
+            log.warn("[파티 정원 초과] partyId={}, current={}, max={}",
+                    party.getId(), party.getCurrentMembers(), party.getMaxMembers());
+            throw new ServiceException(ErrorCode.PARTY_FULL);
+        }
+    }
+
+    // 알림 헬퍼
+
+    private void sendApplicationNotification(Party party, User applicant) {
+        String message = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
+                applicant.getNickname(), applicant.getAge(), applicant.getGender(), party.getPartyName());
+        notificationService.send(
+                party.getLeaderId(),
+                NotificationType.APPLY,
+                "새로운 파티 신청",
+                message
         );
+    }
+
+    private void sendAcceptNotification(Party party, PartyApplication application) {
+        notificationService.send(
+                application.getApplicantId(),
+                NotificationType.ACCEPT,
+                "파티 신청 수락",
+                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName())
+        );
+    }
+
+    private void sendRejectNotification(Party party, PartyApplication application) {
+        notificationService.send(
+                application.getApplicantId(),
+                NotificationType.REJECT,
+                "파티 신청 거절",
+                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName())
+        );
+    }
+
+    // 기타 헬퍼
+
+    private List<Long> getJoinedCompletedPartyIds(Long userId) {
+        return partyApplicationRepository
+                .findByApplicantIdAndStatus(
+                        userId,
+                        ApplicationStatus.COMPLETED,
+                        PageRequest.of(0, MAX_COMPLETED_PARTIES_FETCH)
+                ).getContent().stream()
+                .map(PartyApplication::getPartyId)
+                .distinct()
+                .toList();
+    }
+
+    private Map<Long, ApplicationCounts> getApplicationCounts(List<Long> partyIds) {
+        if (partyIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return partyApplicationRepository.countByPartyIdsGroupByStatus(partyIds).stream()
+                .collect(Collectors.groupingBy(
+                        PartyApplicationRepository.ApplicationCountProjection::getPartyId,
+                        Collectors.toMap(
+                                PartyApplicationRepository.ApplicationCountProjection::getStatus,
+                                PartyApplicationRepository.ApplicationCountProjection::getCount
+                        )
+                ))
+                .entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> new ApplicationCounts(
+                                entry.getValue().getOrDefault(ApplicationStatus.PENDING, 0L).intValue(),
+                                entry.getValue().getOrDefault(ApplicationStatus.APPROVED, 0L).intValue(),
+                                entry.getValue().getOrDefault(ApplicationStatus.REJECTED, 0L).intValue()
+                        )
+                ));
+    }
+
+    private GetApplicantsResponse.ApplicationInfo buildApplicationInfo(
+            PartyApplication application,
+            Map<Long, User> userMap
+    ) {
+        User user = userMap.get(application.getApplicantId());
+        if (user == null) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
+        return new GetApplicantsResponse.ApplicationInfo(
+                application.getId(),
+                new GetApplicantsResponse.ApplicantInfo(
+                        application.getApplicantId(),
+                        user.getNickname(),
+                        user.getProfileImage(),
+                        user.getGender(),
+                        user.getAge()
+                ),
+                application.getStatus()
+        );
+    }
+
+    private GetPartyMembersResponse.MemberInfo buildMemberInfo(
+            PartyMember member,
+            Map<Long, User> userMap
+    ) {
+        User user = userMap.get(member.getUserId());
+        if (user == null) {
+            throw new ServiceException(ErrorCode.USER_NOT_FOUND);
+        }
+        return new GetPartyMembersResponse.MemberInfo(
+                member.getId(),
+                member.getUserId(),
+                user.getNickname(),
+                user.getProfileImage(),
+                member.getRole()
+        );
+    }
+
+    private CommonPartyResponse createEmptyResponse(Pageable pageable) {
+        return new CommonPartyResponse(List.of(), 0, 0, pageable.getPageNumber());
     }
 }

@@ -146,10 +146,10 @@ public interface PartyControllerSpec {
     @Operation(summary = "파티 목록 조회", description = "파티 목록을 조회합니다. 페이징 처리됩니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = GetPartiesResponse.class)))
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  // ✅ 수정
     })
     @GetMapping
-    ResponseEntity<GetPartiesResponse> getParties(
+    ResponseEntity<CommonPartyResponse> getParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -163,7 +163,7 @@ public interface PartyControllerSpec {
             @ApiResponse(
                     responseCode = "200",
                     description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = GetPartiesResponse.class))
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  // ✅ 수정
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -177,7 +177,7 @@ public interface PartyControllerSpec {
             )
     })
     @GetMapping("/schedule/{scheduleId}")
-    ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
+    ResponseEntity<CommonPartyResponse> getPartiesBySchedule(
             @PathVariable Long scheduleId,
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
@@ -443,25 +443,13 @@ public interface PartyControllerSpec {
             @PathVariable Long partyId
     );
 
-    @Operation(summary = "신청한 파티 목록 조회", description = "내가 신청한 파티 목록을 조회합니다. 페이징 처리됩니다.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = GetMyApplicationsResponse.class)))
-    })
-    @GetMapping("/user/me/party/application")
-    ResponseEntity<GetMyApplicationsResponse> getMyApplications(
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
-
     @Operation(summary = "생성한 파티 목록 조회", description = "내가 생성한 파티 목록을 조회합니다. 페이징 처리됩니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = GetMyCreatedPartiesResponse.class)))
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  // ✅ 수정
     })
     @GetMapping("/user/me/party/created")
-    ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
+    ResponseEntity<CommonPartyResponse> getMyCreatedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -488,74 +476,11 @@ public interface PartyControllerSpec {
             @ApiResponse(
                     responseCode = "200",
                     description = "조회 성공",
-                    content = @Content(
-                            schema = @Schema(implementation = GetCompletedPartiesResponse.class),
-                            examples = @ExampleObject(value = """
-                                {
-                                  "parties": [
-                                    {
-                                      "partyId": 1,
-                                      "participationType": "CREATED",
-                                      "event": {
-                                        "eventId": 1,
-                                        "title": "BTS 콘서트 2025",
-                                        "location": "잠실종합운동장",
-                                        "scheduleTime": "2025-12-31T19:00:00"
-                                      },
-                                      "partyDetail": {
-                                        "partyName": "즐거운 BTS 콘서트",
-                                        "partyType": "LEAVE",
-                                        "departureLocation": "강남역",
-                                        "arrivalLocation": "잠실종합운동장",
-                                        "maxMembers": 4,
-                                        "currentMembers": 4
-                                      },
-                                      "leader": {
-                                        "leaderId": 1,
-                                        "nickname": "리더유저1",
-                                        "profileImage": "https://example.com/profile.jpg"
-                                      },
-                                      "status": "COMPLETED",
-                                      "completedAt": "2025-12-16T20:00:00",
-                                      "createdAt": "2025-12-15T10:00:00"
-                                    },
-                                    {
-                                      "partyId": 2,
-                                      "participationType": "JOINED",
-                                      "event": {
-                                        "eventId": 2,
-                                        "title": "블랙핑크 월드투어",
-                                        "location": "고척스카이돔",
-                                        "scheduleTime": "2025-11-15T20:00:00"
-                                      },
-                                      "partyDetail": {
-                                        "partyName": "블핑 콘서트 같이 가요",
-                                        "partyType": "LEAVE",
-                                        "departureLocation": "신림역",
-                                        "arrivalLocation": "고척스카이돔",
-                                        "maxMembers": 5,
-                                        "currentMembers": 3
-                                      },
-                                      "leader": {
-                                        "leaderId": 2,
-                                        "nickname": "리더유저2",
-                                        "profileImage": "https://example.com/profile2.jpg"
-                                      },
-                                      "status": "COMPLETED",
-                                      "completedAt": "2025-11-16T23:00:00",
-                                      "createdAt": "2025-11-10T15:00:00"
-                                    }
-                                  ],
-                                  "totalElements": 5,
-                                  "totalPages": 1,
-                                  "pageNumber": 0
-                                }
-                                """)
-                    )
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  // ✅ 수정
             )
     })
     @GetMapping("/user/me/party/completed")
-    ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
+    ResponseEntity<CommonPartyResponse> getMyCompletedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
@@ -614,4 +539,67 @@ public interface PartyControllerSpec {
             @PathVariable Long partyId,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
+
+
+    @Operation(
+            summary = "신청중인 파티 목록 조회",
+            description = """
+            내가 신청한 파티 중 ApplicationStatus가 PENDING인 파티만 조회합니다.
+            
+            **조회 대상:**
+            - 신청 상태가 PENDING(대기중)인 파티만
+            
+            **정렬 기준:**
+            - 신청 시간 기준 최신순
+            
+            **페이징:**
+            - 기본 20개씩 조회
+            - page, size 파라미터로 조절 가능
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))
+            )
+    })
+    @GetMapping("/user/me/party/pending")
+    ResponseEntity<CommonPartyResponse> getMyPendingApplications(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
+
+    @Operation(
+            summary = "참여중인 파티 목록 조회",
+            description = """
+            내가 신청한 파티 중 ApplicationStatus가 APPROVED인 파티만 조회합니다.
+            
+            **조회 대상:**
+            - 신청 상태가 APPROVED(승인됨)인 파티만
+            - 현재 활동 중인 파티
+            
+            **정렬 기준:**
+            - 승인 시간 기준 최신순
+            
+            **페이징:**
+            - 기본 20개씩 조회
+            - page, size 파라미터로 조절 가능
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))
+            )
+    })
+    @GetMapping("/user/me/party/joined")
+    ResponseEntity<CommonPartyResponse> getMyJoinedParties(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
+
 }
