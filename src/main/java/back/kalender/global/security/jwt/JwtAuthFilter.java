@@ -16,74 +16,60 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
-/**
- * JWT 토큰 기반 인증 필터
- * Authorization 헤더에서 JWT 토큰을 추출하고 검증하여 SecurityContext에 Authentication을 설정합니다.
- */
+// JWT 토큰 기반 인증 필터
 @Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final Environment environment;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
-
-    // SecurityConfig의 publicPaths와 동일한 목록 (필드로 캐싱 - 생성자에서 1회만 초기화)
-    // permitAll 경로는 토큰이 없어도 정상이므로 WARN 로그를 남기지 않음
+    
+    // SecurityConfig의 publicPaths Bean 주입 (permitAll 경로는 토큰 없어도 정상이므로 WARN 로그 제외)
     private final List<String> publicPaths;
-
-    public JwtAuthFilter(JwtTokenProvider jwtTokenProvider, Environment environment) {
+    
+    public JwtAuthFilter(JwtTokenProvider jwtTokenProvider, Environment environment, List<String> publicPaths) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.environment = environment;
-        this.publicPaths = initializePublicPaths();
+        this.publicPaths = publicPaths;
     }
 
     private boolean isProdProfile() {
-        return Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        return java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
     }
-
-    /**
-     * SecurityConfig의 publicPaths와 동일한 목록 초기화 (생성자에서 1회만 실행)
-     * 주의: 프로파일은 애플리케이션 시작 시 결정되므로 런타임 변경은 고려하지 않음
-     */
-    private List<String> initializePublicPaths() {
-        List<String> paths = new java.util.ArrayList<>(Arrays.asList(
-            "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
-            "/api/v1/auth/password/send",
-            "/api/v1/auth/password/reset",
-            "/api/v1/auth/email/send",
-            "/api/v1/auth/email/verify",
-            "/api/v1/user",                    // 회원가입
-            "/api/v1/schedule/by-artists",      //비회원 공개 일정 조회
-            "/api/v1/artist",               //비회원 아티스트 정보 조회
-            "/favicon.ico",
-            "/swagger-ui/**",                  // Swagger UI
-            "/v3/api-docs/**",                 // OpenAPI 문서
-            "/swagger-resources/**",            // Swagger 리소스
-            "/api/v1/notifications/**",          // 알림
-            "/ws-chat/**",                     // WebSocket 연결 허용
-            "/payment-test.html",               // 결제 테스트 페이지
-            "/payment/**",                      // 결제 관련 정적 파일
-            "/api/v1/payments/client-key"      // 결제 클라이언트 키 조회 (인증 불필요)
-        ));
-
-        // 개발 환경에서만 H2 콘솔 허용
-        if (!isProdProfile()) {
-            paths.add("/h2-console/**");
-        }
-
-        return java.util.Collections.unmodifiableList(paths);
-    }
-
-    /**
-     * 요청 경로가 permitAll 경로인지 확인
-     */
+    
+    // 요청 경로가 permitAll 경로인지 확인
     private boolean isPublicPath(String path) {
         return publicPaths.stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    // 요청에서 디버깅용 메타데이터 추출
+    private RequestMetadata extractRequestMetadata(HttpServletRequest request) {
+        String origin = request.getHeader("Origin");
+        String xForwardedProto = request.getHeader("X-Forwarded-Proto");
+        String host = request.getServerName();
+        if (StringUtils.hasText(request.getHeader("Host"))) {
+            host = request.getHeader("Host");
+        }
+        boolean hasCookie = StringUtils.hasText(request.getHeader("Cookie"));
+        return new RequestMetadata(origin, xForwardedProto, host, hasCookie);
+    }
+
+    // 요청 메타데이터를 담는 내부 클래스
+    private static class RequestMetadata {
+        final String origin;
+        final String xForwardedProto;
+        final String host;
+        final boolean hasCookie;
+
+        RequestMetadata(String origin, String xForwardedProto, String host, boolean hasCookie) {
+            this.origin = origin;
+            this.xForwardedProto = xForwardedProto;
+            this.host = host;
+            this.hasCookie = hasCookie;
+        }
     }
 
     @Override
@@ -94,8 +80,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         String method = request.getMethod();
-
-        // 1) OPTIONS(preflight) 요청은 early return (로그 노이즈 방지)
+        
+        // OPTIONS(preflight) 요청은 early return
         if ("OPTIONS".equalsIgnoreCase(method)) {
             if (!isProdProfile()) {
                 log.debug("[JwtAuthFilter] OPTIONS preflight 요청 - path: {}", request.getRequestURI());
@@ -111,66 +97,43 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = resolveToken(request);
 
-        // 2) 토큰 없음/추출 실패 케이스 - permitAll 경로가 아닐 때만 WARN 로그
+        // 토큰 없음/추출 실패 - permitAll 경로가 아닐 때만 WARN 로그
         if (!StringUtils.hasText(token)) {
-            // permitAll 경로는 토큰이 없어도 정상이므로 로그 노이즈 방지
             if (!isPublicPath(path)) {
-                String origin = request.getHeader("Origin");
-                String xForwardedProto = request.getHeader("X-Forwarded-Proto");
-                String host = request.getServerName();
-                if (StringUtils.hasText(request.getHeader("Host"))) {
-                    host = request.getHeader("Host");
-                }
-                boolean hasCookie = StringUtils.hasText(request.getHeader("Cookie"));
-
+                RequestMetadata metadata = extractRequestMetadata(request);
                 log.warn("[JwtAuthFilter] 토큰 없음/추출 실패 - path: {}, method: {}, hasAuthHeader: {}, hasBearerPrefix: {}, origin: {}, xForwardedProto: {}, host: {}, hasCookie: {}",
-                        path, method, hasAuthHeader, hasBearerPrefix, origin, xForwardedProto, host, hasCookie);
+                        path, method, hasAuthHeader, hasBearerPrefix, metadata.origin, metadata.xForwardedProto, metadata.host, metadata.hasCookie);
             }
 
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 3) 토큰 검증 시도
+        // 토큰 검증 시도
         try {
             jwtTokenProvider.validateToken(token);
 
             try {
                 Authentication authentication = jwtTokenProvider.getAuthentication(token);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                // 4) 인증 성공은 dev에서만 DEBUG
+                
+                // 인증 성공은 dev에서만 DEBUG 로그
                 if (!isProdProfile()) {
                     log.debug("[JwtAuthFilter] 인증 성공 - path: {}, userId: {}",
                             path, authentication.getName());
                 }
             } catch (ServiceException e) {
-                // 사용자 조회 실패는 비즈니스 예외이므로 request attribute에 저장하여 SecurityUtil에서 처리
-                String origin = request.getHeader("Origin");
-                String xForwardedProto = request.getHeader("X-Forwarded-Proto");
-                String host = request.getServerName();
-                if (StringUtils.hasText(request.getHeader("Host"))) {
-                    host = request.getHeader("Host");
-                }
-                boolean hasCookie = StringUtils.hasText(request.getHeader("Cookie"));
-
+                // 사용자 조회 실패 - request attribute에 저장하여 SecurityUtil에서 처리
+                RequestMetadata metadata = extractRequestMetadata(request);
                 log.warn("[JwtAuthFilter] 사용자 조회 실패 - path: {}, method: {}, errorCode: {}, origin: {}, xForwardedProto: {}, host: {}, hasCookie: {}",
-                        path, method, e.getErrorCode().getCode(), origin, xForwardedProto, host, hasCookie);
+                        path, method, e.getErrorCode().getCode(), metadata.origin, metadata.xForwardedProto, metadata.host, metadata.hasCookie);
                 request.setAttribute(SecurityConstants.AUTH_FILTER_EXCEPTION_ATTR, e);
             }
         } catch (ServiceException e) {
-            // 3) 토큰 검증 실패 - 운영에서도 WARN 로그 (메타 정보 포함)
-            String origin = request.getHeader("Origin");
-            String xForwardedProto = request.getHeader("X-Forwarded-Proto");
-            String host = request.getServerName();
-            if (StringUtils.hasText(request.getHeader("Host"))) {
-                host = request.getHeader("Host");
-            }
-            boolean hasCookie = StringUtils.hasText(request.getHeader("Cookie"));
-
+            // 토큰 검증 실패 - 운영에서도 WARN 로그 (Authentication 미설정 → 401 발생)
+            RequestMetadata metadata = extractRequestMetadata(request);
             log.warn("[JwtAuthFilter] JWT 토큰 검증 실패 - path: {}, method: {}, errorCode: {}, origin: {}, xForwardedProto: {}, host: {}, hasCookie: {}",
-                    path, method, e.getErrorCode().getCode(), origin, xForwardedProto, host, hasCookie);
-            // Authentication 설정하지 않음 → SecurityContext에 없음 → 401 발생
+                    path, method, e.getErrorCode().getCode(), metadata.origin, metadata.xForwardedProto, metadata.host, metadata.hasCookie);
         }
 
         filterChain.doFilter(request, response);
