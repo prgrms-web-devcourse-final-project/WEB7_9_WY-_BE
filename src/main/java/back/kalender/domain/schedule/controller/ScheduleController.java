@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -15,6 +16,19 @@ import java.util.Optional;
 public class ScheduleController implements ScheduleControllerSpec {
 
     private final ScheduleService scheduleService;
+
+    @GetMapping("/by-artists")
+    public ResponseEntity<FollowingSchedulesListResponse> getSchedulesByArtists(
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam(required = false) Long artistId,
+            @RequestParam List<Long> artistIds
+    ) {
+        FollowingSchedulesListResponse response =
+                scheduleService.getSchedulesByArtistIds(year, month, artistIds, artistId);
+
+        return ResponseEntity.ok(response);
+    }
 
     @Override
     @GetMapping("/following")

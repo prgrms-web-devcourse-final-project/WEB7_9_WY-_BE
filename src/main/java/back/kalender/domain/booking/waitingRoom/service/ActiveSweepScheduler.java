@@ -1,28 +1,69 @@
 package back.kalender.domain.booking.waitingRoom.service;
 
+import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.schedule.service.ScheduleQueryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ActiveSweepScheduler {
 
     private final RedisTemplate<String, String> redisTemplate;
     private final ScheduleQueryService scheduleQueryService;
+    private final BookingSessionService bookingSessionService;
 
-    //@Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 5000)
     public void sweep() {
         long cutoff = System.currentTimeMillis() - 60_000;
 
         for (Long scheduleId : scheduleQueryService.getOpenScheduleIds()) {
-            redisTemplate.opsForZSet()
-                    .removeRangeByScore(
-                            "active:" + scheduleId,
-                            0,
-                            cutoff
-                    );
+            try{
+                sweepSchedule(scheduleId, cutoff);
+            }catch (Exception e) {
+                log.error("[ActiveSweep] 스케줄 정리 실패 - scheduleId={}", scheduleId, e);
+            }
         }
+    }
+
+    private void sweepSchedule(Long scheduleId, long cutoff) {
+        String activeKey = "active:" + scheduleId;
+
+        // 만료된 세션 id 조회
+        Set<String> expiredSessions = redisTemplate.opsForZSet().rangeByScore(activeKey, 0, cutoff);
+
+        if (expiredSessions == null || expiredSessions.isEmpty()) {
+            return;
+        }
+
+        log.info("[ActiveSweep] 비활성 세션 발견 - scheduleId={}, count={}",
+                scheduleId, expiredSessions.size());
+
+        // Active에서 제거
+        Long removed = redisTemplate.opsForZSet()
+                .removeRangeByScore(activeKey, 0, cutoff);
+
+        // BookingSessionService에 위임
+        int deletedCount = 0;
+        for (String sessionId : expiredSessions) {
+            try {
+                boolean deleted = bookingSessionService.deleteBookingSessionBySessionId(sessionId);
+                if (deleted) {
+                    deletedCount++;
+                }
+            } catch (Exception e) {
+                log.error("[ActiveSweep] BookingSession 삭제 실패 - sessionId={}",
+                        sessionId, e);
+            }
+        }
+        log.info("[ActiveSweep] 정리 완료 - scheduleId={}, activeRemoved={}, sessionDeleted={}",
+                scheduleId, removed, deletedCount);
     }
 }

@@ -134,7 +134,7 @@ public class PartyService {
         log.debug("[파티 목록 조회] userId={}, page={}, size={}",
                 currentUserId, pageable.getPageNumber(), pageable.getPageSize());
 
-        Page<Party> partyPage = partyRepository.findAll(pageable);
+        Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable);
 
         log.debug("[파티 목록 조회 완료] userId={}, totalElements={}",
                 currentUserId, partyPage.getTotalElements());
@@ -155,10 +155,12 @@ public class PartyService {
         Schedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.SCHEDULE_NOT_FOUND));
 
+        // RECRUITING 상태의 파티만 조회하도록 status 파라미터 추가
         Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
                 scheduleId,
                 partyType,
                 transportType,
+                PartyStatus.RECRUITING,
                 pageable
         );
 
@@ -374,7 +376,6 @@ public class PartyService {
         party.incrementCurrentMembers();
 
         if (party.isFull()) {
-            party.changeStatus(PartyStatus.CLOSED);
             log.info("[파티 정원 마감] partyId={}, members={}/{}",
                     partyId, party.getCurrentMembers(), party.getMaxMembers());
         }
@@ -872,5 +873,34 @@ public class PartyService {
 
         log.info("[멤버 강퇴 완료] partyId={}, targetMemberId={}, remainingMembers={}",
                 partyId, targetMemberId, party.getCurrentMembers());
+    }
+
+    @Transactional
+    public ClosePartyResponse closeParty(Long partyId, Long currentUserId) {
+        log.info("[파티 모집 마감 시작] partyId={}, userId={}", partyId, currentUserId);
+
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+
+        if (!party.isLeader(currentUserId)) {
+            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
+                    partyId, currentUserId, party.getLeaderId());
+            throw new ServiceException(ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
+        }
+
+        if (!party.isRecruiting()) {
+            log.warn("[모집 중이 아님] partyId={}, status={}", partyId, party.getStatus());
+            throw new ServiceException(ErrorCode.PARTY_NOT_RECRUITING);
+        }
+
+        party.changeStatus(PartyStatus.CLOSED);
+
+        log.info("[파티 모집 마감 완료] partyId={}, currentMembers={}/{}",
+                partyId, party.getCurrentMembers(), party.getMaxMembers());
+
+        return new ClosePartyResponse(
+                partyId,
+                "모집이 마감되었습니다."
+        );
     }
 }

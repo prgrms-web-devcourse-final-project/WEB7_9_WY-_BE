@@ -60,7 +60,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
         for (Party party : parties) {
             PartyStatus partyStatus = party.getStatus();
 
-            // 파티 상태별로 다른 로직 적용
             totalApplications += switch (partyStatus) {
                 case RECRUITING -> handleRecruitingParty(party, users);
                 case CLOSED -> handleClosedParty(party, users);
@@ -69,7 +68,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
             };
         }
 
-        // 통계 계산
         long approvedCount = partyApplicationRepository.findAll().stream()
                 .filter(app -> app.getStatus() == ApplicationStatus.APPROVED).count();
         long rejectedCount = partyApplicationRepository.findAll().stream()
@@ -86,13 +84,8 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
         log.info("=".repeat(60));
     }
 
-    /**
-     * RECRUITING 파티: 신규 신청 생성 (PENDING, APPROVED, REJECTED)
-     */
     private int handleRecruitingParty(Party party, List<User> users) {
         int applicationCount = 0;
-
-        // 3~6명의 신청자
         int targetApplications = 3 + (int)(Math.random() * 4);
 
         Set<Long> appliedUserIds = new HashSet<>();
@@ -104,39 +97,31 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
 
             appliedUserIds.add(applicant.getId());
 
-            // 신청 생성
             PartyApplication application = PartyApplication.create(
                     party.getId(),
                     applicant.getId(),
                     party.getLeaderId()
             );
 
-            // 확률적 처리
             double random = Math.random();
 
             if (random < 0.3 && !party.isFull()) {
-                // 30% APPROVED
                 application.approve();
 
-                // PartyMember 생성
                 partyMemberRepository.save(
                         PartyMember.createMember(party.getId(), applicant.getId())
                 );
 
-                // JOIN 메시지 생성
                 chatMessageRepository.save(
                         ChatMessage.createJoinMessage(party.getId(), applicant.getId())
                 );
 
-                // currentMembers 증가
                 party.incrementCurrentMembers();
                 partyRepository.save(party);
 
             } else if (random < 0.5) {
-                // 20% REJECTED
                 application.reject();
             }
-            // 나머지 50%는 PENDING
 
             partyApplicationRepository.save(application);
             applicationCount++;
@@ -145,17 +130,13 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
         return applicationCount;
     }
 
-    /**
-     * CLOSED 파티: 정원이 꽉 차도록 APPROVED 신청 생성
-     */
     private int handleClosedParty(Party party, List<User> users) {
         int applicationCount = 0;
 
         Set<Long> appliedUserIds = new HashSet<>();
         appliedUserIds.add(party.getLeaderId());
 
-        // 정원이 꽉 찰 때까지 APPROVED 신청 생성
-        int neededMembers = party.getMaxMembers() - party.getCurrentMembers();
+        int neededMembers = party.getMaxMembers() - 1;
 
         for (int i = 0; i < neededMembers && appliedUserIds.size() < users.size(); i++) {
             User applicant = getRandomUser(users, appliedUserIds);
@@ -163,7 +144,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
 
             appliedUserIds.add(applicant.getId());
 
-            // APPROVED 신청 생성
             PartyApplication application = PartyApplication.create(
                     party.getId(),
                     applicant.getId(),
@@ -172,17 +152,14 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
             application.approve();
             partyApplicationRepository.save(application);
 
-            // PartyMember 생성
             partyMemberRepository.save(
                     PartyMember.createMember(party.getId(), applicant.getId())
             );
 
-            // JOIN 메시지 생성
             chatMessageRepository.save(
                     ChatMessage.createJoinMessage(party.getId(), applicant.getId())
             );
 
-            // currentMembers 증가
             party.incrementCurrentMembers();
 
             applicationCount++;
@@ -190,7 +167,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
 
         partyRepository.save(party);
 
-        // 추가로 2~3명의 REJECTED 신청 생성 (정원 마감으로 거절됨)
         int rejectedCount = 2 + (int)(Math.random() * 2);
         for (int i = 0; i < rejectedCount && appliedUserIds.size() < users.size(); i++) {
             User applicant = getRandomUser(users, appliedUserIds);
@@ -211,13 +187,9 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
         return applicationCount;
     }
 
-    /**
-     * COMPLETED 파티: 과거 신청들 생성
-     */
     private int handleCompletedParty(Party party, List<User> users) {
         int applicationCount = 0;
 
-        // 2~4명의 과거 멤버
         int memberCount = 2 + (int)(Math.random() * 3);
         Set<Long> appliedUserIds = new HashSet<>();
         appliedUserIds.add(party.getLeaderId());
@@ -234,7 +206,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
                     party.getLeaderId()
             );
 
-            // 80% APPROVED, 20% REJECTED
             if (Math.random() < 0.8) {
                 application.approve();
 
@@ -259,13 +230,9 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
         return applicationCount;
     }
 
-    /**
-     * CANCELLED 파티: 소수의 신청만 생성
-     */
     private int handleCancelledParty(Party party, List<User> users) {
         int applicationCount = 0;
 
-        // 1~2명의 신청만
         int targetApplications = 1 + (int)(Math.random() * 2);
         Set<Long> appliedUserIds = new HashSet<>();
         appliedUserIds.add(party.getLeaderId());
@@ -276,7 +243,6 @@ public class PartyApplicationBaseInitData implements ApplicationRunner {
 
             appliedUserIds.add(applicant.getId());
 
-            // PENDING 상태로만 생성 (파티가 취소되어 처리 안 됨)
             PartyApplication application = PartyApplication.create(
                     party.getId(),
                     applicant.getId(),
