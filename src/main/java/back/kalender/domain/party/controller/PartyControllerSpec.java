@@ -146,7 +146,7 @@ public interface PartyControllerSpec {
     @Operation(summary = "파티 목록 조회", description = "파티 목록을 조회합니다. 페이징 처리됩니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  // ✅ 수정
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  
     })
     @GetMapping
     ResponseEntity<CommonPartyResponse> getParties(
@@ -163,7 +163,7 @@ public interface PartyControllerSpec {
             @ApiResponse(
                     responseCode = "200",
                     description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  // ✅ 수정
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  
             ),
             @ApiResponse(
                     responseCode = "404",
@@ -446,7 +446,7 @@ public interface PartyControllerSpec {
     @Operation(summary = "생성한 파티 목록 조회", description = "내가 생성한 파티 목록을 조회합니다. 페이징 처리됩니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  // ✅ 수정
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class)))  
     })
     @GetMapping("/user/me/party/created")
     ResponseEntity<CommonPartyResponse> getMyCreatedParties(
@@ -476,7 +476,7 @@ public interface PartyControllerSpec {
             @ApiResponse(
                     responseCode = "200",
                     description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  // ✅ 수정
+                    content = @Content(schema = @Schema(implementation = CommonPartyResponse.class))  
             )
     })
     @GetMapping("/user/me/party/completed")
