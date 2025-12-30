@@ -19,6 +19,8 @@ public class BookingSessionService {
     private final StringRedisTemplate redisTemplate;
     private static final String BOOKING_SESSION_KEY_PREFIX = "booking:session:";
     private static final String BOOKING_SESSION_DEVICE_PREFIX = "booking:session:device:";
+    private static final String BOOKING_SESSION_USER_PREFIX = "booking:session:user:";
+
     private static final Duration BOOKING_SESSION_TTL = Duration.ofMinutes(30);
 
     /**
@@ -42,6 +44,8 @@ public class BookingSessionService {
         // 4. 중복 세션 확인
         String existingSession = checkExistingSession(userId, scheduleId, deviceId);
         if (existingSession != null) {
+            log.info("[BookingSession] Active 세션 재사용 - userId={}, sessionId={}",
+                    userId, existingSession);
             return existingSession;
         }
 
@@ -63,6 +67,13 @@ public class BookingSessionService {
         redisTemplate.opsForValue().set(
                 BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId,
                 bookingSessionId,
+                BOOKING_SESSION_TTL
+        );
+
+        // 역매핑: sessionId → userId
+        redisTemplate.opsForValue().set(
+                BOOKING_SESSION_USER_PREFIX + bookingSessionId,
+                userId.toString(),
                 BOOKING_SESSION_TTL
         );
 
@@ -174,22 +185,16 @@ public class BookingSessionService {
 
     /**
      * 예매 완료 or 명시적 종료 시
-     *  - Reservation에서 userId, scheduleId를 함께 전달받아 2개 키 모두 삭제
      */
-    public void expire(String bookingSessionId,Long userId, Long scheduleId) {
-        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
-        redisTemplate.delete(BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId);
-        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId);
-
-        redisTemplate.opsForZSet().remove(
-                "active:" + scheduleId,
-                bookingSessionId
-        );
-
-        log.info("[BookingSession] 삭제 완료 - sessionId={}, userId={}, scheduleId={}",
-                bookingSessionId, userId, scheduleId);
+    public void expire(String bookingSessionId, Long userId, Long scheduleId) {
+        deleteBookingSession(bookingSessionId, userId, scheduleId);
     }
 
+    /**
+     * 기존 세션 확인
+     * - Active에 있는 세션만 재사용
+     * - Active에 없으면 삭제 후 새로 생성
+     */
     private String checkExistingSession(
             Long userId,
             Long scheduleId,
@@ -202,20 +207,28 @@ public class BookingSessionService {
             return null;
         }
 
-        // 기존 세션의 deviceId 확인
-        String sessionDeviceKey = BOOKING_SESSION_DEVICE_PREFIX + existingSessionId;
-        String sessionDevice = redisTemplate.opsForValue().get(sessionDeviceKey);
+        // Active 여부 확인
+        String activeKey = "active:" + scheduleId;
+        Double score = redisTemplate.opsForZSet().score(activeKey, existingSessionId);
 
-        if (sessionDevice == null) {
-            redisTemplate.delete(mappingKey);
+        if (score != null) {
+            // deviceId 검증
+            String sessionDeviceKey = BOOKING_SESSION_DEVICE_PREFIX + existingSessionId;
+            String sessionDevice = redisTemplate.opsForValue().get(sessionDeviceKey);
+
+            if (sessionDevice != null && sessionDevice.equals(deviceId)) {
+                // 같은 기기 → 재사용
+                return existingSessionId;
+            } else {
+                // 다른 기기 → 에러
+                throw new ServiceException(ErrorCode.DEVICE_ALREADY_USED);
+            }
+        } else {
+            // Active에 없음 → 죽은 세션 → 삭제
+            log.info("[BookingSession] 비활성 세션 발견, 삭제 - sessionId={}", existingSessionId);
+            deleteBookingSessionBySessionId(existingSessionId);
             return null;
         }
-
-        if (!sessionDevice.equals(deviceId)) {
-            throw new ServiceException(ErrorCode.DEVICE_ALREADY_USED); // 이미 다른 기기로 접속중인 세션이 있습니다
-        }
-
-        return existingSessionId;
     }
 
     // deviceId 검증
@@ -234,5 +247,61 @@ public class BookingSessionService {
                     qsid, originalDeviceId, deviceId);
             throw new ServiceException(ErrorCode.DEVICE_ID_MISMATCH);
         }
+    }
+
+    /** BookingSession 완전 삭제
+     * checkExistingSession()에서 비활성 세션 발견 시 호출
+     * ActiveSweepScheduler에서 60초 무응답 세션 정리 시 호출
+     */
+    public boolean deleteBookingSessionBySessionId(String bookingSessionId) {
+        String scheduleIdStr = redisTemplate.opsForValue().get(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
+        if (scheduleIdStr == null) {
+            log.debug("[BookingSession] 이미 삭제된 세션 - sessionId={}", bookingSessionId);
+            return false;
+        }
+
+        String userIdStr = redisTemplate.opsForValue().get(BOOKING_SESSION_USER_PREFIX + bookingSessionId);
+        if (userIdStr == null) {
+            log.warn("[BookingSession] userId 조회 실패, 부분 삭제 - sessionId={}", bookingSessionId);
+            deletePartialSession(bookingSessionId, scheduleIdStr);
+            return true;
+        }
+
+        Long scheduleId = Long.parseLong(scheduleIdStr);
+        Long userId = Long.parseLong(userIdStr);
+
+        deleteBookingSession(bookingSessionId, userId, scheduleId);
+
+        return true;
+    }
+
+    /**
+     * BookingSession 완전 삭제 (파라미터 있을 때 - 조회 불필요)
+     */
+    private void deleteBookingSession(String bookingSessionId, Long userId, Long scheduleId) {
+        // Active에서 제거
+        redisTemplate.opsForZSet().remove("active:" + scheduleId, bookingSessionId);
+
+        // 모든 Redis 키 삭제
+        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_USER_PREFIX + bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId);
+
+        log.info("[BookingSession] 완전 삭제 - sessionId={}, userId={}, scheduleId={}",
+                bookingSessionId, userId, scheduleId);
+    }
+
+    // userId 없는 경우 부분 삭제
+    private void deletePartialSession(String bookingSessionId, String scheduleIdStr) {
+        Long scheduleId = Long.parseLong(scheduleIdStr);
+
+        redisTemplate.opsForZSet().remove("active:" + scheduleId, bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_KEY_PREFIX + bookingSessionId);
+        redisTemplate.delete(BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId);
+        redisTemplate.delete("booking:session:user:" + bookingSessionId);
+
+        log.warn("[BookingSession] 부분 삭제 완료 - sessionId={}, scheduleId={}",
+                bookingSessionId, scheduleId);
     }
 }
