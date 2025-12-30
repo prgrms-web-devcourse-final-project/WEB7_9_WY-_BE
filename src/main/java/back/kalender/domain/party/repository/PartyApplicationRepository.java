@@ -14,6 +14,8 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
 
     List<PartyApplication> findByPartyId(Long partyId);
 
+    List<PartyApplication> findByApplicantId(Long applicantId);
+
     boolean existsByPartyIdAndApplicantId(Long partyId, Long applicantId);
 
     @Query("SELECT pa.partyId FROM PartyApplication pa " +
