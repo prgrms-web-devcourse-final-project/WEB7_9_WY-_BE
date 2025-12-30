@@ -9,10 +9,7 @@ import back.kalender.domain.party.dto.response.*;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyApplication;
 import back.kalender.domain.party.entity.PartyMember;
-import back.kalender.domain.party.enums.ApplicationStatus;
-import back.kalender.domain.party.enums.PartyStatus;
-import back.kalender.domain.party.enums.PartyType;
-import back.kalender.domain.party.enums.TransportType;
+import back.kalender.domain.party.enums.*;
 import back.kalender.domain.party.mapper.PartyBuilder;
 import back.kalender.domain.party.repository.PartyApplicationRepository;
 import back.kalender.domain.party.repository.PartyMemberRepository;
@@ -34,9 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,6 +50,7 @@ public class PartyService {
     private final ScheduleRepository scheduleRepository;
     private final NotificationService notificationService;
     private final ChatRoomService chatRoomService;
+
 
     @Transactional
     public CreatePartyResponse createParty(CreatePartyRequest request, Long currentUserId) {
@@ -115,13 +111,14 @@ public class PartyService {
         log.info("[파티 삭제 완료] partyId={}", partyId);
     }
 
+
     public CommonPartyResponse getParties(Pageable pageable, Long currentUserId) {
         log.debug("[파티 목록 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
 
         Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(
                 PartyStatus.RECRUITING, pageable);
 
-        return buildCommonPartyResponse(partyPage, currentUserId, null);
+        return buildCommonPartyResponse(partyPage, currentUserId, null, null);
     }
 
     public CommonPartyResponse getPartiesBySchedule(
@@ -138,7 +135,7 @@ public class PartyService {
         Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
                 scheduleId, partyType, transportType, PartyStatus.RECRUITING, pageable);
 
-        return buildCommonPartyResponse(partyPage, currentUserId, null);
+        return buildCommonPartyResponse(partyPage, currentUserId, null, null);
     }
 
     public CommonPartyResponse getMyCreatedParties(Pageable pageable, Long currentUserId) {
@@ -153,7 +150,33 @@ public class PartyService {
         Map<Long, String> participationTypeMap = partyPage.getContent().stream()
                 .collect(Collectors.toMap(Party::getId, party -> "CREATED"));
 
-        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap);
+        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap, null);
+    }
+
+    public CommonPartyResponse getMyPendingApplications(Pageable pageable, Long currentUserId) {
+        log.debug("[신청중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
+
+        Page<PartyApplication> applicationPage = partyApplicationRepository
+                .findByApplicantIdAndStatusWithActiveParties(
+                        currentUserId,
+                        ApplicationStatus.PENDING,
+                        pageable
+                );
+
+        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "PENDING");
+    }
+
+    public CommonPartyResponse getMyJoinedParties(Pageable pageable, Long currentUserId) {
+        log.debug("[참여중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
+
+        Page<PartyApplication> applicationPage = partyApplicationRepository
+                .findByApplicantIdAndStatusWithActiveParties(
+                        currentUserId,
+                        ApplicationStatus.APPROVED,
+                        pageable
+                );
+
+        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "JOINED");
     }
 
     public CommonPartyResponse getMyCompletedParties(Pageable pageable, Long currentUserId) {
@@ -178,10 +201,25 @@ public class PartyService {
                         PartyRepositoryCustom.CompletedPartyWithType::participationType
                 ));
 
+
+        List<Long> partyIds = parties.stream().map(Party::getId).toList();
+        List<PartyApplication> applications = partyApplicationRepository
+                .findByApplicantIdAndStatus(
+                        currentUserId,
+                        ApplicationStatus.COMPLETED,
+                        PageRequest.of(0, MAX_COMPLETED_PARTIES_FETCH)
+                ).getContent();
+
+        Map<Long, PartyApplication> applicationMap = applications.stream()
+                .filter(app -> partyIds.contains(app.getPartyId()))
+                .collect(Collectors.toMap(PartyApplication::getPartyId, app -> app));
+
         Page<Party> partyPage = new PageImpl<>(parties, pageable, completedPage.getTotalElements());
 
-        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap);
+        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap, applicationMap);
     }
+
+
 
     @Transactional
     public ApplyToPartyResponse applyToParty(Long partyId, Long currentUserId) {
@@ -290,6 +328,8 @@ public class PartyService {
         );
     }
 
+
+
     public GetPartyMembersResponse getPartyMembers(Long partyId) {
         log.debug("[멤버 목록 조회] partyId={}", partyId);
 
@@ -305,33 +345,6 @@ public class PartyService {
 
         return new GetPartyMembersResponse(partyId, memberInfos, members.size());
     }
-
-    public CommonPartyResponse getMyPendingApplications(Pageable pageable, Long currentUserId) {
-        log.debug("[신청중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
-
-        Page<PartyApplication> applicationPage = partyApplicationRepository
-                .findByApplicantIdAndStatusWithActiveParties(
-                        currentUserId,
-                        ApplicationStatus.PENDING,
-                        pageable
-                );
-
-        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "PENDING");
-    }
-
-    public CommonPartyResponse getMyJoinedParties(Pageable pageable, Long currentUserId) {
-        log.debug("[참여중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
-
-        Page<PartyApplication> applicationPage = partyApplicationRepository
-                .findByApplicantIdAndStatusWithActiveParties(
-                        currentUserId,
-                        ApplicationStatus.APPROVED,
-                        pageable
-                );
-
-        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "JOINED");
-    }
-
 
     @Transactional
     public void removePartyMember(Long partyId, Long userId) {
@@ -361,26 +374,40 @@ public class PartyService {
                 partyId, targetMemberId, party.getCurrentMembers());
     }
 
-    // 공통 Response 빌더
+
 
     private CommonPartyResponse buildCommonPartyResponse(
             Page<Party> partyPage,
             Long currentUserId,
-            Map<Long, String> participationTypeMap
+            Map<Long, String> participationTypeMap,
+            Map<Long, PartyApplication> applicationMap
     ) {
         if (partyPage.isEmpty()) {
             return createEmptyResponse(partyPage.getPageable());
         }
 
         List<Party> parties = partyPage.getContent();
+        List<Long> partyIds = parties.stream().map(Party::getId).toList();
 
         Map<Long, User> leaderMap = getUserMap(parties.stream()
                 .map(Party::getLeaderId).distinct().toList());
         Map<Long, Schedule> scheduleMap = getScheduleMap(parties.stream()
                 .map(Party::getScheduleId).distinct().toList());
         Set<Long> appliedPartyIds = partyApplicationRepository
-                .findAppliedPartyIds(parties.stream().map(Party::getId).toList(), currentUserId)
+                .findAppliedPartyIds(partyIds, currentUserId)
                 .stream().collect(Collectors.toSet());
+
+        if (applicationMap == null && !appliedPartyIds.isEmpty()) {
+            List<PartyApplication> applications = partyApplicationRepository
+                    .findByApplicantId(currentUserId).stream()
+                    .filter(app -> partyIds.contains(app.getPartyId()))
+                    .toList();
+
+            applicationMap = applications.stream()
+                    .collect(Collectors.toMap(PartyApplication::getPartyId, app -> app));
+        }
+
+        final Map<Long, PartyApplication> finalApplicationMap = applicationMap;
 
         List<CommonPartyResponse.PartyItem> partyItems = parties.stream()
                 .map(party -> buildPartyItem(
@@ -389,7 +416,8 @@ public class PartyService {
                         scheduleMap,
                         currentUserId,
                         appliedPartyIds,
-                        participationTypeMap
+                        participationTypeMap,
+                        finalApplicationMap
                 ))
                 .toList();
 
@@ -401,13 +429,66 @@ public class PartyService {
         );
     }
 
+    private CommonPartyResponse buildCommonPartyResponseFromApplications(
+            Page<PartyApplication> applicationPage,
+            Long currentUserId,
+            String participationType
+    ) {
+        if (applicationPage.isEmpty()) {
+            return createEmptyResponse(applicationPage.getPageable());
+        }
+
+        List<PartyApplication> applications = applicationPage.getContent();
+        List<Long> partyIds = applications.stream()
+                .map(PartyApplication::getPartyId)
+                .distinct()
+                .toList();
+
+        Map<Long, Party> partyMap = getPartyMap(partyIds);
+        Map<Long, PartyApplication> applicationMap = applications.stream()
+                .collect(Collectors.toMap(PartyApplication::getPartyId, app -> app));
+
+        List<Party> parties = applications.stream()
+                .map(app -> partyMap.get(app.getPartyId()))
+                .filter(Objects::nonNull)
+                .toList();
+
+        Map<Long, User> leaderMap = getUserMap(parties.stream()
+                .map(Party::getLeaderId).distinct().toList());
+        Map<Long, Schedule> scheduleMap = getScheduleMap(parties.stream()
+                .map(Party::getScheduleId).distinct().toList());
+        Set<Long> appliedPartyIds = partyIds.stream().collect(Collectors.toSet());
+        Map<Long, String> participationTypeMap = parties.stream()
+                .collect(Collectors.toMap(Party::getId, party -> participationType));
+
+        List<CommonPartyResponse.PartyItem> partyItems = parties.stream()
+                .map(party -> buildPartyItem(
+                        party,
+                        leaderMap,
+                        scheduleMap,
+                        currentUserId,
+                        appliedPartyIds,
+                        participationTypeMap,
+                        applicationMap
+                ))
+                .toList();
+
+        return new CommonPartyResponse(
+                partyItems,
+                (int) applicationPage.getTotalElements(),
+                applicationPage.getTotalPages(),
+                applicationPage.getNumber()
+        );
+    }
+
     private CommonPartyResponse.PartyItem buildPartyItem(
             Party party,
             Map<Long, User> leaderMap,
             Map<Long, Schedule> scheduleMap,
             Long currentUserId,
             Set<Long> appliedPartyIds,
-            Map<Long, String> participationTypeMap
+            Map<Long, String> participationTypeMap,
+            Map<Long, PartyApplication> applicationMap
     ) {
         User leader = leaderMap.get(party.getLeaderId());
         Schedule schedule = scheduleMap.get(party.getScheduleId());
@@ -415,6 +496,10 @@ public class PartyService {
         if (leader == null || schedule == null) {
             throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+
+        PartyApplication application = applicationMap != null ? applicationMap.get(party.getId()) : null;
+        Long applicationId = application != null ? application.getId() : null;
+        ApplicationStatus applicationStatus = application != null ? application.getStatus() : null;
 
         return new CommonPartyResponse.PartyItem(
                 party.getId(),
@@ -441,61 +526,9 @@ public class PartyService {
                 ),
                 party.getLeaderId().equals(currentUserId),
                 appliedPartyIds.contains(party.getId()),
-                participationTypeMap != null ? participationTypeMap.get(party.getId()) : null
-        );
-    }
-
-    private CommonPartyResponse buildCommonPartyResponseFromApplications(
-            Page<PartyApplication> applicationPage,
-            Long currentUserId,
-            String participationType
-    ) {
-        if (applicationPage.isEmpty()) {
-            return createEmptyResponse(applicationPage.getPageable());
-        }
-
-        List<PartyApplication> applications = applicationPage.getContent();
-
-        List<Long> partyIds = applications.stream()
-                .map(PartyApplication::getPartyId)
-                .distinct()
-                .toList();
-
-        Map<Long, Party> partyMap = getPartyMap(partyIds);
-
-        List<Party> parties = applications.stream()
-                .map(app -> partyMap.get(app.getPartyId()))
-                .filter(party -> party != null)
-                .toList();
-
-        Map<Long, User> leaderMap = getUserMap(parties.stream()
-                .map(Party::getLeaderId).distinct().toList());
-        Map<Long, Schedule> scheduleMap = getScheduleMap(parties.stream()
-                .map(Party::getScheduleId).distinct().toList());
-
-        Set<Long> appliedPartyIds = partyApplicationRepository
-                .findAppliedPartyIds(partyIds, currentUserId)
-                .stream().collect(Collectors.toSet());
-
-        Map<Long, String> participationTypeMap = parties.stream()
-                .collect(Collectors.toMap(Party::getId, party -> participationType));
-
-        List<CommonPartyResponse.PartyItem> partyItems = parties.stream()
-                .map(party -> buildPartyItem(
-                        party,
-                        leaderMap,
-                        scheduleMap,
-                        currentUserId,
-                        appliedPartyIds,
-                        participationTypeMap
-                ))
-                .toList();
-
-        return new CommonPartyResponse(
-                partyItems,
-                (int) applicationPage.getTotalElements(),
-                applicationPage.getTotalPages(),
-                applicationPage.getNumber()
+                participationTypeMap != null ? participationTypeMap.get(party.getId()) : null,
+                applicationId,
+                applicationStatus
         );
     }
 
@@ -735,4 +768,6 @@ public class PartyService {
     private CommonPartyResponse createEmptyResponse(Pageable pageable) {
         return new CommonPartyResponse(List.of(), 0, 0, pageable.getPageNumber());
     }
+
+    private record ApplicationCounts(int pending, int approved, int rejected) {}
 }

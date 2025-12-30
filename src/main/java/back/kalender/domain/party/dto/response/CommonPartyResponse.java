@@ -1,5 +1,6 @@
 package back.kalender.domain.party.dto.response;
 
+import back.kalender.domain.party.enums.ApplicationStatus;
 import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.enums.PartyType;
 import back.kalender.domain.party.enums.PreferredAge;
@@ -47,7 +48,13 @@ public record CommonPartyResponse(
             Boolean isApplied,
 
             @Schema(description = "참여 타입 (CREATED: 내가 만든 파티, JOINED: 참여한 파티, PENDING: 신청중)", example = "JOINED")
-            String participationType
+            String participationType,
+
+            @Schema(description = "신청 ID (신청한 파티인 경우에만 존재)", example = "123", nullable = true)
+            Long applicationId,
+
+            @Schema(description = "신청 상태 (신청한 파티인 경우에만 존재)", example = "PENDING", nullable = true)
+            ApplicationStatus applicationStatus
     ) {}
 
     @Schema(description = "일정 정보")
