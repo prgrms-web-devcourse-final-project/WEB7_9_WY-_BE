@@ -25,7 +25,7 @@ public class UserBaseInitData {
 
     @PostConstruct
     public void init() {
-        if (userRepository.count() >= 6) {
+        if (userRepository.count() >= 20) {
             log.info("User base data already initialized");
             return;
         }
@@ -33,6 +33,7 @@ public class UserBaseInitData {
     }
 
     private void createUsers() {
+        int createdCount = 0;
         for (int i = 1; i <= 20; i++) {
             String email = "user" + i + "@test.com";
 
@@ -55,8 +56,11 @@ public class UserBaseInitData {
                     .build();
 
             userRepository.save(user);
+            createdCount++;
         }
 
-        log.info("User base data initialized (6 users)");
+        log.info("=".repeat(60));
+        log.info("User base data initialized: {} users", createdCount);
+        log.info("=".repeat(60));
     }
 }
