@@ -560,4 +560,58 @@ public interface PartyControllerSpec {
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
+
+    @Operation(
+            summary = "파티 모집 마감",
+            description = """
+                파티 모집을 마감합니다. 파티장만 마감할 수 있습니다.
+                
+                **마감 후:**
+                - 파티 상태: RECRUITING → CLOSED
+                - 새로운 신청 불가
+                - 채팅방은 계속 사용 가능
+                - 기존 멤버는 유지됨
+                
+                **주의:**
+                - 파티장만 마감 가능
+                - RECRUITING 상태의 파티만 마감 가능
+                - 마감 후 다시 모집 재개 불가
+                """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "마감 성공",
+                    content = @Content(schema = @Schema(implementation = ClosePartyResponse.class),
+                            examples = @ExampleObject(value = """
+                                {
+                                  "partyId": 1,
+                                  "message": "모집이 마감되었습니다."
+                                }
+                                """))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(examples = @ExampleObject(value = """
+                        {
+                          "code": "3212",
+                          "message": "모집중인 파티가 아닙니다."
+                        }
+                        """))),
+            @ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(examples = @ExampleObject(value = """
+                        {
+                          "code": "3104",
+                          "message": "파티장만 파티를 수정할 수 있습니다."
+                        }
+                        """))),
+            @ApiResponse(responseCode = "404", description = "파티를 찾을 수 없음",
+                    content = @Content(examples = @ExampleObject(value = """
+                        {
+                          "code": "3001",
+                          "message": "파티를 찾을 수 없습니다."
+                        }
+                        """)))
+    })
+    @PatchMapping("/{partyId}/close")
+    ResponseEntity<ClosePartyResponse> closeParty(
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
 }

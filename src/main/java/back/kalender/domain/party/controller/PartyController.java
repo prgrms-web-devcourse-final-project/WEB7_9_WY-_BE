@@ -180,4 +180,13 @@ public class PartyController implements PartyControllerSpec{
         GetCompletedPartiesResponse response = partyService.getMyCompletedParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
+
+    @PatchMapping("/{partyId}/close")
+    public ResponseEntity<ClosePartyResponse> closeParty(
+            @PathVariable Long partyId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ClosePartyResponse response = partyService.closeParty(partyId, userDetails.getUserId());
+        return ResponseEntity.ok(response);
+    }
 }

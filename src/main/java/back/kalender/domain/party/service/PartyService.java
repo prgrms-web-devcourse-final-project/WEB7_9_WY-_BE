@@ -874,4 +874,33 @@ public class PartyService {
         log.info("[멤버 강퇴 완료] partyId={}, targetMemberId={}, remainingMembers={}",
                 partyId, targetMemberId, party.getCurrentMembers());
     }
+
+    @Transactional
+    public ClosePartyResponse closeParty(Long partyId, Long currentUserId) {
+        log.info("[파티 모집 마감 시작] partyId={}, userId={}", partyId, currentUserId);
+
+        Party party = partyRepository.findById(partyId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.PARTY_NOT_FOUND));
+
+        if (!party.isLeader(currentUserId)) {
+            log.warn("[권한 없음] partyId={}, attemptUserId={}, actualLeaderId={}",
+                    partyId, currentUserId, party.getLeaderId());
+            throw new ServiceException(ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER);
+        }
+
+        if (!party.isRecruiting()) {
+            log.warn("[모집 중이 아님] partyId={}, status={}", partyId, party.getStatus());
+            throw new ServiceException(ErrorCode.PARTY_NOT_RECRUITING);
+        }
+
+        party.changeStatus(PartyStatus.CLOSED);
+
+        log.info("[파티 모집 마감 완료] partyId={}, currentMembers={}/{}",
+                partyId, party.getCurrentMembers(), party.getMaxMembers());
+
+        return new ClosePartyResponse(
+                partyId,
+                "모집이 마감되었습니다."
+        );
+    }
 }
