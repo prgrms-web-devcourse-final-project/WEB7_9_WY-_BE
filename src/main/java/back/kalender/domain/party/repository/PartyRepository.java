@@ -9,17 +9,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.List;
 import java.util.Optional;
 
 public interface PartyRepository extends JpaRepository<Party, Long>, PartyRepositoryCustom {
 
-    @Query("SELECT p FROM Party p WHERE p.leaderId = :leaderId " +
-            "AND p.status NOT IN ('COMPLETED', 'CANCELLED') " +
-            "ORDER BY p.createdAt DESC")
-    Page<Party> findActivePartiesByLeaderId(@Param("leaderId") Long leaderId, Pageable pageable);
-
     Page<Party> findByStatusOrderByCreatedAtDesc(PartyStatus status, Pageable pageable);
+
+    @Query("SELECT p FROM Party p WHERE p.leaderId = :leaderId " +
+            "AND p.status IN ('RECRUITING', 'CLOSED') " +
+            "ORDER BY p.createdAt DESC")
+    Page<Party> findActivePartiesByLeaderId(
+            @Param("leaderId") Long leaderId,
+            Pageable pageable
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Party p WHERE p.id = :id")

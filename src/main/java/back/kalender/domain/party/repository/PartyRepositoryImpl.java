@@ -10,15 +10,12 @@ import back.kalender.domain.party.enums.TransportType;
 import back.kalender.domain.schedule.entity.QSchedule;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -39,30 +36,23 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
-            PartyStatus status,  // 추가
+            PartyStatus status,
             Pageable pageable
     ) {
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 스케줄 ID 필터
         builder.and(party.scheduleId.eq(scheduleId));
 
-        // RECRUITING 상태 필터 추가
         if (status != null) {
             builder.and(party.status.eq(status));
         }
-
-        // 파티 타입 필터
         if (partyType != null) {
             builder.and(party.partyType.eq(partyType));
         }
-
-        // 이동 수단 필터
         if (transportType != null) {
             builder.and(party.transportType.eq(transportType));
         }
 
-        // 최신순 정렬
         List<Party> content = queryFactory
                 .selectFrom(party)
                 .where(builder)
@@ -135,14 +125,6 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         return new PageImpl<>(pagedContent, pageable, allParties.size());
     }
 
-    private BooleanExpression partyTypeEq(PartyType partyType) {
-        return partyType != null ? party.partyType.eq(partyType) : null;
-    }
-
-    private BooleanExpression transportTypeEq(TransportType transportType) {
-        return transportType != null ? party.transportType.eq(transportType) : null;
-    }
-
     @Override
     public List<NotificationTarget> findNotificationTargets(LocalDateTime start, LocalDateTime end) {
         QSchedule schedule = QSchedule.schedule;
@@ -152,7 +134,6 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         return queryFactory
                 .select(Projections.constructor(NotificationTarget.class,
                         partyMember.userId,
-                        party.id,
                         schedule.title,
                         schedule.scheduleCategory,
                         schedule.scheduleTime

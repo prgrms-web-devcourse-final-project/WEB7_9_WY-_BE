@@ -55,19 +55,18 @@ public class PartyController implements PartyControllerSpec{
     }
 
     @GetMapping
-    public ResponseEntity<GetPartiesResponse> getParties(
+    public ResponseEntity<CommonPartyResponse> getParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetPartiesResponse response = partyService.getParties(pageable, userDetails.getUserId());
+        CommonPartyResponse response = partyService.getParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/schedule/{scheduleId}")
-    public ResponseEntity<GetPartiesResponse> getPartiesBySchedule(
+    public ResponseEntity<CommonPartyResponse> getPartiesBySchedule(
             @PathVariable Long scheduleId,
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
@@ -77,14 +76,13 @@ public class PartyController implements PartyControllerSpec{
     ) {
         Pageable pageable = PageRequest.of(page, size);
 
-        GetPartiesResponse response = partyService.getPartiesBySchedule(
+        CommonPartyResponse response = partyService.getPartiesBySchedule(
                 scheduleId, partyType, transportType,
                 pageable, userDetails.getUserId()
         );
 
         return ResponseEntity.ok(response);
     }
-
 
     @PostMapping("/{partyId}/application/apply")
     public ResponseEntity<ApplyToPartyResponse> applyToParty(
@@ -94,7 +92,6 @@ public class PartyController implements PartyControllerSpec{
         ApplyToPartyResponse response = partyService.applyToParty(partyId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
-
 
     @DeleteMapping("/{partyId}/application/{applicationId}/cancel")
     public ResponseEntity<Void> cancelApplication(
@@ -106,7 +103,6 @@ public class PartyController implements PartyControllerSpec{
         return ResponseEntity.noContent().build();
     }
 
-
     @PatchMapping("/{partyId}/application/{applicationId}/accept")
     public ResponseEntity<AcceptApplicationResponse> acceptApplication(
             @PathVariable Long partyId,
@@ -116,7 +112,6 @@ public class PartyController implements PartyControllerSpec{
         AcceptApplicationResponse response = partyService.acceptApplication(partyId, applicationId, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
-
 
     @PatchMapping("/{partyId}/application/{applicationId}/reject")
     public ResponseEntity<RejectApplicationResponse> rejectApplication(
@@ -128,7 +123,6 @@ public class PartyController implements PartyControllerSpec{
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/{partyId}/application/applicants")
     public ResponseEntity<GetApplicantsResponse> getApplicants(
             @PathVariable Long partyId,
@@ -138,7 +132,6 @@ public class PartyController implements PartyControllerSpec{
         return ResponseEntity.ok(response);
     }
 
-
     @GetMapping("/{partyId}/members")
     public ResponseEntity<GetPartyMembersResponse> getPartyMembers(
             @PathVariable Long partyId
@@ -147,37 +140,47 @@ public class PartyController implements PartyControllerSpec{
         return ResponseEntity.ok(response);
     }
 
-
-    @GetMapping("/user/me/party/application")
-    public ResponseEntity<GetMyApplicationsResponse> getMyApplications(
+    @GetMapping("/user/me/party/pending")
+    public ResponseEntity<CommonPartyResponse> getMyPendingApplications(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetMyApplicationsResponse response = partyService.getMyApplications(pageable, userDetails.getUserId());
+        CommonPartyResponse response = partyService.getMyPendingApplications(pageable, userDetails.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/user/me/party/joined")
+    public ResponseEntity<CommonPartyResponse> getMyJoinedParties(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+        CommonPartyResponse response = partyService.getMyJoinedParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/user/me/party/created")
-    public ResponseEntity<GetMyCreatedPartiesResponse> getMyCreatedParties(
+    public ResponseEntity<CommonPartyResponse> getMyCreatedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetMyCreatedPartiesResponse response = partyService.getMyCreatedParties(pageable, userDetails.getUserId());
+        CommonPartyResponse response = partyService.getMyCreatedParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/user/me/party/completed")
-    public ResponseEntity<GetCompletedPartiesResponse> getMyCompletedParties(
+    public ResponseEntity<CommonPartyResponse> getMyCompletedParties(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        GetCompletedPartiesResponse response = partyService.getMyCompletedParties(pageable, userDetails.getUserId());
+        CommonPartyResponse response = partyService.getMyCompletedParties(pageable, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 

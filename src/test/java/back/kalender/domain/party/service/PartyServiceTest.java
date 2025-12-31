@@ -13,6 +13,7 @@ import back.kalender.domain.party.enums.*;
 import back.kalender.domain.party.repository.PartyApplicationRepository;
 import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
+import back.kalender.domain.party.repository.PartyRepositoryCustom;
 import back.kalender.domain.schedule.entity.Schedule;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.domain.user.entity.User;
@@ -28,10 +29,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -140,11 +144,17 @@ class PartyServiceTest {
 
         @Test
         @DisplayName("성공: 파티 생성 시 PartyMember와 ChatRoom이 함께 생성된다")
-        void createParty_Success() {
+        void createParty_Success() throws Exception {
             
             Long userId = 1L;
-            given(scheduleRepository.findById(1L)).willReturn(Optional.of(testSchedule));
-            given(partyRepository.save(any(Party.class))).willReturn(testParty);
+            given(scheduleRepository.existsById(1L)).willReturn(true);
+
+            given(partyRepository.save(any(Party.class))).willAnswer(invocation -> {
+                Party party = invocation.getArgument(0);
+                setId(party, 1L);
+                return party;
+            });
+
             given(partyMemberRepository.save(any(PartyMember.class)))
                     .willReturn(PartyMember.createLeader(1L, userId));
             willDoNothing().given(chatRoomService).createChatRoom(anyLong(), anyString());
@@ -152,22 +162,24 @@ class PartyServiceTest {
             
             CreatePartyResponse response = partyService.createParty(createRequest, userId);
 
+            
             assertThat(response).isNotNull();
             assertThat(response.leaderId()).isEqualTo(userId);
             assertThat(response.status()).isEqualTo("생성 완료");
 
-            then(scheduleRepository).should().findById(1L);
+            then(scheduleRepository).should().existsById(1L);
             then(partyRepository).should().save(any(Party.class));
             then(partyMemberRepository).should().save(any(PartyMember.class));
-            then(chatRoomService).should().createChatRoom(anyLong(), eq("즐거운 파티"));
+            then(chatRoomService).should().createChatRoom(1L, "즐거운 파티");
         }
 
         @Test
         @DisplayName("실패: 존재하지 않는 스케줄")
         void createParty_ScheduleNotFound() {
             
-            given(scheduleRepository.findById(1L)).willReturn(Optional.empty());
+            given(scheduleRepository.existsById(1L)).willReturn(false);
 
+            
             assertThatThrownBy(() -> partyService.createParty(createRequest, 1L))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.SCHEDULE_NOT_FOUND.getMessage());
@@ -317,6 +329,75 @@ class PartyServiceTest {
     }
 
     @Nested
+    @DisplayName("파티 모집 마감 테스트")
+    class ClosePartyTest {
+
+        @Test
+        @DisplayName("성공: 파티장이 모집을 마감한다")
+        void closeParty_Success() {
+            
+            Long partyId = 1L;
+            Long leaderId = 1L;
+
+            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+
+            
+            ClosePartyResponse response = partyService.closeParty(partyId, leaderId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.partyId()).isEqualTo(partyId);
+            assertThat(response.message()).isEqualTo("모집이 마감되었습니다.");
+            assertThat(testParty.getStatus()).isEqualTo(PartyStatus.CLOSED);
+        }
+
+        @Test
+        @DisplayName("실패: 파티장이 아닌 사용자가 마감 시도")
+        void closeParty_NotLeader() {
+            
+            Long partyId = 1L;
+            Long notLeaderId = 999L;
+
+            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+
+            
+            assertThatThrownBy(() -> partyService.closeParty(partyId, notLeaderId))
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessageContaining(ErrorCode.CANNOT_MODIFY_PARTY_NOT_LEADER.getMessage());
+        }
+
+        @Test
+        @DisplayName("실패: 모집 중이 아닌 파티 마감 시도")
+        void closeParty_NotRecruiting() throws Exception {
+            
+            Long partyId = 1L;
+            Long leaderId = 1L;
+
+            Party closedParty = Party.builder()
+                    .scheduleId(1L)
+                    .leaderId(leaderId)
+                    .partyType(PartyType.LEAVE)
+                    .partyName("파티")
+                    .departureLocation("강남역")
+                    .arrivalLocation("잠실")
+                    .transportType(TransportType.TAXI)
+                    .maxMembers(4)
+                    .preferredGender(Gender.ANY)
+                    .preferredAge(PreferredAge.ANY)
+                    .build();
+            setId(closedParty, 1L);
+            closedParty.changeStatus(PartyStatus.CLOSED);
+
+            given(partyRepository.findById(partyId)).willReturn(Optional.of(closedParty));
+
+            
+            assertThatThrownBy(() -> partyService.closeParty(partyId, leaderId))
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessageContaining(ErrorCode.PARTY_NOT_RECRUITING.getMessage());
+        }
+    }
+
+    @Nested
     @DisplayName("파티 삭제 테스트")
     class DeletePartyTest {
 
@@ -331,8 +412,10 @@ class PartyServiceTest {
             willDoNothing().given(chatRoomService).closeChatRoom(partyId);
             willDoNothing().given(partyRepository).delete(testParty);
 
+            
             partyService.deleteParty(partyId, leaderId);
 
+            
             then(chatRoomService).should().closeChatRoom(partyId);
             then(partyRepository).should().delete(testParty);
         }
@@ -346,12 +429,281 @@ class PartyServiceTest {
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> partyService.deleteParty(partyId, notLeaderId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.CANNOT_DELETE_PARTY_NOT_LEADER.getMessage());
 
             then(chatRoomService).should(never()).closeChatRoom(anyLong());
             then(partyRepository).should(never()).delete(any(Party.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("파티 목록 조회 테스트")
+    class GetPartiesTest {
+
+        @Test
+        @DisplayName("성공: 모집 중인 파티 목록을 조회한다 (CommonPartyResponse)")
+        void getParties_Success() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.totalElements()).isEqualTo(1);
+            assertThat(response.totalPages()).isEqualTo(1);
+            assertThat(response.pageNumber()).isEqualTo(0);
+
+            CommonPartyResponse.PartyItem item = response.parties().get(0);
+            assertThat(item.partyId()).isEqualTo(testParty.getId());
+            assertThat(item.schedule().title()).isEqualTo("BTS 콘서트");
+            assertThat(item.leader().nickname()).isEqualTo("테스터");
+            assertThat(item.isMyParty()).isTrue();
+            assertThat(item.isApplied()).isFalse();
+            assertThat(item.participationType()).isNull();
+        }
+
+        @Test
+        @DisplayName("성공: 빈 목록 조회")
+        void getParties_EmptyList() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
+
+            given(partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable))
+                    .willReturn(emptyPage);
+
+            
+            CommonPartyResponse response = partyService.getParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).isEmpty();
+            assertThat(response.totalElements()).isZero();
+            assertThat(response.totalPages()).isZero();
+        }
+    }
+
+    @Nested
+    @DisplayName("스케줄별 파티 조회 테스트")
+    class GetPartiesByScheduleTest {
+
+        @Test
+        @DisplayName("성공: 특정 스케줄의 파티 목록을 조회한다")
+        void getPartiesBySchedule_Success() {
+            
+            Long scheduleId = 1L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(true);
+            given(partyRepository.findByScheduleIdWithFilters(
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getPartiesBySchedule(
+                    scheduleId, null, null, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).schedule().scheduleId()).isEqualTo(scheduleId);
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 스케줄")
+        void getPartiesBySchedule_ScheduleNotFound() {
+            
+            Long scheduleId = 999L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(false);
+
+            
+            assertThatThrownBy(() -> partyService.getPartiesBySchedule(
+                    scheduleId, null, null, pageable, currentUserId))
+                    .isInstanceOf(ServiceException.class)
+                    .hasMessageContaining(ErrorCode.SCHEDULE_NOT_FOUND.getMessage());
+        }
+    }
+
+    @Nested
+    @DisplayName("내가 만든 파티 조회 테스트")
+    class GetMyCreatedPartiesTest {
+
+        @Test
+        @DisplayName("성공: 내가 만든 활성 파티 목록을 조회한다")
+        void getMyCreatedParties_Success() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(partyRepository.findActivePartiesByLeaderId(currentUserId, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getMyCreatedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+
+            CommonPartyResponse.PartyItem item = response.parties().get(0);
+            assertThat(item.isMyParty()).isTrue();
+            assertThat(item.participationType()).isEqualTo("CREATED");
+        }
+    }
+
+    @Nested
+    @DisplayName("신청중인 파티 조회 테스트")
+    class GetMyPendingApplicationsTest {
+
+        @Test
+        @DisplayName("성공: 신청중인 파티 목록을 조회한다")
+        void getMyPendingApplications_Success() {
+
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            PartyApplication application = PartyApplication.create(1L, currentUserId, 1L);
+            Page<PartyApplication> applicationPage = new PageImpl<>(
+                    List.of(application), pageable, 1);
+
+            given(partyApplicationRepository.findByApplicantIdAndStatusWithActiveParties(
+                    currentUserId, ApplicationStatus.PENDING, pageable))
+                    .willReturn(applicationPage);
+            given(partyRepository.findAllById(anyList())).willReturn(List.of(testParty));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+
+            CommonPartyResponse response = partyService.getMyPendingApplications(
+                    pageable, currentUserId);
+
+
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+
+            CommonPartyResponse.PartyItem item = response.parties().get(0);
+            assertThat(item.participationType()).isEqualTo("PENDING");
+            assertThat(item.isApplied()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("참여중인 파티 조회 테스트")
+    class GetMyJoinedPartiesTest {
+
+        @Test
+        @DisplayName("성공: 참여중인 파티 목록을 조회한다")
+        void getMyJoinedParties_Success() {
+            
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            PartyApplication application = PartyApplication.create(1L, currentUserId, 1L);
+            application.approve();
+            Page<PartyApplication> applicationPage = new PageImpl<>(
+                    List.of(application), pageable, 1);
+
+            given(partyApplicationRepository.findByApplicantIdAndStatusWithActiveParties(
+                    currentUserId, ApplicationStatus.APPROVED, pageable))
+                    .willReturn(applicationPage);
+            given(partyRepository.findAllById(anyList())).willReturn(List.of(testParty));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            
+            CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+
+            CommonPartyResponse.PartyItem item = response.parties().get(0);
+            assertThat(item.participationType()).isEqualTo("JOINED");
+            assertThat(item.isApplied()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("종료된 파티 조회 테스트")
+    class GetMyCompletedPartiesTest {
+
+        @Test
+        @DisplayName("성공: 종료된 파티 목록을 조회한다")
+        void getMyCompletedParties_Success() throws Exception {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            Party completedParty = Party.builder()
+                    .scheduleId(1L)
+                    .leaderId(currentUserId)
+                    .partyType(PartyType.LEAVE)
+                    .partyName("종료된 파티")
+                    .departureLocation("강남역")
+                    .arrivalLocation("잠실")
+                    .transportType(TransportType.TAXI)
+                    .maxMembers(4)
+                    .preferredGender(Gender.ANY)
+                    .preferredAge(PreferredAge.ANY)
+                    .build();
+            setId(completedParty, 1L);
+            completedParty.changeStatus(PartyStatus.COMPLETED);
+
+            PartyRepositoryCustom.CompletedPartyWithType completedData =
+                    new PartyRepositoryCustom.CompletedPartyWithType(completedParty, "CREATED");
+            Page<PartyRepositoryCustom.CompletedPartyWithType> completedPage =
+                    new PageImpl<>(List.of(completedData), pageable, 1);
+
+            given(partyApplicationRepository.findByApplicantIdAndStatus(
+                    eq(currentUserId), eq(ApplicationStatus.COMPLETED), any(Pageable.class)))
+                    .willReturn(new PageImpl<>(Collections.emptyList()));
+            given(partyRepository.findCompletedPartiesByUserId(
+                    eq(currentUserId), anyList(), eq(pageable)))
+                    .willReturn(completedPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getMyCompletedParties(
+                    pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+
+            CommonPartyResponse.PartyItem item = response.parties().get(0);
+            assertThat(item.participationType()).isEqualTo("CREATED");
+            assertThat(item.partyDetail().status()).isEqualTo(PartyStatus.COMPLETED);
         }
     }
 
@@ -367,13 +719,13 @@ class PartyServiceTest {
             Long applicantId = 2L;
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser)); 
             given(partyMemberRepository.existsByPartyIdAndUserId(partyId, applicantId))
                     .willReturn(false);
             given(partyApplicationRepository.existsByPartyIdAndApplicantId(partyId, applicantId))
                     .willReturn(false);
             given(partyApplicationRepository.save(any(PartyApplication.class)))
                     .willReturn(PartyApplication.create(partyId, applicantId, 1L));
-            given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser));
 
             
             ApplyToPartyResponse response = partyService.applyToParty(partyId, applicantId);
@@ -384,7 +736,6 @@ class PartyServiceTest {
             assertThat(response.partyTitle()).isEqualTo("즐거운 파티");
 
             then(partyApplicationRepository).should().save(any(PartyApplication.class));
-
             then(notificationService).should().send(
                     eq(testParty.getLeaderId()),
                     eq(NotificationType.APPLY),
@@ -401,6 +752,7 @@ class PartyServiceTest {
             Long leaderId = 1L;
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(userRepository.findById(leaderId)).willReturn(Optional.of(testUser));
 
             
             assertThatThrownBy(() -> partyService.applyToParty(partyId, leaderId))
@@ -431,6 +783,7 @@ class PartyServiceTest {
             fullParty.incrementCurrentMembers();
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(fullParty));
+            given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser));
 
             
             assertThatThrownBy(() -> partyService.applyToParty(partyId, applicantId))
@@ -461,6 +814,7 @@ class PartyServiceTest {
             closedParty.changeStatus(PartyStatus.CLOSED);
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(closedParty));
+            given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser)); 
 
             
             assertThatThrownBy(() -> partyService.applyToParty(partyId, applicantId))
@@ -476,6 +830,7 @@ class PartyServiceTest {
             Long memberId = 2L;
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(userRepository.findById(memberId)).willReturn(Optional.of(applicantUser)); 
             given(partyMemberRepository.existsByPartyIdAndUserId(partyId, memberId))
                     .willReturn(true);
 
@@ -493,6 +848,7 @@ class PartyServiceTest {
             Long applicantId = 2L;
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser)); 
             given(partyMemberRepository.existsByPartyIdAndUserId(partyId, applicantId))
                     .willReturn(false);
             given(partyApplicationRepository.existsByPartyIdAndApplicantId(partyId, applicantId))
@@ -512,6 +868,7 @@ class PartyServiceTest {
         @Test
         @DisplayName("성공: 파티장이 신청을 승인하고 알림이 전송된다")
         void acceptApplication_Success() {
+            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -525,9 +882,11 @@ class PartyServiceTest {
             given(partyMemberRepository.save(any(PartyMember.class)))
                     .willReturn(PartyMember.createMember(partyId, applicantId));
 
+            
             AcceptApplicationResponse response = partyService.acceptApplication(
                     partyId, applicationId, leaderId);
 
+            
             assertThat(response).isNotNull();
             assertThat(response.applicantId()).isEqualTo(applicantId);
             assertThat(response.partyTitle()).isEqualTo("즐거운 파티");
@@ -546,6 +905,7 @@ class PartyServiceTest {
         @Test
         @DisplayName("성공: 마지막 멤버 승인 시 파티 상태가 CLOSED로 변경된다")
         void acceptApplication_PartyFullAfterAccept() throws Exception {
+            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -573,8 +933,10 @@ class PartyServiceTest {
             given(partyMemberRepository.save(any(PartyMember.class)))
                     .willReturn(PartyMember.createMember(partyId, applicantId));
 
+            
             partyService.acceptApplication(partyId, applicationId, leaderId);
 
+            
             assertThat(smallParty.getCurrentMembers()).isEqualTo(2);
             assertThat(smallParty.getStatus()).isEqualTo(PartyStatus.CLOSED);
         }
@@ -582,6 +944,7 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 이미 꽉 찬 파티에 신청 승인 시도")
         void acceptApplication_PartyAlreadyFull() throws Exception {
+            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -608,6 +971,7 @@ class PartyServiceTest {
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
+            
             assertThatThrownBy(() -> partyService.acceptApplication(
                     partyId, applicationId, leaderId))
                     .isInstanceOf(ServiceException.class)
@@ -617,12 +981,14 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 파티장이 아닌 사용자가 승인 시도")
         void acceptApplication_NotLeader() {
+            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long notLeaderId = 999L;
 
             given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> partyService.acceptApplication(
                     partyId, applicationId, notLeaderId))
                     .isInstanceOf(ServiceException.class)
@@ -632,6 +998,7 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 이미 처리된 신청을 승인 시도")
         void acceptApplication_AlreadyProcessed() {
+            
             Long partyId = 1L;
             Long applicationId = 1L;
             Long leaderId = 1L;
@@ -644,6 +1011,7 @@ class PartyServiceTest {
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
+            
             assertThatThrownBy(() -> partyService.acceptApplication(
                     partyId, applicationId, leaderId))
                     .isInstanceOf(ServiceException.class)
@@ -697,6 +1065,7 @@ class PartyServiceTest {
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
 
+            
             assertThatThrownBy(() -> partyService.rejectApplication(
                     partyId, applicationId, notLeaderId))
                     .isInstanceOf(ServiceException.class)
@@ -722,8 +1091,10 @@ class PartyServiceTest {
                     .willReturn(Optional.of(application));
             willDoNothing().given(partyApplicationRepository).delete(application);
 
+            
             partyService.cancelApplication(partyId, applicationId, applicantId);
 
+            
             then(partyApplicationRepository).should().delete(application);
         }
 
@@ -741,6 +1112,7 @@ class PartyServiceTest {
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
+            
             assertThatThrownBy(() -> partyService.cancelApplication(
                     partyId, applicationId, otherUserId))
                     .isInstanceOf(ServiceException.class)
@@ -761,6 +1133,7 @@ class PartyServiceTest {
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
 
+            
             assertThatThrownBy(() -> partyService.cancelApplication(
                     partyId, applicationId, applicantId))
                     .isInstanceOf(ServiceException.class)
@@ -791,6 +1164,7 @@ class PartyServiceTest {
             
             partyService.removePartyMember(partyId, userId);
 
+            
             assertThat(member.getLeftAt()).isNotNull();
             assertThat(testParty.getCurrentMembers()).isEqualTo(beforeCount - 1);
         }
@@ -806,6 +1180,7 @@ class PartyServiceTest {
             given(partyMemberRepository.findByPartyIdAndUserIdAndLeftAtIsNull(partyId, userId))
                     .willReturn(Optional.empty());
 
+            
             assertThatThrownBy(() -> partyService.removePartyMember(partyId, userId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.USER_NOT_IN_PARTY.getMessage());
@@ -833,11 +1208,14 @@ class PartyServiceTest {
             testParty.incrementCurrentMembers();
             int beforeCount = testParty.getCurrentMembers();
 
+            
             partyService.kickPartyMember(partyId, targetMemberId);
 
             assertThat(member.getKickedAt()).isNotNull();
-            assertThat(member.getLeftAt()).isNotNull();
             assertThat(testParty.getCurrentMembers()).isEqualTo(beforeCount - 1);
+
+            then(partyMemberRepository).should().findByPartyIdAndUserIdAndLeftAtIsNull(
+                    partyId, targetMemberId);
         }
 
         @Test
@@ -852,6 +1230,7 @@ class PartyServiceTest {
                     partyId, targetMemberId))
                     .willReturn(Optional.empty());
 
+            
             assertThatThrownBy(() -> partyService.kickPartyMember(partyId, targetMemberId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.USER_NOT_IN_PARTY.getMessage());
