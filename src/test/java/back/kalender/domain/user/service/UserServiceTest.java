@@ -63,7 +63,7 @@ public class UserServiceTest {
         assertThat(response.email()).isEqualTo("test@example.com");
         assertThat(response.nickname()).isEqualTo("테스트유저");
         assertThat(response.gender()).isEqualTo(Gender.FEMALE);
-        assertThat(response.age()).isEqualTo(25); // 2025 - 2000 = 25
+        assertThat(response.age()).isEqualTo(26);
         assertThat(response.profileImage()).isEqualTo("https://presigned-get-url");
 
         verify(userRepository, times(1)).findById(userId);
