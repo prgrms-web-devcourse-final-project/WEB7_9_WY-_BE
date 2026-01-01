@@ -566,7 +566,7 @@ public class ReservationService {
     }
 
     /**
-     * TODO: 결제 완료 시 좌석을 SOLD로 표시 (C파트에서 호출)
+     * 결제 완료 시 좌석을 SOLD로 표시
      */
     @Transactional
     public void markSeatsAsSold(Long scheduleId, Long reservationId) {

@@ -1,8 +1,10 @@
 package back.kalender.domain.party.repository;
 
+import back.kalender.domain.party.entity.QParty;
 import back.kalender.domain.party.enums.ApplicationStatus;
 import back.kalender.domain.party.entity.PartyApplication;
 import back.kalender.domain.party.entity.QPartyApplication;
+import back.kalender.domain.party.enums.PartyStatus;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -20,36 +22,40 @@ public class PartyApplicationRepositoryImpl implements PartyApplicationRepositor
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<PartyApplication> findActiveApplicationsByApplicantId(
+    public Page<PartyApplication> findByApplicantIdAndStatusWithActiveParties(
             Long applicantId,
+            ApplicationStatus status,
             Pageable pageable
     ) {
         QPartyApplication pa = QPartyApplication.partyApplication;
+        QParty party = QParty.party;
 
-        // 데이터 조회
         List<PartyApplication> content = queryFactory
                 .selectFrom(pa)
+                .join(party).on(pa.partyId.eq(party.id))
                 .where(
                         pa.applicantId.eq(applicantId),
-                        pa.status.notIn(
-                                ApplicationStatus.COMPLETED,
-                                ApplicationStatus.CANCELLED
+                        pa.status.eq(status),
+                        party.status.in(
+                                PartyStatus.RECRUITING,
+                                PartyStatus.CLOSED
                         )
                 )
-                .orderBy(pa.createdAt.desc())
+                .orderBy(pa.updatedAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        // Count 쿼리
         JPAQuery<Long> countQuery = queryFactory
                 .select(pa.count())
                 .from(pa)
+                .join(party).on(pa.partyId.eq(party.id))
                 .where(
                         pa.applicantId.eq(applicantId),
-                        pa.status.notIn(
-                                ApplicationStatus.COMPLETED,
-                                ApplicationStatus.CANCELLED
+                        pa.status.eq(status),
+                        party.status.in(
+                                PartyStatus.RECRUITING,
+                                PartyStatus.CLOSED
                         )
                 );
 

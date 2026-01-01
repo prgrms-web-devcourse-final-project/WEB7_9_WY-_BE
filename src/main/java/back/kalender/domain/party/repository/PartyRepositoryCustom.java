@@ -2,6 +2,7 @@ package back.kalender.domain.party.repository;
 
 import back.kalender.domain.party.dto.query.NotificationTarget;
 import back.kalender.domain.party.entity.Party;
+import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.enums.PartyType;
 import back.kalender.domain.party.enums.TransportType;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,7 @@ public interface PartyRepositoryCustom {
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
+            PartyStatus status,
             Pageable pageable
     );
 

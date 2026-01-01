@@ -11,6 +11,7 @@ import back.kalender.domain.chat.repository.ChatMessageRepository;
 import back.kalender.domain.chat.repository.ChatRoomRepository;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.PartyMember;
+import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.repository.PartyMemberRepository;
 import back.kalender.domain.party.repository.PartyRepository;
 import back.kalender.domain.user.entity.User;
@@ -281,7 +282,10 @@ public class ChatRoomService {
         List<Long> validPartyIds = partyIds.stream()
                 .filter(partyId -> {
                     Party party = partyMap.get(partyId);
-                    return party != null && party.getCurrentMembers() >= 2;
+                    return party != null
+                            && party.getCurrentMembers() >= 2
+                            && (party.getStatus() == PartyStatus.RECRUITING
+                            || party.getStatus() == PartyStatus.CLOSED);
                 })
                 .toList();
 

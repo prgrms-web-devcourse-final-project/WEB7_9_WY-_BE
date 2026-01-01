@@ -15,12 +15,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -48,24 +50,62 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * 공개 경로 목록 Bean - SecurityConfig와 JwtAuthFilter에서 공통으로 사용
+     */
     @Bean
-    public JwtAuthFilter jwtAuthFilter(JwtTokenProvider jwtTokenProvider) {
-        return new JwtAuthFilter(jwtTokenProvider);
+    public List<String> publicPaths() {
+        List<String> paths = new ArrayList<>(Arrays.asList(
+                "/api/v1/auth/login",
+                "/api/v1/auth/refresh",
+                "/api/v1/auth/password/send",
+                "/api/v1/auth/password/reset",
+                "/api/v1/auth/email/send",
+                "/api/v1/auth/email/verify",
+                "/api/v1/user",                    // 회원가입
+                "/api/v1/schedule/by-artists",      //비회원 공개 일정 조회
+                "/api/v1/artist",               //비회원 아티스트 정보 조회
+                "/favicon.ico",
+                "/swagger-ui/**",                  // Swagger UI
+                "/v3/api-docs/**",                 // OpenAPI 문서
+                "/swagger-resources/**",            // Swagger 리소스
+                "/api/v1/notifications/**",          // 알림
+                "/ws-chat/**",                     // WebSocket 연결 허용
+                "/payment-test.html",               // 결제 테스트 페이지
+                "/payment/**",                      // 결제 관련 정적 파일
+                "/api/v1/payments/client-key"      // 결제 클라이언트 키 조회 (인증 불필요)
+        ));
+        
+        // 개발 환경에서만 H2 콘솔 허용
+        if (!isProdProfile()) {
+            paths.add("/h2-console/**");
+        }
+        
+        return Collections.unmodifiableList(paths);
+    }
+
+    @Bean
+    public JwtAuthFilter jwtAuthFilter(JwtTokenProvider jwtTokenProvider, Environment environment, List<String> publicPaths) {
+        return new JwtAuthFilter(jwtTokenProvider, environment, publicPaths);
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        List<String> allowedOrigins = new ArrayList<>();
-        
         if (isProdProfile()) {
-            // 프로덕션: 운영 도메인만 허용
-            allowedOrigins.add(frontUrl);
+            configuration.setAllowedOriginPatterns(Arrays.asList(
+                frontUrl,
+                "https://web-7-9-wy-fe*.vercel.app",  // preview1
+                "https://web-7-9-wy-fe-*.vercel.app", // preview2
+                "https://web-7-9-wy-fe.vercel.app"   // production
+            ));
         } else {
             // 개발: 로컬 및 개발 도메인 허용
+            List<String> allowedOrigins = new ArrayList<>();
             allowedOrigins.add("http://localhost:3000");
             allowedOrigins.add(frontUrl);
+            configuration.setAllowedOrigins(allowedOrigins);
         }
 
         // 허용할 HTTP 메서드
@@ -83,8 +123,6 @@ public class SecurityConfig {
         // 노출할 응답 헤더
         configuration.setExposedHeaders(Arrays.asList(HttpHeaders.AUTHORIZATION));
         
-        configuration.setAllowedOrigins(allowedOrigins);
-        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         
@@ -95,35 +133,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthFilter jwtAuthFilter,
-            JwtAuthEntryPoint jwtAuthEntryPoint
+            JwtAuthEntryPoint jwtAuthEntryPoint,
+            List<String> publicPaths
     ) throws Exception {
-        
-        // 공개 엔드포인트 목록
-        List<String> publicPaths = new ArrayList<>(Arrays.asList(
-                "/api/v1/auth/login",
-                "/api/v1/auth/refresh",
-                "/api/v1/auth/password/send",
-                "/api/v1/auth/password/reset",
-                "/api/v1/auth/email/send",
-                "/api/v1/auth/email/verify",
-                "/api/v1/user",                    // 회원가입
-                "/api/v1/schedule/**",      // 공개 일정 조회
-                "/api/v1/artist/**",               // 아티스트 정보 조회
-                "/favicon.ico",
-                "/swagger-ui/**",                  // Swagger UI
-                "/v3/api-docs/**",                 // OpenAPI 문서
-                "/swagger-resources/**",            // Swagger 리소스
-                "/api/v1/notifications/**",          // 알림
-                "/ws-chat/**",                     // WebSocket 연결 허용
-                "/payment-test.html",               // 결제 테스트 페이지
-                "/payment/**",                      // 결제 관련 정적 파일
-                "/api/v1/payments/client-key"      // 결제 클라이언트 키 조회 (인증 불필요)
-        ));
-        
-        // 개발 환경에서만 H2 콘솔 허용
-        if (!isProdProfile()) {
-            publicPaths.add("/h2-console/**");
-        }
         
         http
                 // CSRF 비활성화 (JWT 사용 시 세션을 사용하지 않으므로)
@@ -159,6 +171,9 @@ public class SecurityConfig {
                 // 요청 인가 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicPaths.toArray(new String[0]))
+                        .permitAll()
+                        // CORS preflight 요청(OPTIONS)은 인증 없이 허용
+                        .requestMatchers(HttpMethod.OPTIONS, "/**")
                         .permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
