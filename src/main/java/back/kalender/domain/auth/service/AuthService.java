@@ -290,14 +290,14 @@ public class AuthService {
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
         boolean secure = jwtProperties.getCookie().isSecure();
         // 운영에서도 쿠키 설정 확인용 로깅 (디버깅)
-        log.debug("Setting refreshToken cookie - secure: {}, sameSite: None, path: /", secure);
+        log.debug("Setting refreshToken cookie - secure: {}, sameSite: None, path: / (session cookie)", secure);
         
+        // maxAge를 설정하지 않으면 브라우저 종료 시 자동으로 삭제되는 session cookie가 됩니다
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
                 .secure(secure)
                 .sameSite("None")
                 .path("/")
-                .maxAge(jwtProperties.getTokenExpiration().getRefreshInSeconds())
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
     }
