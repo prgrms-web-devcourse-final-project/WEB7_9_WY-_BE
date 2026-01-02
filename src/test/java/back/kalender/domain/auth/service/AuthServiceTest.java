@@ -46,6 +46,7 @@ class AuthServiceTest {
     private static final long ACCESS_TOKEN_EXPIRY_MILLIS = 1800000L;
     private static final long REFRESH_TOKEN_EXPIRY_MILLIS = 1209600000L;
     private static final long REFRESH_TOKEN_EXPIRY_DAYS = 14L;
+    private static final long REFRESH_TOKEN_EXPIRY_SECONDS = 1209600L; // 14일 = 14 * 24 * 60 * 60 초
     private static final int PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 60;
     private static final int EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES = 5;
 
@@ -136,6 +137,7 @@ class AuthServiceTest {
         given(tokenExpiration.getAccessInMillis()).willReturn(ACCESS_TOKEN_EXPIRY_MILLIS);
         given(tokenExpiration.getRefreshInMillis()).willReturn(REFRESH_TOKEN_EXPIRY_MILLIS);
         given(tokenExpiration.getRefresh()).willReturn(REFRESH_TOKEN_EXPIRY_DAYS);
+        given(tokenExpiration.getRefreshInSeconds()).willReturn(REFRESH_TOKEN_EXPIRY_SECONDS);
         setupCookieProperties();
     }
 
@@ -172,6 +174,8 @@ class AuthServiceTest {
         assertThat(cookieHeader).contains(COOKIE_NAME_REFRESH_TOKEN + "=" + expectedToken);
         assertThat(cookieHeader).contains("HttpOnly");
         assertThat(cookieHeader).contains("SameSite=None");
+        // maxAge가 명시적으로 설정되었는지 검증 (리프레시 토큰 만료 기간과 일치)
+        assertThat(cookieHeader).contains("Max-Age=" + REFRESH_TOKEN_EXPIRY_SECONDS);
         // Secure는 jwtProperties에 따라 달라질 수 있으므로 별도 검증은 생략
     }
 

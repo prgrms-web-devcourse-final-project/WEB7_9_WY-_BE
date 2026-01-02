@@ -251,12 +251,6 @@ public class AuthService {
         );
     }
 
-    // ------------------------------ HELPERS ------------------------------------------
-    /**
-     * Access Token과 Refresh Token을 생성하고 저장합니다.
-     * 여러 기기 로그인을 허용하므로 기존 refresh token을 삭제하지 않습니다.
-     * @return 생성된 Access Token (컨트롤러에서 ResponseEntity 헤더에 설정하기 위해 반환)
-     */
     private String createAndSaveTokens(User user, HttpServletResponse response) {
         // 토큰 생성
         String accessToken = createAccessToken(user);
@@ -289,15 +283,18 @@ public class AuthService {
 
     private void setRefreshTokenCookie(HttpServletResponse response, String token) {
         boolean secure = jwtProperties.getCookie().isSecure();
-        // 운영에서도 쿠키 설정 확인용 로깅 (디버깅)
-        log.debug("Setting refreshToken cookie - secure: {}, sameSite: None, path: /", secure);
+        long maxAgeInSeconds = jwtProperties.getTokenExpiration().getRefreshInSeconds();
         
+        log.debug("Setting refreshToken cookie - secure: {}, sameSite: None, path: /, maxAge: {} seconds", 
+                secure, maxAgeInSeconds);
+        
+        // 리프레시 토큰 만료 기간과 동일하게 쿠키 maxAge 설정
         ResponseCookie cookie = ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
                 .secure(secure)
                 .sameSite("None")
                 .path("/")
-                .maxAge(jwtProperties.getTokenExpiration().getRefreshInSeconds())
+                .maxAge(maxAgeInSeconds)
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
     }
