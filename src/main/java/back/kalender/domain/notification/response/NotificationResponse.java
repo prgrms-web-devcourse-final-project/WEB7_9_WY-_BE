@@ -32,7 +32,7 @@ public record NotificationResponse(
                 notification.getTitle(),
                 notification.getContent(),
                 notification.getIsRead(),
-                notification.getCreatedAt()
+                notification.getCreatedAt().plusHours(9)
         );
     }
 }
