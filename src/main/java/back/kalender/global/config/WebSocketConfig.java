@@ -3,7 +3,7 @@ package back.kalender.global.config;
 import back.kalender.global.security.jwt.JwtTokenProvider;
 import back.kalender.global.security.webSocket.WebSocketAuthInterceptor;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;  // 추가!
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Configuration;
