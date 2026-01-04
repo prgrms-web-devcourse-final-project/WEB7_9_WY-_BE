@@ -147,4 +147,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
         return null;
     }
+
+
+    /**
+     * WebSocket(SockJS) 연결 과정:
+     * 1. /ws-chat/info  (HTTP, 토큰 없음)
+     * 2. WebSocket handshake (토큰 없음)
+     * 3. STOMP CONNECT (헤더에 토큰 포함)
+     *
+     * → 1,2 단계에서 JWT 필터가 실행되면 401 발생
+     * → STOMP 인증은 ChannelInterceptor에서 처리
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+
+        // SockJS + WebSocket handshake는 JWT 필터 제외
+        return path.startsWith("/ws-chat");
+    }
+
 }
