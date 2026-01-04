@@ -92,7 +92,7 @@ public class EmitterRepository {
                         .data(""));
             } catch (Exception e) {
                 emitters.remove(key);
-                log.warn("Heartbeat 전송 실패로 인한 Emitter 삭제: {}", key);
+                log.debug("Heartbeat 전송 실패로 인한 Emitter 삭제: {}", key);
             }
         });
     }

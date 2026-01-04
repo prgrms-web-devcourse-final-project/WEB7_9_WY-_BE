@@ -51,4 +51,6 @@ public class ScheduleController implements ScheduleControllerSpec {
         EventsListResponse response = scheduleService.getEventLists(userId);
         return ResponseEntity.ok(response);
     }
+
+
 }

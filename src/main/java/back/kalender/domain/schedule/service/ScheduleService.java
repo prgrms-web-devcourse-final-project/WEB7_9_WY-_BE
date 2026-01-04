@@ -6,8 +6,10 @@ import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.Schedule;
+import back.kalender.domain.schedule.entity.ScheduleAlarm;
 import back.kalender.domain.schedule.enums.ScheduleCategory;
 import back.kalender.domain.schedule.mapper.ScheduleResponseMapper;
+import back.kalender.domain.schedule.repository.ScheduleAlarmRepository;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -37,6 +39,7 @@ public class ScheduleService {
     private final ScheduleRepository scheduleRepository;
     private final ArtistFollowRepository artistFollowRepository;
     private final ArtistRepository artistRepository;
+    private final ScheduleAlarmRepository scheduleAlarmRepository;
 
     private static final int PARTY_AVAILABLE_DAYS = 31;
     private static final List<ScheduleCategory> PARTY_CATEGORIES = List.of(
@@ -225,5 +228,14 @@ public class ScheduleService {
         return follows.stream()
                 .map(ArtistFollow::getArtistId)
                 .toList();
+    }
+
+    @Transactional
+    public void toggleScheduleAlarm(Long userId, Long scheduleId) {
+        scheduleAlarmRepository.findByScheduleIdAndUserId(scheduleId, userId)
+                .ifPresentOrElse(
+                        scheduleAlarmRepository::delete, // 있으면 삭제 (알림 OFF)
+                        () -> scheduleAlarmRepository.save(new ScheduleAlarm(scheduleId, userId)) // 없으면 저장 (알림 ON)
+                );
     }
 }
