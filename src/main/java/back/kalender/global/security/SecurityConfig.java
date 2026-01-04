@@ -138,8 +138,8 @@ public class SecurityConfig {
     ) throws Exception {
         
         http
-                // CSRF WebSocket 활성화
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/ws-chat/**"))
+                // CSRF 비활성화 (JWT 기반 stateless 인증에서는 CSRF 보호 불필요)
+                .csrf(csrf -> csrf.disable())
                 
                 // 기본 인증 방식 비활성화 (JWT만 사용)
                 .httpBasic(httpBasic -> httpBasic.disable())
