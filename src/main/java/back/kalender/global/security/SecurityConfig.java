@@ -138,8 +138,8 @@ public class SecurityConfig {
     ) throws Exception {
         
         http
-                // CSRF 비활성화 (JWT 사용 시 세션을 사용하지 않으므로)
-                .csrf(csrf -> csrf.disable())
+                // CSRF WebSocket 활성화
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/ws-chat/**"))
                 
                 // 기본 인증 방식 비활성화 (JWT만 사용)
                 .httpBasic(httpBasic -> httpBasic.disable())
