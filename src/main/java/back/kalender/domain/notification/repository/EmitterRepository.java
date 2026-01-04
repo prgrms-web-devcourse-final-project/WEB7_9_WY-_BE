@@ -82,4 +82,18 @@ public class EmitterRepository {
             }
         });
     }
+
+    public void sendHeartbeatToAll() {
+        emitters.forEach((key, emitter) -> {
+            try {
+                emitter.send(SseEmitter.event()
+                        .id(key)
+                        .name("heartbeat")
+                        .data(""));
+            } catch (Exception e) {
+                emitters.remove(key);
+                log.warn("Heartbeat 전송 실패로 인한 Emitter 삭제: {}", key);
+            }
+        });
+    }
 }

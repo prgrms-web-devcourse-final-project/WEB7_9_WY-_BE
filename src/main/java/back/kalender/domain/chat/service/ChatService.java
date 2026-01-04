@@ -186,7 +186,9 @@ public class ChatService {
                     targetMember.getId(),       // 수신자: 강퇴 당한 사람
                     NotificationType.KICK,      // 타입: 강퇴
                     title,
-                    content
+                    content,
+                    party.getId(),
+                    null
             );
         } catch (Exception e) {
             log.error("강퇴 알림 전송 실패 (TargetId: {}): {}", targetMember.getId(), e.getMessage());

@@ -14,8 +14,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,7 +83,9 @@ class NotificationServiceTest {
         Long userId = 1L;
         String notificationContent = "알림 내용";
 
-        Notification notification = new Notification(userId, NotificationType.APPLY, "제목", notificationContent);
+        Notification notification = new Notification(userId, NotificationType.APPLY, "제목", notificationContent, null, null);
+
+        ReflectionTestUtils.setField(notification, "createdAt", LocalDateTime.now());
 
         Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
         emitters.put(userId + "_1", new SseEmitter());
@@ -90,7 +94,7 @@ class NotificationServiceTest {
         given(notificationRepository.save(any(Notification.class))).willReturn(notification);
         given(emitterRepository.findAllEmitterStartWithByMemberId(String.valueOf(userId))).willReturn(emitters);
 
-        notificationService.send(userId, NotificationType.APPLY, "제목", notificationContent);
+        notificationService.send(userId, NotificationType.APPLY, "제목", notificationContent, null, null);
 
         verify(notificationRepository, times(1)).save(any(Notification.class));
 
@@ -103,8 +107,11 @@ class NotificationServiceTest {
     @DisplayName("알림 목록 조회 - 리포지토리 결과를 DTO로 변환하여 반환한다")
     void getNotifications_Success() {
         Long userId = 1L;
-        Notification n1 = new Notification(userId, NotificationType.APPLY, "T1", "C1");
-        Notification n2 = new Notification(userId, NotificationType.ACCEPT, "T2", "C2");
+        Notification n1 = new Notification(userId, NotificationType.APPLY, "T1", "C1", null, null);
+        Notification n2 = new Notification(userId, NotificationType.ACCEPT, "T2", "C2", null, null);
+
+        ReflectionTestUtils.setField(n1, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(n2, "createdAt", LocalDateTime.now());
 
         n2.markAsRead();
 
