@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Optional;
@@ -143,5 +145,16 @@ public interface ScheduleControllerSpec {
     @GetMapping("/partyList")
     public ResponseEntity<EventsListResponse> getEventListsSchedules(
             @AuthenticationPrincipal(expression = "userId") Long userId
+    );
+
+    @Operation(
+            summary = "스케줄 알람 설정/해제 토글",
+            description = "사용자가 특정 스케줄에 대해 알람을 설정하거나 해제합니다. " +
+                    "이미 알람이 설정된 경우 해제하고, 설정되지 않은 경우 새로 설정합니다."
+    )
+    @PostMapping("/{scheduleId}/alarm")
+    public ResponseEntity<Void> toggleScheduleAlarm(
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @PathVariable Long scheduleId
     );
 }

@@ -234,8 +234,8 @@ public class ScheduleService {
     public void toggleScheduleAlarm(Long userId, Long scheduleId) {
         scheduleAlarmRepository.findByScheduleIdAndUserId(scheduleId, userId)
                 .ifPresentOrElse(
-                        scheduleAlarmRepository::delete, // 있으면 삭제 (알림 OFF)
-                        () -> scheduleAlarmRepository.save(new ScheduleAlarm(scheduleId, userId)) // 없으면 저장 (알림 ON)
+                        scheduleAlarmRepository::delete,
+                        () -> scheduleAlarmRepository.save(new ScheduleAlarm(scheduleId, userId))
                 );
     }
 }
