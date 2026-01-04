@@ -23,7 +23,13 @@ public record NotificationResponse(
     Boolean isRead,
 
     @Schema(description = "알림 생성 시간", example = "2024-06-15T14:30:00")
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+
+    @Schema(description = "파티 ID", example = "10")
+    Long partyId,
+
+    @Schema(description = "신청서 ID", example = "5")
+    Long applicationId
 ) {
     public static NotificationResponse from(Notification notification) {
         return new NotificationResponse(
@@ -32,7 +38,9 @@ public record NotificationResponse(
                 notification.getTitle(),
                 notification.getContent(),
                 notification.getIsRead(),
-                notification.getCreatedAt().plusHours(9)
+                notification.getCreatedAt().plusHours(9),
+                notification.getPartyId(),
+                notification.getApplicationId()
         );
     }
 }
