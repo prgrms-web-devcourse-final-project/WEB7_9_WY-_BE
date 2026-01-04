@@ -48,9 +48,9 @@ public class NotificationService {
 
     // 다른 사용자가 알림을 보낼 수 있는 기능
     @Transactional
-    public void send(Long receiverId, NotificationType type, String title, String content) {
+    public void send(Long receiverId, NotificationType type, String title, String content, Long partyId, Long applicationId) {
         Notification notification = notificationRepository.save(
-                new Notification(receiverId, type, title, content)
+                new Notification(receiverId, type, title, content, partyId, applicationId)
         );
 
         // 누구에게 보낼지 ID 설정

@@ -60,7 +60,9 @@ public interface NotificationControllerSpec {
                                               "title": "파티 신청 알림",
                                               "content": "홍길동(24/남)님이 파티를 신청했습니다.",
                                               "isRead": false,
-                                              "createdAt": "2024-12-17T10:00:00"
+                                              "createdAt": "2024-12-17T10:00:00",
+                                              "partyId": 5,
+                                              "applicationId": 3
                                             }
                                             """
                             )
@@ -135,6 +137,16 @@ public interface NotificationControllerSpec {
                                                   "content": "'잠실 택시팟' 파티 신청이 수락되었습니다.",
                                                   "isRead": true,
                                                   "createdAt": "2025-12-24T14:30:00"
+                                                },
+                                                {
+                                                  "notificationId": 12,
+                                                  "notificationType": "APPLY",
+                                                  "title": "새로운 파티 신청",
+                                                  "content": "홍길동님이 신청했습니다.",
+                                                  "isRead": false,
+                                                  "createdAt": "2025-12-25T09:00:00",
+                                                  "partyId": 100,
+                                                  "applicationId": 50
                                                 }
                                               ],
                                               "pageable": {

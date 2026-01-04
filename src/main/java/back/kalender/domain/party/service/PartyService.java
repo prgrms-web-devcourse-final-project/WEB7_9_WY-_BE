@@ -232,9 +232,9 @@ public class PartyService {
 
         PartyApplication application = PartyApplication.create(
                 partyId, currentUserId, party.getLeaderId());
-        partyApplicationRepository.save(application);
+        application = partyApplicationRepository.save(application);
 
-        sendApplicationNotification(party, user);
+        sendApplicationNotification(party, user, application.getId());
 
         log.info("[파티 신청 완료] partyId={}, userId={}, applicationId={}",
                 partyId, currentUserId, application.getId());
@@ -660,14 +660,16 @@ public class PartyService {
 
     // 알림 헬퍼
 
-    private void sendApplicationNotification(Party party, User applicant) {
+    private void sendApplicationNotification(Party party, User applicant, Long applicationId) {
         String message = String.format("%s(%d/%s)님이 '%s' 파티에 신청했습니다.",
                 applicant.getNickname(), applicant.getAge(), applicant.getGender(), party.getPartyName());
         notificationService.send(
                 party.getLeaderId(),
                 NotificationType.APPLY,
                 "새로운 파티 신청",
-                message
+                message,
+                party.getId(),
+                applicationId
         );
     }
 
@@ -676,7 +678,9 @@ public class PartyService {
                 application.getApplicantId(),
                 NotificationType.ACCEPT,
                 "파티 신청 수락",
-                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName())
+                String.format("'%s' 파티 참여가 수락되었습니다.", party.getPartyName()),
+                party.getId(),
+                application.getId()
         );
     }
 
@@ -685,7 +689,9 @@ public class PartyService {
                 application.getApplicantId(),
                 NotificationType.REJECT,
                 "파티 신청 거절",
-                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName())
+                String.format("'%s' 파티 참여가 거절되었습니다.", party.getPartyName()),
+                party.getId(),
+                application.getId()
         );
     }
 

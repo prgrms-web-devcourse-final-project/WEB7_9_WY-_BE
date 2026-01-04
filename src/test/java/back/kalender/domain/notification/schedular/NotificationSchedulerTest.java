@@ -51,7 +51,9 @@ class NotificationSchedulerTest {
                 eq(1L),
                 eq(NotificationType.EVENT_REMINDER),
                 anyString(),
-                eq("오늘 18시 00분에 BTS 콘서트 일정이 있습니다!")
+                eq("오늘 18시 00분에 BTS 콘서트 일정이 있습니다!"),
+                isNull(),
+                isNull()
         );
     }
 
@@ -63,6 +65,6 @@ class NotificationSchedulerTest {
 
         notificationScheduler.sendScheduledNotifications();
 
-        verify(notificationService, times(0)).send(any(), any(), any(), any());
+        verify(notificationService, times(0)).send(any(), any(), any(), any(), any(), any());
     }
 }

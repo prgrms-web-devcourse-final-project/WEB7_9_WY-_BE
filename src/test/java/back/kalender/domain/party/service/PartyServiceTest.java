@@ -30,6 +30,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.*;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
@@ -717,6 +718,10 @@ class PartyServiceTest {
             
             Long partyId = 1L;
             Long applicantId = 2L;
+            Long applicationId = 100L;
+
+            PartyApplication createdApp = PartyApplication.create(partyId, applicantId, 1L);
+            ReflectionTestUtils.setField(createdApp, "id", applicationId);
 
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
             given(userRepository.findById(applicantId)).willReturn(Optional.of(applicantUser)); 
@@ -725,12 +730,10 @@ class PartyServiceTest {
             given(partyApplicationRepository.existsByPartyIdAndApplicantId(partyId, applicantId))
                     .willReturn(false);
             given(partyApplicationRepository.save(any(PartyApplication.class)))
-                    .willReturn(PartyApplication.create(partyId, applicantId, 1L));
-
+                    .willReturn(createdApp);
             
             ApplyToPartyResponse response = partyService.applyToParty(partyId, applicantId);
 
-            
             assertThat(response).isNotNull();
             assertThat(response.applicantNickName()).isEqualTo("신청자");
             assertThat(response.partyTitle()).isEqualTo("즐거운 파티");
@@ -740,7 +743,9 @@ class PartyServiceTest {
                     eq(testParty.getLeaderId()),
                     eq(NotificationType.APPLY),
                     eq("새로운 파티 신청"),
-                    anyString()
+                    anyString(),
+                    eq(partyId),
+                    eq(applicationId)
             );
         }
 
@@ -876,6 +881,8 @@ class PartyServiceTest {
 
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
 
+            ReflectionTestUtils.setField(application, "id", applicationId);
+
             given(partyRepository.findByIdWithLock(partyId)).willReturn(Optional.of(testParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
@@ -898,7 +905,9 @@ class PartyServiceTest {
                     eq(applicantId),
                     eq(NotificationType.ACCEPT),
                     eq("파티 신청 수락"),
-                    anyString()
+                    anyString(),
+                    eq(partyId),
+                    eq(applicationId)
             );
         }
 
@@ -1034,6 +1043,8 @@ class PartyServiceTest {
 
             PartyApplication application = PartyApplication.create(partyId, applicantId, leaderId);
 
+            ReflectionTestUtils.setField(application, "id", applicationId);
+
             given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
             given(partyApplicationRepository.findById(applicationId))
                     .willReturn(Optional.of(application));
@@ -1051,7 +1062,9 @@ class PartyServiceTest {
                     eq(applicantId),
                     eq(NotificationType.REJECT),
                     eq("파티 신청 거절"),
-                    anyString()
+                    anyString(),
+                    eq(partyId),
+                    eq(applicationId)
             );
         }
 
