@@ -17,10 +17,10 @@ public class PerformanceSeatQueryService {
     private final PerformanceSeatRepository performanceSeatRepository;
     private final QueueAccessService queueAccessService;
 
-    @Cacheable(
-            cacheNames = "seatLayout",
-            key = "#scheduleId"
-    )
+//    @Cacheable(
+//            cacheNames = "seatLayout",
+//            key = "#scheduleId"
+//    )
     @Transactional(readOnly = true)
     public List<PerformanceSeatResponse> getSeatsByScheduleId(
         Long scheduleId,
