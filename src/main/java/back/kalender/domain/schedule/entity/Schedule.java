@@ -36,4 +36,13 @@ public class Schedule extends BaseEntity {
     private LocalDateTime scheduleTime;
 
     private String location;
+
+    public void changeScheduleTime(LocalDateTime newTime) {
+        this.scheduleTime = newTime;
+    }
+
+    public void updateInfo(String title, String location) {
+        this.title = title;
+        this.location = location;
+    }
 }
