@@ -47,30 +47,18 @@ public class PartyApplication extends BaseEntity {
     }
 
     public void kick() {
-        if (this.status != ApplicationStatus.APPROVED) {
-            throw new IllegalStateException("승인된 신청만 강퇴 처리할 수 있습니다.");
-        }
         this.status = ApplicationStatus.KICKED;
     }
 
     public void leave() {
-        if (this.status != ApplicationStatus.APPROVED) {
-            throw new IllegalStateException("승인된 신청만 탈퇴 처리할 수 있습니다.");
-        }
         this.status = ApplicationStatus.LEFT;
     }
 
     public void approve() {
-        if (this.status != ApplicationStatus.PENDING) {
-            throw new IllegalStateException("대기 중인 신청만 승인할 수 있습니다.");
-        }
         this.status = ApplicationStatus.APPROVED;
     }
 
     public void reject() {
-        if (this.status != ApplicationStatus.PENDING) {
-            throw new IllegalStateException("대기 중인 신청만 거절할 수 있습니다.");
-        }
         this.status = ApplicationStatus.REJECTED;
     }
 
