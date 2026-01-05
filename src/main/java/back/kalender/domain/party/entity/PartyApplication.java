@@ -46,14 +46,6 @@ public class PartyApplication extends BaseEntity {
                 .build();
     }
 
-    public void kick() {
-        this.status = ApplicationStatus.KICKED;
-    }
-
-    public void leave() {
-        this.status = ApplicationStatus.LEFT;
-    }
-
     public void approve() {
         this.status = ApplicationStatus.APPROVED;
     }

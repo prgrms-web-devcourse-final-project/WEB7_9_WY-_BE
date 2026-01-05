@@ -32,7 +32,10 @@ public record ScheduleResponse(
         Optional<String> link,
 
         @Schema(description = "일정 장소 (선택 사항)", example = "KBS 신관 공개홀")
-        Optional<String> location
+        Optional<String> location,
+
+        @Schema(description = "알림 설정 여부", example = "true")
+        boolean isAlarmOn
 ) {
         public ScheduleResponse(
                 Long scheduleId,
@@ -43,7 +46,8 @@ public record ScheduleResponse(
                 LocalDateTime scheduleTime,
                 Long performanceId,
                 String link,
-                String location
+                String location,
+                boolean isAlarmOn
         ) {
                 this(
                         scheduleId,
@@ -54,7 +58,8 @@ public record ScheduleResponse(
                         scheduleTime,
                         Optional.ofNullable(performanceId),
                         Optional.ofNullable(link),
-                        Optional.ofNullable(location)
+                        Optional.ofNullable(location),
+                        isAlarmOn
                 );
         }
 }

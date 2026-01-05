@@ -32,7 +32,10 @@ public record UpcomingEventResponse(
         Long daysUntilEvent,
 
         @Schema(description = "일정 장소 (선택 사항)", example = "코엑스 라이브플라자")
-        Optional<String> location
+        Optional<String> location,
+
+        @Schema(description = "알림 설정 여부", example = "true")
+        boolean isAlarmOn
 ) {
         public UpcomingEventResponse(
                 Long scheduleId,
@@ -43,7 +46,8 @@ public record UpcomingEventResponse(
                 Long performanceId,
                 String link,
                 Long daysUntilEvent,
-                String location
+                String location,
+                boolean isAlarmOn
         ) {
                 this(
                         scheduleId,
@@ -54,7 +58,8 @@ public record UpcomingEventResponse(
                         Optional.ofNullable(performanceId),
                         Optional.ofNullable(link),
                         daysUntilEvent,
-                        Optional.ofNullable(location)
+                        Optional.ofNullable(location),
+                        isAlarmOn
                 );
         }
 }
