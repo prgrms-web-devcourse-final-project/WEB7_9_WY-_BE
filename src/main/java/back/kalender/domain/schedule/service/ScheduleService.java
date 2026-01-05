@@ -23,10 +23,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -98,10 +95,10 @@ public class ScheduleService {
         Map<Long, Artist> artistMap = buildArtistMap(monthlySchedules, upcomingSchedules);
 
         List<ScheduleResponse> monthlyResponses =
-                mapToMonthlyResponses(monthlySchedules, artistMap);
+                mapToMonthlyResponses(monthlySchedules, artistMap, Collections.emptySet());
 
         List<UpcomingEventResponse> upcomingResponses =
-                mapToUpcomingResponses(upcomingSchedules, artistMap);
+                mapToUpcomingResponses(upcomingSchedules, artistMap, Collections.emptySet());
 
         return new FollowingSchedulesListResponse(monthlyResponses, upcomingResponses);
     }
@@ -121,10 +118,12 @@ public class ScheduleService {
         List<Schedule> upcomingSchedules = fetchUpcomingSchedules(targetArtistIds);
         log.info("[Schedule] DB 조회 결과 - monthly: {}건, upcoming: {}건", monthlySchedules.size(), upcomingSchedules.size());
 
+        Set<Long> alarmedScheduleIds = scheduleAlarmRepository.findScheduleIdsByUserId(userId);
+
         Map<Long, Artist> artistMap = buildArtistMap(monthlySchedules, upcomingSchedules);
 
-        List<ScheduleResponse> monthlyResponses = mapToMonthlyResponses(monthlySchedules, artistMap);
-        List<UpcomingEventResponse> upcomingResponses = mapToUpcomingResponses(upcomingSchedules, artistMap);
+        List<ScheduleResponse> monthlyResponses = mapToMonthlyResponses(monthlySchedules, artistMap, alarmedScheduleIds);
+        List<UpcomingEventResponse> upcomingResponses = mapToUpcomingResponses(upcomingSchedules, artistMap, alarmedScheduleIds);
 
         return new FollowingSchedulesListResponse(monthlyResponses, upcomingResponses);
     }
@@ -202,21 +201,28 @@ public class ScheduleService {
                 .collect(Collectors.toMap(Artist::getId, artist -> artist));
     }
 
-    private List<ScheduleResponse> mapToMonthlyResponses(List<Schedule> schedules, Map<Long, Artist> artistMap) {
+    private List<ScheduleResponse> mapToMonthlyResponses(List<Schedule> schedules, Map<Long, Artist> artistMap, Set<Long> alarmedScheduleIds) {
         return schedules.stream()
                 .map(schedule -> {
                     Artist artist = artistMap.get(schedule.getArtistId());
-                    return ScheduleResponseMapper.toScheduleResponse(schedule, artist);
+                    boolean isAlarmOn = alarmedScheduleIds.contains(schedule.getId());
+
+                    if (isAlarmOn) {
+                        log.info(">>> [알림 확인] 스케줄 ID {}번은 알림이 켜져 있습니다! (isAlarmOn=true)", schedule.getId());
+                    }
+
+                    return ScheduleResponseMapper.toScheduleResponse(schedule, artist, isAlarmOn);
                 })
                 .toList();
     }
 
-    private List<UpcomingEventResponse> mapToUpcomingResponses(List<Schedule> schedules, Map<Long, Artist> artistMap) {
+    private List<UpcomingEventResponse> mapToUpcomingResponses(List<Schedule> schedules, Map<Long, Artist> artistMap, Set<Long> alarmedScheduleIds) {
         LocalDate today = LocalDate.now();
         return schedules.stream()
                 .map(schedule -> {
                     Artist artist = artistMap.get(schedule.getArtistId());
-                    return ScheduleResponseMapper.toUpcomingEventResponse(schedule, artist, today);
+                    boolean isAlarmOn = alarmedScheduleIds.contains(schedule.getId());
+                    return ScheduleResponseMapper.toUpcomingEventResponse(schedule, artist, today, isAlarmOn);
                 })
                 .toList();
     }

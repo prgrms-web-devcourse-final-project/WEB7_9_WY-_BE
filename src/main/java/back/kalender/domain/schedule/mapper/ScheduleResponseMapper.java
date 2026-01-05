@@ -16,7 +16,8 @@ public class ScheduleResponseMapper {
     public static UpcomingEventResponse toUpcomingEventResponse(
             Schedule schedule,
             Artist artist,
-            LocalDate today
+            LocalDate today,
+            boolean isAlarmOn
     ) {
         long daysUntilEvent = ChronoUnit.DAYS.between(today, schedule.getScheduleTime().toLocalDate());
 
@@ -29,7 +30,8 @@ public class ScheduleResponseMapper {
                 schedule.getPerformanceId(),
                 schedule.getLink(),
                 daysUntilEvent,
-                schedule.getLocation()
+                schedule.getLocation(),
+                isAlarmOn
         );
     }
 
@@ -41,7 +43,11 @@ public class ScheduleResponseMapper {
                 formattedTitle
         );
     }
-    public static ScheduleResponse toScheduleResponse(Schedule schedule, Artist artist) {
+    public static ScheduleResponse toScheduleResponse(
+            Schedule schedule,
+            Artist artist,
+            boolean isAlarmOn
+    ) {
         return new ScheduleResponse(
                 schedule.getId(),
                 schedule.getArtistId(),
@@ -51,7 +57,8 @@ public class ScheduleResponseMapper {
                 schedule.getScheduleTime(),
                 schedule.getPerformanceId(),
                 schedule.getLink(),
-                schedule.getLocation()
+                schedule.getLocation(),
+                isAlarmOn
         );
     }
 }
