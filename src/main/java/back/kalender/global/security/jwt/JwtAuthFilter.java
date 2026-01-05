@@ -145,6 +145,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(header) && header.startsWith(HttpHeaders.BEARER_PREFIX)) {
             return header.substring(HttpHeaders.BEARER_PREFIX.length());
         }
+
+        String queryToken = request.getParameter("token");
+        if (StringUtils.hasText(queryToken)) {
+            log.info("Query Token input: {}", queryToken);
+            return queryToken;
+        }
+
         return null;
     }
 
