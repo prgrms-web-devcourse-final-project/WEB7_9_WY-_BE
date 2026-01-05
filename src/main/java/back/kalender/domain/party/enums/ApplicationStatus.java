@@ -8,7 +8,8 @@ public enum ApplicationStatus {
     APPROVED("승인"),
     REJECTED("거절"),
     COMPLETED("종료"),
-    KICKED("강퇴됨");
+    KICKED("강퇴됨"),
+    LEFT("자진 탈퇴");
 
     private final String description;
 
