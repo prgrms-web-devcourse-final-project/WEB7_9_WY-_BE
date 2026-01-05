@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.Optional;
@@ -143,5 +145,39 @@ public interface ScheduleControllerSpec {
     @GetMapping("/partyList")
     public ResponseEntity<EventsListResponse> getEventListsSchedules(
             @AuthenticationPrincipal(expression = "userId") Long userId
+    );
+
+    @Operation(
+            summary = "스케줄 알람 설정/해제 토글",
+            description = "사용자가 특정 스케줄에 대해 알람을 설정하거나 해제합니다. " +
+                    "이미 알람이 설정된 경우 해제하고, 설정되지 않은 경우 새로 설정합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "처리 성공 (토글 완료)"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (로그인 필요)",
+                    content = @Content(examples = @ExampleObject(value = """
+                        {
+                            "error": {
+                                "code": "2001",
+                                "status": "401",
+                                "message": "로그인이 필요한 서비스입니다."
+                            }
+                        }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "존재하지 않는 스케줄",
+                    content = @Content(examples = @ExampleObject(value = """
+                        {
+                            "error": {
+                                "code": "4004",
+                                "status": "404",
+                                "message": "해당 스케줄을 찾을 수 없습니다."
+                            }
+                        }
+                    """)))
+    })
+    @PostMapping("/{scheduleId}/alarm")
+    public ResponseEntity<Void> toggleScheduleAlarm(
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @PathVariable Long scheduleId
     );
 }

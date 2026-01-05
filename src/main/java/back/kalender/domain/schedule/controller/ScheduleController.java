@@ -51,4 +51,15 @@ public class ScheduleController implements ScheduleControllerSpec {
         EventsListResponse response = scheduleService.getEventLists(userId);
         return ResponseEntity.ok(response);
     }
+
+    @Override
+    @PostMapping("/{scheduleId}/alarm")
+    public ResponseEntity<Void> toggleScheduleAlarm(
+            @AuthenticationPrincipal(expression = "userId") Long userId,
+            @PathVariable Long scheduleId
+    ) {
+        scheduleService.toggleScheduleAlarm(userId, scheduleId);
+        return ResponseEntity.ok().build();
+    }
+
 }

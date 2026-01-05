@@ -58,4 +58,10 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     boolean existsByArtistId(Long id);
 
     List<Schedule> findByScheduleCategoryAndPerformanceIdIsNotNull(ScheduleCategory scheduleCategory);
+
+    //중복 생성 방지용
+    boolean existsByArtistIdAndScheduleTimeAfter(Long artistId, LocalDateTime scheduleTime);
+
+    //스케줄 카테고리별 아티스트 스케줄 조회용
+    List<Schedule> findAllByArtistIdAndScheduleCategory(Long artistId, ScheduleCategory scheduleCategory);
 }

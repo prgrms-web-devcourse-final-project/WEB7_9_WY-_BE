@@ -6,7 +6,9 @@ import back.kalender.domain.artist.repository.ArtistFollowRepository;
 import back.kalender.domain.artist.repository.ArtistRepository;
 import back.kalender.domain.schedule.dto.response.*;
 import back.kalender.domain.schedule.entity.Schedule;
+import back.kalender.domain.schedule.entity.ScheduleAlarm;
 import back.kalender.domain.schedule.enums.ScheduleCategory;
+import back.kalender.domain.schedule.repository.ScheduleAlarmRepository;
 import back.kalender.domain.schedule.repository.ScheduleRepository;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
@@ -23,6 +25,7 @@ import java.lang.reflect.Constructor;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -44,6 +47,9 @@ class ScheduleServiceTest {
 
     @InjectMocks
     private ScheduleService scheduleService;
+
+    @Mock
+    private ScheduleAlarmRepository scheduleAlarmRepository;
 
     @Test
     @DisplayName("통합 조회: 전체 아티스트 조회 성공")
@@ -200,5 +206,36 @@ class ScheduleServiceTest {
         } catch (Exception e) {
             throw new RuntimeException("Schedule 엔티티 생성 실패", e);
         }
+    }
+
+    @Test
+    @DisplayName("알림 토글: 설정된 알림이 없으면 알림을 생성한다 (ON)")
+    void toggleScheduleAlarm_Save_WhenNotExist() {
+        Long userId = 1L;
+        Long scheduleId = 100L;
+
+        given(scheduleAlarmRepository.findByScheduleIdAndUserId(scheduleId, userId))
+                .willReturn(Optional.empty());
+
+        scheduleService.toggleScheduleAlarm(userId, scheduleId);
+
+        verify(scheduleAlarmRepository).save(any(ScheduleAlarm.class));
+        verify(scheduleAlarmRepository, never()).delete(any(ScheduleAlarm.class));
+    }
+
+    @Test
+    @DisplayName("알림 토글: 이미 알림이 설정되어 있으면 삭제한다 (OFF)")
+    void toggleScheduleAlarm_Delete_WhenExist() {
+        Long userId = 1L;
+        Long scheduleId = 100L;
+        ScheduleAlarm existingAlarm = new ScheduleAlarm(scheduleId, userId);
+
+        given(scheduleAlarmRepository.findByScheduleIdAndUserId(scheduleId, userId))
+                .willReturn(Optional.of(existingAlarm));
+
+        scheduleService.toggleScheduleAlarm(userId, scheduleId);
+
+        verify(scheduleAlarmRepository).delete(existingAlarm);
+        verify(scheduleAlarmRepository, never()).save(any(ScheduleAlarm.class));
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.util.List;
 import java.util.Optional;
 
 public interface PartyRepository extends JpaRepository<Party, Long>, PartyRepositoryCustom {
@@ -26,4 +28,6 @@ public interface PartyRepository extends JpaRepository<Party, Long>, PartyReposi
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Party p WHERE p.id = :id")
     Optional<Party> findByIdWithLock(@Param("id") Long id);
+
+    List<Party> findByStatusIn(List<PartyStatus> statuses);
 }
