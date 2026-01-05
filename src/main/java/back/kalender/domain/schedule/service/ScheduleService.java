@@ -207,10 +207,6 @@ public class ScheduleService {
                     Artist artist = artistMap.get(schedule.getArtistId());
                     boolean isAlarmOn = alarmedScheduleIds.contains(schedule.getId());
 
-                    if (isAlarmOn) {
-                        log.info(">>> [알림 확인] 스케줄 ID {}번은 알림이 켜져 있습니다! (isAlarmOn=true)", schedule.getId());
-                    }
-
                     return ScheduleResponseMapper.toScheduleResponse(schedule, artist, isAlarmOn);
                 })
                 .toList();
