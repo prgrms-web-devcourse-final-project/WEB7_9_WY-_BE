@@ -352,6 +352,9 @@ public class PartyService {
         member.leave(LocalDateTime.now());
         party.decrementCurrentMembers();
 
+        partyApplicationRepository.findByPartyIdAndApplicantId(partyId, userId)
+                .ifPresent(PartyApplication::leave);
+
         log.info("[멤버 탈퇴 완료] partyId={}, userId={}, remainingMembers={}",
                 partyId, userId, party.getCurrentMembers());
     }
