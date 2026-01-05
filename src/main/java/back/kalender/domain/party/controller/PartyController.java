@@ -56,18 +56,7 @@ public class PartyController implements PartyControllerSpec{
 
     @GetMapping
     public ResponseEntity<CommonPartyResponse> getParties(
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        Pageable pageable = PageRequest.of(page, size);
-        CommonPartyResponse response = partyService.getParties(pageable, userDetails.getUserId());
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/schedule/{scheduleId}")
-    public ResponseEntity<CommonPartyResponse> getPartiesBySchedule(
-            @PathVariable Long scheduleId,
+            @RequestParam(required = false) Long scheduleId,
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -75,12 +64,10 @@ public class PartyController implements PartyControllerSpec{
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         Pageable pageable = PageRequest.of(page, size);
-
-        CommonPartyResponse response = partyService.getPartiesBySchedule(
+        CommonPartyResponse response = partyService.getParties(
                 scheduleId, partyType, transportType,
                 pageable, userDetails.getUserId()
         );
-
         return ResponseEntity.ok(response);
     }
 

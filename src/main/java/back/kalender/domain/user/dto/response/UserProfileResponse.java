@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "사용자 프로필 응답")
 public record UserProfileResponse(
+        Long userId,
         String email,
         String nickname,
         String profileImage,
@@ -15,6 +16,7 @@ public record UserProfileResponse(
 ) {
     public static UserProfileResponse from(User user, String profileImageUrl) {
         return new UserProfileResponse(
+                user.getId(),
                 user.getEmail(),
                 user.getNickname(),
                 profileImageUrl,

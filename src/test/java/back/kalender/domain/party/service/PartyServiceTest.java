@@ -445,14 +445,15 @@ class PartyServiceTest {
     class GetPartiesTest {
 
         @Test
-        @DisplayName("성공: 모집 중인 파티 목록을 조회한다 (CommonPartyResponse)")
+        @DisplayName("성공: 모집 중인 전체 파티 목록을 조회한다 (scheduleId=null)")
         void getParties_Success() {
             
             Long currentUserId = 1L;
             Pageable pageable = PageRequest.of(0, 20);
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
-            given(partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable))
+            given(partyRepository.findPartiesWithFilters(
+                    null, null, null, PartyStatus.RECRUITING, pageable))
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -460,7 +461,8 @@ class PartyServiceTest {
                     .willReturn(Collections.emptyList());
 
             
-            CommonPartyResponse response = partyService.getParties(pageable, currentUserId);
+            CommonPartyResponse response = partyService.getParties(
+                    null, null, null, pageable, currentUserId);
 
             
             assertThat(response).isNotNull();
@@ -476,27 +478,126 @@ class PartyServiceTest {
             assertThat(item.isMyParty()).isTrue();
             assertThat(item.isApplied()).isFalse();
             assertThat(item.participationType()).isNull();
+
+            then(scheduleRepository).should(never()).existsById(anyLong());
+            then(partyRepository).should().findPartiesWithFilters(
+                    null, null, null, PartyStatus.RECRUITING, pageable);
         }
 
         @Test
-        @DisplayName("성공: 빈 목록 조회")
+        @DisplayName("성공: 빈 목록 조회 (scheduleId=null)")
         void getParties_EmptyList() {
             
             Long currentUserId = 1L;
             Pageable pageable = PageRequest.of(0, 20);
             Page<Party> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
 
-            given(partyRepository.findByStatusOrderByCreatedAtDesc(PartyStatus.RECRUITING, pageable))
+            given(partyRepository.findPartiesWithFilters(
+                    null, null, null, PartyStatus.RECRUITING, pageable))
                     .willReturn(emptyPage);
 
             
-            CommonPartyResponse response = partyService.getParties(pageable, currentUserId);
+            CommonPartyResponse response = partyService.getParties(
+                    null, null, null, pageable, currentUserId);
 
             
             assertThat(response).isNotNull();
             assertThat(response.parties()).isEmpty();
             assertThat(response.totalElements()).isZero();
             assertThat(response.totalPages()).isZero();
+
+            then(scheduleRepository).should(never()).existsById(anyLong());
+        }
+
+        @Test
+        @DisplayName("성공: 특정 파티 타입으로 필터링하여 조회한다")
+        void getParties_WithPartyTypeFilter() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(partyRepository.findPartiesWithFilters(
+                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    null, PartyType.LEAVE, null, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).partyDetail().partyType())
+                    .isEqualTo(PartyType.LEAVE);
+
+            then(scheduleRepository).should(never()).existsById(anyLong());
+            then(partyRepository).should().findPartiesWithFilters(
+                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable);
+        }
+
+        @Test
+        @DisplayName("성공: 교통수단으로 필터링하여 조회한다")
+        void getParties_WithTransportTypeFilter() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(partyRepository.findPartiesWithFilters(
+                    null, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    null, null, TransportType.TAXI, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).partyDetail().transportType())
+                    .isEqualTo(TransportType.TAXI);
+
+            then(scheduleRepository).should(never()).existsById(anyLong());
+        }
+
+        @Test
+        @DisplayName("성공: 파티 타입과 교통수단으로 복합 필터링하여 조회한다")
+        void getParties_WithMultipleFilters() {
+            
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(partyRepository.findPartiesWithFilters(
+                    null, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    null, PartyType.LEAVE, TransportType.TAXI, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).partyDetail().partyType())
+                    .isEqualTo(PartyType.LEAVE);
+            assertThat(response.parties().get(0).partyDetail().transportType())
+                    .isEqualTo(TransportType.TAXI);
+
+            then(scheduleRepository).should(never()).existsById(anyLong());
         }
     }
 
@@ -514,7 +615,7 @@ class PartyServiceTest {
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
-            given(partyRepository.findByScheduleIdWithFilters(
+            given(partyRepository.findPartiesWithFilters(
                     scheduleId, null, null, PartyStatus.RECRUITING, pageable))
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
@@ -523,30 +624,159 @@ class PartyServiceTest {
                     .willReturn(Collections.emptyList());
 
             
-            CommonPartyResponse response = partyService.getPartiesBySchedule(
+            CommonPartyResponse response = partyService.getParties(
                     scheduleId, null, null, pageable, currentUserId);
 
             
             assertThat(response).isNotNull();
             assertThat(response.parties()).hasSize(1);
             assertThat(response.parties().get(0).schedule().scheduleId()).isEqualTo(scheduleId);
+
+            then(scheduleRepository).should().existsById(scheduleId);
+            then(partyRepository).should().findPartiesWithFilters(
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable);
+        }
+
+        @Test
+        @DisplayName("성공: 특정 스케줄의 파티를 파티 타입으로 필터링하여 조회한다")
+        void getPartiesBySchedule_WithPartyTypeFilter() {
+            
+            Long scheduleId = 1L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(true);
+            given(partyRepository.findPartiesWithFilters(
+                    scheduleId, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    scheduleId, PartyType.LEAVE, null, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).schedule().scheduleId()).isEqualTo(scheduleId);
+            assertThat(response.parties().get(0).partyDetail().partyType())
+                    .isEqualTo(PartyType.LEAVE);
+
+            then(scheduleRepository).should().existsById(scheduleId);
+        }
+
+        @Test
+        @DisplayName("성공: 특정 스케줄의 파티를 교통수단으로 필터링하여 조회한다")
+        void getPartiesBySchedule_WithTransportTypeFilter() {
+            
+            Long scheduleId = 1L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(true);
+            given(partyRepository.findPartiesWithFilters(
+                    scheduleId, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    scheduleId, null, TransportType.TAXI, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).schedule().scheduleId()).isEqualTo(scheduleId);
+            assertThat(response.parties().get(0).partyDetail().transportType())
+                    .isEqualTo(TransportType.TAXI);
+
+            then(scheduleRepository).should().existsById(scheduleId);
+        }
+
+        @Test
+        @DisplayName("성공: 특정 스케줄의 파티를 파티 타입과 교통수단으로 필터링하여 조회한다")
+        void getPartiesBySchedule_WithMultipleFilters() {
+            
+            Long scheduleId = 1L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(true);
+            given(partyRepository.findPartiesWithFilters(
+                    scheduleId, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    .willReturn(partyPage);
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(Collections.emptyList());
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    scheduleId, PartyType.LEAVE, TransportType.TAXI, pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(1);
+            assertThat(response.parties().get(0).schedule().scheduleId()).isEqualTo(scheduleId);
+            assertThat(response.parties().get(0).partyDetail().partyType())
+                    .isEqualTo(PartyType.LEAVE);
+            assertThat(response.parties().get(0).partyDetail().transportType())
+                    .isEqualTo(TransportType.TAXI);
+
+            then(scheduleRepository).should().existsById(scheduleId);
+        }
+
+        @Test
+        @DisplayName("성공: 특정 스케줄의 빈 파티 목록을 조회한다")
+        void getPartiesBySchedule_EmptyList() {
+            
+            Long scheduleId = 1L;
+            Long currentUserId = 1L;
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Party> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
+
+            given(scheduleRepository.existsById(scheduleId)).willReturn(true);
+            given(partyRepository.findPartiesWithFilters(
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable))
+                    .willReturn(emptyPage);
+
+            
+            CommonPartyResponse response = partyService.getParties(
+                    scheduleId, null, null, pageable, currentUserId);
+
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).isEmpty();
+            assertThat(response.totalElements()).isZero();
+            assertThat(response.totalPages()).isZero();
+
+            then(scheduleRepository).should().existsById(scheduleId);
         }
 
         @Test
         @DisplayName("실패: 존재하지 않는 스케줄")
         void getPartiesBySchedule_ScheduleNotFound() {
-            
             Long scheduleId = 999L;
             Long currentUserId = 1L;
             Pageable pageable = PageRequest.of(0, 20);
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(false);
 
-            
-            assertThatThrownBy(() -> partyService.getPartiesBySchedule(
+            assertThatThrownBy(() -> partyService.getParties(
                     scheduleId, null, null, pageable, currentUserId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.SCHEDULE_NOT_FOUND.getMessage());
+
+            then(partyRepository).should(never()).findPartiesWithFilters(
+                    anyLong(), any(), any(), any(), any());
         }
     }
 

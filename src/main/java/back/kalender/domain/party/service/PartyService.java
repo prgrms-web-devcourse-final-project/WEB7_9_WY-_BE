@@ -112,27 +112,23 @@ public class PartyService {
     }
 
 
-    public CommonPartyResponse getParties(Pageable pageable, Long currentUserId) {
-        log.debug("[파티 목록 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
-
-        Page<Party> partyPage = partyRepository.findByStatusOrderByCreatedAtDesc(
-                PartyStatus.RECRUITING, pageable);
-
-        return buildCommonPartyResponse(partyPage, currentUserId, null, null);
-    }
-
-    public CommonPartyResponse getPartiesBySchedule(
+    public CommonPartyResponse getParties(
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
             Pageable pageable,
             Long currentUserId
     ) {
-        log.debug("[일정별 파티 조회] scheduleId={}, userId={}", scheduleId, currentUserId);
+        log.debug("[파티 목록 조회] scheduleId={}, partyType={}, transportType={}, userId={}, page={}",
+                scheduleId, partyType, transportType, currentUserId, pageable.getPageNumber());
 
-        validateScheduleExists(scheduleId);
+        // scheduleId가 제공된 경우에만 스케줄 존재 여부 검증
+        if (scheduleId != null) {
+            validateScheduleExists(scheduleId);
+        }
 
-        Page<Party> partyPage = partyRepository.findByScheduleIdWithFilters(
+        // 통합된 Repository 메서드 호출 (scheduleId가 null이면 전체 조회)
+        Page<Party> partyPage = partyRepository.findPartiesWithFilters(
                 scheduleId, partyType, transportType, PartyStatus.RECRUITING, pageable);
 
         return buildCommonPartyResponse(partyPage, currentUserId, null, null);
