@@ -366,6 +366,9 @@ public class PartyService {
         member.kick(LocalDateTime.now());
         party.decrementCurrentMembers();
 
+        partyApplicationRepository.findByPartyIdAndApplicantId(partyId, targetMemberId)
+                .ifPresent(PartyApplication::kick);
+
         log.info("[멤버 강퇴 완료] partyId={}, targetMemberId={}, remainingMembers={}",
                 partyId, targetMemberId, party.getCurrentMembers());
     }
