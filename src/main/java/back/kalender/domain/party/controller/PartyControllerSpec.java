@@ -144,9 +144,14 @@ public interface PartyControllerSpec {
     );
 
     @Operation(
-            summary = "파티 목록 조회",
+            summary = "파티 목록 조회 (통합)",
             description = """
-                    모집중인 전체 파티 목록을 조회합니다.
+                    파티 목록을 조회합니다. 다양한 필터 조건을 적용할 수 있습니다.
+                    
+                    **필터링 옵션:**
+                    - scheduleId: 특정 스케줄의 파티만 조회 (없으면 전체 조회)
+                    - partyType: 파티 타입 (LEAVE/ARRIVE)
+                    - transportType: 교통수단 (TAXI/CARPOOL/SUBWAY/BUS/WALK)
                     
                     **Response 특징:**
                     - participationType: null (내 파티 여부와 무관)
@@ -156,6 +161,11 @@ public interface PartyControllerSpec {
                     **페이징:**
                     - 기본 20개씩 조회
                     - page, size 파라미터로 조절 가능
+                    
+                    **사용 예시:**
+                    - 전체 파티 조회: GET /api/v1/party
+                    - 특정 스케줄의 파티: GET /api/v1/party?scheduleId=123
+                    - 필터링 조합: GET /api/v1/party?scheduleId=123&partyType=LEAVE&transportType=TAXI
                     """
     )
     @ApiResponses({
@@ -200,82 +210,10 @@ public interface PartyControllerSpec {
                                       "pageNumber": 0
                                     }
                                     """)
-                    ))
-    })
-    @GetMapping
-    ResponseEntity<CommonPartyResponse> getParties(
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size,
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
-
-    @Operation(
-            summary = "스케줄별 파티 목록 조회",
-            description = """
-                    특정 스케줄에 해당하는 파티 목록을 조회합니다.
-                    
-                    **필터링:**
-                    - partyType: 파티 타입 (LEAVE/RETURN)
-                    - transportType: 교통수단 (TAXI/CARPOOL/PUBLIC)
-                    
-                    **Response 특징:**
-                    - participationType: null (내 파티 여부와 무관)
-                    - applicationId: 내가 신청한 파티인 경우에만 존재
-                    - applicationStatus: 내가 신청한 파티인 경우에만 존재
-                    
-                    **페이징:**
-                    - 기본 20개씩 조회
-                    """
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(
-                            schema = @Schema(implementation = CommonPartyResponse.class),
-                            examples = @ExampleObject(value = """
-                                    {
-                                      "parties": [
-                                        {
-                                          "partyId": 123,
-                                          "schedule": {
-                                            "scheduleId": 456,
-                                            "title": "BTS 콘서트 2025"
-                                          },
-                                          "leader": {
-                                            "leaderId": 789,
-                                            "nickname": "파티장"
-                                          },
-                                          "partyDetail": {
-                                            "partyType": "LEAVE",
-                                            "partyName": "즐거운 파티",
-                                            "departureLocation": "강남역",
-                                            "arrivalLocation": "잠실종합운동장",
-                                            "transportType": "TAXI",
-                                            "maxMembers": 4,
-                                            "currentMembers": 2,
-                                            "preferredGender": "ANY",
-                                            "preferredAge": "TWENTY",
-                                            "status": "RECRUITING",
-                                            "description": "같이 가요!"
-                                          },
-                                          "isMyParty": false,
-                                          "isApplied": false,
-                                          "participationType": null,
-                                          "applicationId": null,
-                                          "applicationStatus": null
-                                        }
-                                      ],
-                                      "totalElements": 5,
-                                      "totalPages": 1,
-                                      "pageNumber": 0
-                                    }
-                                    """)
-                    )
-            ),
+                    )),
             @ApiResponse(
                     responseCode = "404",
-                    description = "스케줄을 찾을 수 없음",
+                    description = "스케줄을 찾을 수 없음 (scheduleId가 제공된 경우)",
                     content = @Content(examples = @ExampleObject(value = """
                     {
                       "code": "4001",
@@ -284,9 +222,9 @@ public interface PartyControllerSpec {
                     """))
             )
     })
-    @GetMapping("/schedule/{scheduleId}")
-    ResponseEntity<CommonPartyResponse> getPartiesBySchedule(
-            @PathVariable Long scheduleId,
+    @GetMapping
+    ResponseEntity<CommonPartyResponse> getParties(
+            @RequestParam(required = false) Long scheduleId,
             @RequestParam(required = false) PartyType partyType,
             @RequestParam(required = false) TransportType transportType,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -742,7 +680,7 @@ public interface PartyControllerSpec {
                                             "nickname": "파티장2"
                                           },
                                           "partyDetail": {
-                                            "partyType": "RETURN",
+                                            "partyType": "ARRIVE",
                                             "partyName": "귀가 파티",
                                             "departureLocation": "잠실종합운동장",
                                             "arrivalLocation": "강남역",

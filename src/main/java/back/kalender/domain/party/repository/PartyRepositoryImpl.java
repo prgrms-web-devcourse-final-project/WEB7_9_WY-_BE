@@ -32,7 +32,7 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<Party> findByScheduleIdWithFilters(
+    public Page<Party> findPartiesWithFilters(
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
@@ -41,7 +41,10 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
     ) {
         BooleanBuilder builder = new BooleanBuilder();
 
-        builder.and(party.scheduleId.eq(scheduleId));
+        // scheduleId가 null이 아닌 경우에만 필터 적용
+        if (scheduleId != null) {
+            builder.and(party.scheduleId.eq(scheduleId));
+        }
 
         if (status != null) {
             builder.and(party.status.eq(status));

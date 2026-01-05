@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface PartyRepositoryCustom {
 
-    Page<Party> findByScheduleIdWithFilters(
+    Page<Party> findPartiesWithFilters(
             Long scheduleId,
             PartyType partyType,
             TransportType transportType,
