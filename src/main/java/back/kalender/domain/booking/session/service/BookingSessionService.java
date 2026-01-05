@@ -1,9 +1,11 @@
 package back.kalender.domain.booking.session.service;
 
+import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.global.exception.ErrorCode;
 import back.kalender.global.exception.ServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class BookingSessionService {
 
     private final StringRedisTemplate redisTemplate;
+
     private static final String BOOKING_SESSION_KEY_PREFIX = "booking:session:";
     private static final String BOOKING_SESSION_DEVICE_PREFIX = "booking:session:device:";
     private static final String BOOKING_SESSION_USER_PREFIX = "booking:session:user:";
@@ -43,11 +46,6 @@ public class BookingSessionService {
 
         // 4. 중복 세션 확인
         String existingSession = checkExistingSession(userId, scheduleId, deviceId);
-        if (existingSession != null) {
-            log.info("[BookingSession] Active 세션 재사용 - userId={}, sessionId={}",
-                    userId, existingSession);
-            return existingSession;
-        }
 
         // 5. BookingSession 생성
         String bookingSessionId = UUID.randomUUID().toString();
@@ -192,8 +190,7 @@ public class BookingSessionService {
 
     /**
      * 기존 세션 확인
-     * - Active에 있는 세션만 재사용
-     * - Active에 없으면 삭제 후 새로 생성
+     * - 재접속 시 무조건 새로 생성 (브라우저 닫기 = 예매 포기)
      */
     private String checkExistingSession(
             Long userId,
@@ -207,28 +204,13 @@ public class BookingSessionService {
             return null;
         }
 
-        // Active 여부 확인
-        String activeKey = "active:" + scheduleId;
-        Double score = redisTemplate.opsForZSet().score(activeKey, existingSessionId);
+        log.info("[BookingSession] 기존 세션 발견, 무조건 삭제 후 재생성 - sessionId={}",
+                existingSessionId);
 
-        if (score != null) {
-            // deviceId 검증
-            String sessionDeviceKey = BOOKING_SESSION_DEVICE_PREFIX + existingSessionId;
-            String sessionDevice = redisTemplate.opsForValue().get(sessionDeviceKey);
+        // Active 여부 상관없이 삭제
+        deleteBookingSessionBySessionId(existingSessionId);
 
-            if (sessionDevice != null && sessionDevice.equals(deviceId)) {
-                // 같은 기기 → 재사용
-                return existingSessionId;
-            } else {
-                // 다른 기기 → 에러
-                throw new ServiceException(ErrorCode.DEVICE_ALREADY_USED);
-            }
-        } else {
-            // Active에 없음 → 죽은 세션 → 삭제
-            log.info("[BookingSession] 비활성 세션 발견, 삭제 - sessionId={}", existingSessionId);
-            deleteBookingSessionBySessionId(existingSessionId);
-            return null;
-        }
+        return null; // 새로 생성
     }
 
     // deviceId 검증

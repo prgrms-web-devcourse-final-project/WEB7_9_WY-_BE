@@ -286,7 +286,8 @@ public interface BookingSessionControllerSpec {
                     required = true,
                     example = "bs_abc123def456"
             )
-            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     );
 }
 

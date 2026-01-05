@@ -13,6 +13,7 @@ import back.kalender.domain.booking.reservation.mapper.ReservationMapper;
 import back.kalender.domain.booking.reservation.repository.ReservationRepository;
 import back.kalender.domain.booking.reservationSeat.entity.ReservationSeat;
 import back.kalender.domain.booking.reservationSeat.repository.ReservationSeatRepository;
+import back.kalender.domain.booking.seatHold.event.SeatReleaseCompletedEvent;
 import back.kalender.domain.booking.seatHold.service.SeatHoldService;
 import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.performance.entity.Performance;
@@ -28,6 +29,7 @@ import back.kalender.global.exception.ServiceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -63,6 +66,7 @@ public class ReservationService {
     private final ObjectMapper objectMapper;
     private final ReservationMapper reservationMapper;
     private final BookingSessionService bookingSessionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final int CANCEL_DEADLINE_HOURS = 1;
 
@@ -77,15 +81,20 @@ public class ReservationService {
         // 1. BookingSession 검증
         bookingSessionService.validateForSchedule(bookingSessionId, scheduleId);
 
-        // 2. 기존에 진행중인 예매 세션이 있는지 확인 (HOLD/PENDING)
-        boolean exists = reservationRepository.existsByUserIdAndPerformanceScheduleIdAndStatusIn(
-                userId,
-                scheduleId,
-                ReservationStatus.activeStatuses()
-        );
+        // 2. 기존 예매 확인 → 있으면 취소
+        List<Reservation> existingReservations = reservationRepository
+                .findByUserIdAndPerformanceScheduleIdAndStatusIn(
+                        userId,
+                        scheduleId,
+                        ReservationStatus.activeStatuses()
+                );
 
-        if(exists){
-            throw new ServiceException(ErrorCode.RESERVATION_ALREADY_EXISTS);
+        if (!existingReservations.isEmpty()) {
+            log.info("[Reservation] 기존 활성 예매 발견, 취소 처리 - userId={}, scheduleId={}",
+                    userId, scheduleId);
+
+            // 기존 예매 취소
+            cancelActiveReservationIfExists(userId, scheduleId);
         }
 
         // 3. Reservation 엔티티 생성 및 저장
@@ -623,5 +632,76 @@ public class ReservationService {
         log.info("[Reservation] 좌석 SOLD 처리 완료 - reservationId={}, seatCount={}",
                 reservationId, seatIds.size());
 
+    }
+
+    /**
+     * 활성 예매 취소 (leaveBookingSession 전용)
+     * - PENDING/HOLD 상태의 예매를 찾아서 취소
+     * - 좌석 해제 포함
+     */
+    @Transactional
+    public void cancelActiveReservationIfExists(Long userId, Long scheduleId) {
+        // 활성 예매 조회
+        List<Reservation> activeReservations = reservationRepository
+                .findByUserIdAndPerformanceScheduleIdAndStatusIn(
+                        userId,
+                        scheduleId,
+                        ReservationStatus.activeStatuses() // [PENDING, HOLD]
+                );
+
+        if (activeReservations.isEmpty()) {
+            log.debug("[LeaveSession] 활성 예매 없음 - userId={}, scheduleId={}",
+                    userId, scheduleId);
+            return;
+        }
+
+        Reservation reservation = activeReservations.get(0);
+        Long reservationId = reservation.getId();
+
+        log.info("[LeaveSession] 활성 예매 취소 시작 - reservationId={}, userId={}, scheduleId={}",
+                reservationId, userId, scheduleId);
+
+        // HOLD된 좌석 조회
+        List<ReservationSeat> reservationSeats =
+                reservationSeatRepository.findByReservationId(reservationId);
+
+        if (reservationSeats.isEmpty()) {
+            log.info("[LeaveSession] 좌석 없음, 예매만 취소 - reservationId={}", reservationId);
+            reservation.cancel();
+            reservationRepository.save(reservation);
+            return;
+        }
+
+        // 좌석 ID 추출
+        List<Long> performanceSeatIds = reservationSeats.stream()
+                .map(ReservationSeat::getPerformanceSeatId)
+                .toList();
+
+        // 좌석 상태 복구 (HOLD → AVAILABLE)
+        List<PerformanceSeat> seats = performanceSeatRepository.findAllById(performanceSeatIds);
+
+        for (PerformanceSeat seat : seats) {
+            if (seat.getStatus() == SeatStatus.HOLD) {
+                seat.updateStatus(SeatStatus.AVAILABLE);
+                seat.clearHoldInfo();
+            }
+        }
+        performanceSeatRepository.saveAll(seats);
+
+        // ReservationSeat 삭제
+        reservationSeatRepository.deleteByReservationId(reservationId);
+
+        // 예매 취소
+        reservation.cancel(); // status = CANCELLED
+        reservationRepository.save(reservation);
+
+        for (Long seatId : performanceSeatIds) {
+            eventPublisher.publishEvent(
+                    new SeatReleaseCompletedEvent(scheduleId, seatId, userId, SeatStatus.AVAILABLE)
+            );
+        }
+
+        log.info("[LeaveSession] 활성 예매 취소 완료 - reservationId={}, seatCount={}",
+                reservationId, performanceSeatIds.size());
     }
 }
