@@ -1429,14 +1429,49 @@ class PartyServiceTest {
                     .hasMessageContaining(ErrorCode.USER_NOT_IN_PARTY.getMessage());
         }
     }
-
     @Nested
     @DisplayName("파티 멤버 강퇴 테스트")
     class KickPartyMemberTest {
 
         @Test
-        @DisplayName("성공: 파티 멤버를 강퇴하고 인원을 감소시킨다")
+        @DisplayName("성공: 파티 멤버를 강퇴하고 Application 상태를 KICKED로 변경한다")
         void kickPartyMember_Success() {
+            
+            Long partyId = 1L;
+            Long targetMemberId = 2L;
+            Long leaderId = 1L;
+
+            PartyMember member = PartyMember.createMember(partyId, targetMemberId);
+            PartyApplication application = PartyApplication.create(partyId, targetMemberId, leaderId);
+            application.approve();  
+
+            given(partyRepository.findById(partyId)).willReturn(Optional.of(testParty));
+            given(partyMemberRepository.findByPartyIdAndUserIdAndLeftAtIsNull(
+                    partyId, targetMemberId))
+                    .willReturn(Optional.of(member));
+            given(partyApplicationRepository.findByPartyIdAndApplicantId(partyId, targetMemberId))
+                    .willReturn(Optional.of(application));
+
+            testParty.incrementCurrentMembers();
+            int beforeCount = testParty.getCurrentMembers();
+
+            
+            partyService.kickPartyMember(partyId, targetMemberId);
+
+            
+            assertThat(member.getKickedAt()).isNotNull();
+            assertThat(testParty.getCurrentMembers()).isEqualTo(beforeCount - 1);
+            assertThat(application.getStatus()).isEqualTo(ApplicationStatus.KICKED); 
+
+            then(partyMemberRepository).should().findByPartyIdAndUserIdAndLeftAtIsNull(
+                    partyId, targetMemberId);
+            then(partyApplicationRepository).should().findByPartyIdAndApplicantId(
+                    partyId, targetMemberId); 
+        }
+
+        @Test
+        @DisplayName("성공: Application이 없는 멤버도 강퇴할 수 있다 (파티장이 직접 추가한 경우)")
+        void kickPartyMember_WithoutApplication() {
             
             Long partyId = 1L;
             Long targetMemberId = 2L;
@@ -1447,6 +1482,8 @@ class PartyServiceTest {
             given(partyMemberRepository.findByPartyIdAndUserIdAndLeftAtIsNull(
                     partyId, targetMemberId))
                     .willReturn(Optional.of(member));
+            given(partyApplicationRepository.findByPartyIdAndApplicantId(partyId, targetMemberId))
+                    .willReturn(Optional.empty());  // Application이 없는 경우
 
             testParty.incrementCurrentMembers();
             int beforeCount = testParty.getCurrentMembers();
@@ -1454,10 +1491,11 @@ class PartyServiceTest {
             
             partyService.kickPartyMember(partyId, targetMemberId);
 
+            
             assertThat(member.getKickedAt()).isNotNull();
             assertThat(testParty.getCurrentMembers()).isEqualTo(beforeCount - 1);
 
-            then(partyMemberRepository).should().findByPartyIdAndUserIdAndLeftAtIsNull(
+            then(partyApplicationRepository).should().findByPartyIdAndApplicantId(
                     partyId, targetMemberId);
         }
 
