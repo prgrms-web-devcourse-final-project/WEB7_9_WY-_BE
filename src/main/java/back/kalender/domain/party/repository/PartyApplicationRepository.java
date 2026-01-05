@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PartyApplicationRepository extends JpaRepository<PartyApplication, Long>, PartyApplicationRepositoryCustom {
 
@@ -43,4 +44,7 @@ public interface PartyApplicationRepository extends JpaRepository<PartyApplicati
         ApplicationStatus getStatus();
         Long getCount();
     }
+
+    Optional<PartyApplication> findByPartyIdAndApplicantId(Long partyId, Long applicantId);
+
 }
