@@ -124,4 +124,8 @@ public class Party extends BaseEntity {
     public boolean isRecruiting() {
         return this.status == PartyStatus.RECRUITING;
     }
+
+    public void updateStatus(PartyStatus newStatus) {
+        this.status = newStatus;
+    }
 }
