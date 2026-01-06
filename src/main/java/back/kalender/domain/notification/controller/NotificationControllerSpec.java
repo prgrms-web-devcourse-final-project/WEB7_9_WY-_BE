@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -26,14 +27,17 @@ public interface NotificationControllerSpec {
             description = """
                     서버와 SSE(Server-Sent Events) 연결을 맺습니다.
                     
-                    **[연결 방식]**
-                    1. 헤더에 `Authorization: Bearer {Token}`을 포함하여 요청합니다.
-                    2. 성공 시 `text/event-stream` 형식으로 연결이 유지됩니다.
-                    3. 최초 연결 시 503 에러 방지를 위한 더미 데이터(`connect` 이벤트)가 발송됩니다.
+                    브라우저의 `EventSource` API는 HTTP 헤더 설정을 지원하지 않으므로,
+                    **반드시 액세스 토큰을 쿼리 파라미터로 전달해야 합니다.**
                     
-                    **[주의사항]**
-                    * Nginx 등 프록시 사용 시 `proxy_buffering off` 설정이 필요합니다.
-                    * 클라이언트는 `EventSource` 또는 `event-source-polyfill`을 사용하여 연결해야 합니다.
+                    **[연결 방식]**
+                    * **URL:** `/api/v1/notifications/subscribe?token={Access_Token}`
+                    * **주의:** 토큰 앞의 `Bearer ` 접두사는 제거하고 순수 토큰 값만 넣어주세요.
+                    
+                    **[참고]**
+                    * 성공 시 `text/event-stream` 형식으로 연결이 유지됩니다.
+                    * 최초 연결 시 503 에러 방지를 위한 더미 데이터(`connect` 이벤트)가 발송됩니다.
+                    * Nginx 버퍼링 방지 처리는 백엔드에서 자동으로 적용됩니다 (`X-Accel-Buffering: no`).
                     """
     )
     @ApiResponses({
@@ -98,7 +102,8 @@ public interface NotificationControllerSpec {
     @GetMapping(value = "/subscribe", produces = "text/event-stream")
     public SseEmitter subscribeToNotifications(
             @AuthenticationPrincipal(expression = "userId") Long userId,
-            @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
+            @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId,
+            HttpServletResponse response
     );
 
     @Operation(
