@@ -234,6 +234,18 @@ public interface PaymentControllerSpec {
                                                     """
                                     ),
                                     @ExampleObject(
+                                            name = "orderId 누락",
+                                            value = """
+                                                    {
+                                                      "error": {
+                                                        "code": "001",
+                                                        "status": "400",
+                                                        "message": "잘못된 요청입니다."
+                                                      }
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
                                             name = "주문 ID 불일치",
                                             value = """
                                                     {

@@ -11,6 +11,7 @@ import back.kalender.domain.payment.service.PaymentService;
 import back.kalender.global.security.util.SecurityUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,6 +28,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/payments")
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentController implements PaymentControllerSpec {
 
     private final PaymentService paymentService;
@@ -49,8 +51,13 @@ public class PaymentController implements PaymentControllerSpec {
             @Valid @RequestBody PaymentConfirmRequest request,
             @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
+        log.info("[PaymentController] 결제 확인 API 진입 - paymentKey: {}, reservationId: {}, orderId: {}, idempotencyKey: {}",
+                request.paymentKey(), request.reservationId(), request.orderId(), idempotencyKey);
         Long userId = SecurityUtil.getCurrentUserIdOrThrow();
+        log.info("[PaymentController] 결제 확인 API - userId 조회 성공: {}", userId);
         PaymentConfirmResponse response = paymentService.confirm(request, userId, idempotencyKey);
+        log.info("[PaymentController] 결제 확인 API - 처리 완료, paymentKey: {}, reservationId: {}",
+                request.paymentKey(), request.reservationId());
         return ResponseEntity.ok(response);
     }
 

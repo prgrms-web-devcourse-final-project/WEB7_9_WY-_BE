@@ -16,7 +16,11 @@ public record PaymentCreateRequest(
         String method,
 
         @Schema(description = "통화", example = "KRW", defaultValue = "KRW")
-        String currency
+        String currency,
+
+        @Schema(description = "토스페이먼츠 주문 ID (결제창에서 사용할 orderId)", example = "ORDER-7-1767663573655", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "orderId is required")
+        String orderId
 ) {
     public PaymentCreateRequest {
         currency = (currency == null || currency.isBlank()) ? "KRW" : currency;

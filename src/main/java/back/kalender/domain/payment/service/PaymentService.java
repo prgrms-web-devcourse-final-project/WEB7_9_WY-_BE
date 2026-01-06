@@ -118,11 +118,11 @@ public class PaymentService {
                 })
                 .orElseGet(() -> {
                     try {
-                        Payment payment = PaymentMapper.create(request.reservationId(), userId, idempotencyKey, amount, request.currency(), request.method());
+                        Payment payment = PaymentMapper.create(request.reservationId(), userId, idempotencyKey, amount, request.currency(), request.method(), request.orderId());
 
                         Payment savedPayment = paymentRepository.save(payment);
-                        log.info("[Payment] 결제 생성 완료 - paymentId: {}, reservationId: {}, amount: {}",
-                                savedPayment.getId(), savedPayment.getReservationId(), savedPayment.getAmount());
+                        log.info("[Payment] 결제 생성 완료 - paymentId: {}, reservationId: {}, amount: {}, orderId: {}",
+                                savedPayment.getId(), savedPayment.getReservationId(), savedPayment.getAmount(), savedPayment.getOrderId());
 
                         return PaymentMapper.toCreateResponse(savedPayment);
                     } catch (DataIntegrityViolationException e) {
@@ -168,9 +168,15 @@ public class PaymentService {
 
     @Transactional
     public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId, String idempotencyKey) {
+        log.info("[PaymentService] 결제 승인 시작 - paymentKey: {}, reservationId: {}, orderId: {}, userId: {}, idempotencyKey: {}",
+                request.paymentKey(), request.reservationId(), request.orderId(), userId, idempotencyKey);
+        
         // 예약당 결제 하나만 보장 - List 조회로 여러 개가 있어도 처리 가능
         java.util.List<Payment> payments = paymentRepository.findAllByUserIdAndReservationId(userId, request.reservationId());
+        log.info("[PaymentService] 결제 조회 완료 - reservationId: {}, paymentCount: {}", request.reservationId(), payments.size());
+        
         if (payments.isEmpty()) {
+            log.warn("[PaymentService] 결제를 찾을 수 없음 - reservationId: {}, userId: {}", request.reservationId(), userId);
             throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
         }
         
@@ -179,6 +185,20 @@ public class PaymentService {
         if (payments.size() > 1) {
             log.warn("[Payment] 같은 reservationId로 여러 Payment 존재, 최신 것 사용 - reservationId: {}, totalCount: {}, selectedPaymentId: {}",
                     request.reservationId(), payments.size(), payment.getId());
+        }
+
+        // orderId 검증: 저장된 orderId와 요청의 orderId가 일치해야 함
+        if (payment.getOrderId() != null && !payment.getOrderId().equals(request.orderId())) {
+            log.warn("[Payment] orderId 불일치 - paymentId: {}, 저장된 orderId: {}, 요청 orderId: {}",
+                    payment.getId(), payment.getOrderId(), request.orderId());
+            throw new ServiceException(ErrorCode.PAYMENT_ORDER_ID_MISMATCH);
+        }
+        
+        // orderId가 저장되지 않은 경우 저장 (하위 호환성)
+        if (payment.getOrderId() == null) {
+            payment.setOrderId(request.orderId());
+            paymentRepository.save(payment);
+            log.info("[Payment] orderId 저장 완료 (하위 호환성) - paymentId: {}, orderId: {}", payment.getId(), request.orderId());
         }
 
         // Reservation 조회 및 금액 검증 (클라이언트가 보낸 amount 무시, Reservation의 totalAmount 사용)
@@ -285,6 +305,7 @@ public class PaymentService {
         }
 
         // 조건부 UPDATE: CREATED → PROCESSING (Payment에 저장된 금액 사용)
+        // orderId는 이미 검증 및 저장 완료됨
         int updated = paymentRepository.updateStatusToProcessing(payment.getId(), payment.getAmount());
         if (updated == 0) {
             Payment currentPayment = paymentRepository.findById(payment.getId())
@@ -294,13 +315,22 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CONFIRM);
         }
 
-        // 게이트웨이 호출 (클라이언트에서 사용한 orderId를 그대로 사용, Payment에 저장된 금액 사용)
-        // 토스페이먼츠는 결제창에서 사용한 orderId와 승인 API의 orderId가 정확히 일치해야 함
+        // 게이트웨이 호출 (DB에 저장된 orderId 사용, Payment에 저장된 금액 사용)
+        // orderId는 이미 검증되었으므로 DB에 저장된 값을 사용
+        String savedOrderId = payment.getOrderId();
+        if (savedOrderId == null) {
+            log.error("[Payment] orderId가 저장되지 않음 - paymentId: {}", payment.getId());
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+        
+        log.info("[Payment] 토스페이먼츠 게이트웨이 호출 - paymentKey: {}, orderId: {}, amount: {}",
+                request.paymentKey(), savedOrderId, payment.getAmount());
+        
         PaymentGatewayConfirmResponse gatewayResponse;
         try {
             gatewayResponse = paymentGateway.confirm(
                 request.paymentKey(),
-                request.orderId(),
+                savedOrderId,  // DB에 저장된 orderId 사용
                 payment.getAmount()
             );
         } catch (Exception e) {
@@ -333,9 +363,13 @@ public class PaymentService {
         LocalDateTime approvedAt = LocalDateTime.now();
         
         try {
-            // 조건부 UPDATE: PROCESSING → APPROVED
+            // 조건부 UPDATE: PROCESSING → APPROVED (orderId도 함께 저장)
+            Payment payment = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+            String orderId = payment.getOrderId(); // confirm 요청에서 받은 orderId 사용
+            
             int approved = paymentRepository.updateStatusToApproved(
-                paymentId, gatewayResponse.paymentKey(), approvedAt);
+                paymentId, gatewayResponse.paymentKey(), orderId, approvedAt);
             
             if (approved == 0) {
                 // 보상 트랜잭션: DB 업데이트 실패 시 게이트웨이 취소

@@ -28,9 +28,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     // 조건부 UPDATE: PROCESSING → APPROVED
     @Modifying
-    @Query("UPDATE Payment p SET p.status = 'APPROVED', p.paymentKey = :paymentKey, p.approvedAt = :approvedAt " +
+    @Query("UPDATE Payment p SET p.status = 'APPROVED', p.paymentKey = :paymentKey, p.orderId = :orderId, p.approvedAt = :approvedAt " +
            "WHERE p.id = :id AND p.status = 'PROCESSING'")
-    int updateStatusToApproved(@Param("id") Long id, @Param("paymentKey") String paymentKey, @Param("approvedAt") LocalDateTime approvedAt);
+    int updateStatusToApproved(@Param("id") Long id, @Param("paymentKey") String paymentKey, @Param("orderId") String orderId, @Param("approvedAt") LocalDateTime approvedAt);
 
     // 조건부 UPDATE: APPROVED → CANCELED
     @Modifying

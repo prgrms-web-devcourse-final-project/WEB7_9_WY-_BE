@@ -14,9 +14,9 @@ public class PaymentMapper {
         // 인스턴스화 방지
     }
 
-    // reservationId + userId + idempotencyKey + amount + currency + method → Payment 엔티티 생성
-    public static Payment create(Long reservationId, Long userId, String idempotencyKey, Integer amount, String currency, String method) {
-        return Payment.builder()
+    // reservationId + userId + idempotencyKey + amount + currency + method + orderId → Payment 엔티티 생성
+    public static Payment create(Long reservationId, Long userId, String idempotencyKey, Integer amount, String currency, String method, String orderId) {
+        Payment payment = Payment.builder()
                 .reservationId(reservationId)
                 .userId(userId)
                 .provider(PaymentProvider.TOSS)
@@ -25,6 +25,8 @@ public class PaymentMapper {
                 .currency(currency)
                 .method(method)
                 .build();
+        payment.setOrderId(orderId);
+        return payment;
     }
 
     // Payment -> PaymentCreateResponse 변환
