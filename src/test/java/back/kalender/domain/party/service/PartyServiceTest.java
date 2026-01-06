@@ -453,7 +453,7 @@ class PartyServiceTest {
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
             given(partyRepository.findPartiesWithFilters(
-                    null, null, null, PartyStatus.RECRUITING, pageable))
+                    null, null, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -481,7 +481,7 @@ class PartyServiceTest {
 
             then(scheduleRepository).should(never()).existsById(anyLong());
             then(partyRepository).should().findPartiesWithFilters(
-                    null, null, null, PartyStatus.RECRUITING, pageable);
+                    null, null, null, PartyStatus.RECRUITING, pageable, currentUserId);  
         }
 
         @Test
@@ -493,7 +493,7 @@ class PartyServiceTest {
             Page<Party> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
 
             given(partyRepository.findPartiesWithFilters(
-                    null, null, null, PartyStatus.RECRUITING, pageable))
+                    null, null, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(emptyPage);
 
             
@@ -518,7 +518,7 @@ class PartyServiceTest {
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
             given(partyRepository.findPartiesWithFilters(
-                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable))
+                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -537,7 +537,7 @@ class PartyServiceTest {
 
             then(scheduleRepository).should(never()).existsById(anyLong());
             then(partyRepository).should().findPartiesWithFilters(
-                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable);
+                    null, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable, currentUserId);  
         }
 
         @Test
@@ -549,7 +549,7 @@ class PartyServiceTest {
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
             given(partyRepository.findPartiesWithFilters(
-                    null, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    null, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -578,7 +578,7 @@ class PartyServiceTest {
             Page<Party> partyPage = new PageImpl<>(List.of(testParty), pageable, 1);
 
             given(partyRepository.findPartiesWithFilters(
-                    null, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    null, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -616,7 +616,7 @@ class PartyServiceTest {
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
             given(partyRepository.findPartiesWithFilters(
-                    scheduleId, null, null, PartyStatus.RECRUITING, pageable))
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -634,7 +634,7 @@ class PartyServiceTest {
 
             then(scheduleRepository).should().existsById(scheduleId);
             then(partyRepository).should().findPartiesWithFilters(
-                    scheduleId, null, null, PartyStatus.RECRUITING, pageable);
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable, currentUserId);  
         }
 
         @Test
@@ -648,7 +648,7 @@ class PartyServiceTest {
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
             given(partyRepository.findPartiesWithFilters(
-                    scheduleId, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable))
+                    scheduleId, PartyType.LEAVE, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -680,7 +680,7 @@ class PartyServiceTest {
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
             given(partyRepository.findPartiesWithFilters(
-                    scheduleId, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    scheduleId, null, TransportType.TAXI, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -712,7 +712,7 @@ class PartyServiceTest {
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
             given(partyRepository.findPartiesWithFilters(
-                    scheduleId, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable))
+                    scheduleId, PartyType.LEAVE, TransportType.TAXI, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(partyPage);
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
@@ -746,13 +746,14 @@ class PartyServiceTest {
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(true);
             given(partyRepository.findPartiesWithFilters(
-                    scheduleId, null, null, PartyStatus.RECRUITING, pageable))
+                    scheduleId, null, null, PartyStatus.RECRUITING, pageable, currentUserId))  
                     .willReturn(emptyPage);
 
             
             CommonPartyResponse response = partyService.getParties(
                     scheduleId, null, null, pageable, currentUserId);
 
+            
             assertThat(response).isNotNull();
             assertThat(response.parties()).isEmpty();
             assertThat(response.totalElements()).isZero();
@@ -764,19 +765,21 @@ class PartyServiceTest {
         @Test
         @DisplayName("실패: 존재하지 않는 스케줄")
         void getPartiesBySchedule_ScheduleNotFound() {
+            
             Long scheduleId = 999L;
             Long currentUserId = 1L;
             Pageable pageable = PageRequest.of(0, 20);
 
             given(scheduleRepository.existsById(scheduleId)).willReturn(false);
 
+            
             assertThatThrownBy(() -> partyService.getParties(
                     scheduleId, null, null, pageable, currentUserId))
                     .isInstanceOf(ServiceException.class)
                     .hasMessageContaining(ErrorCode.SCHEDULE_NOT_FOUND.getMessage());
 
             then(partyRepository).should(never()).findPartiesWithFilters(
-                    anyLong(), any(), any(), any(), any());
+                    anyLong(), any(), any(), any(), any(), anyLong());  
         }
     }
 

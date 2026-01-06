@@ -122,14 +122,12 @@ public class PartyService {
         log.debug("[파티 목록 조회] scheduleId={}, partyType={}, transportType={}, userId={}, page={}",
                 scheduleId, partyType, transportType, currentUserId, pageable.getPageNumber());
 
-        // scheduleId가 제공된 경우에만 스케줄 존재 여부 검증
         if (scheduleId != null) {
             validateScheduleExists(scheduleId);
         }
 
-        // 통합된 Repository 메서드 호출 (scheduleId가 null이면 전체 조회)
         Page<Party> partyPage = partyRepository.findPartiesWithFilters(
-                scheduleId, partyType, transportType, PartyStatus.RECRUITING, pageable);
+                scheduleId, partyType, transportType, PartyStatus.RECRUITING, pageable, currentUserId);
 
         return buildCommonPartyResponse(partyPage, currentUserId, null, null);
     }
