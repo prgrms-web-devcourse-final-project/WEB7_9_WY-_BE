@@ -5,6 +5,7 @@ import back.kalender.domain.notification.response.NotificationResponse;
 import back.kalender.domain.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,8 +28,11 @@ public class NotificationController implements NotificationControllerSpec {
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeToNotifications(
         @AuthenticationPrincipal(expression = "userId") Long userId,
-        @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
+        @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId,
+        HttpServletResponse response
     ) {
+        response.setHeader("X-Accel-Buffering", "no");
+
         return notificationService.subscribe(userId, lastEventId);
     }
 

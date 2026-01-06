@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -98,7 +99,8 @@ public interface NotificationControllerSpec {
     @GetMapping(value = "/subscribe", produces = "text/event-stream")
     public SseEmitter subscribeToNotifications(
             @AuthenticationPrincipal(expression = "userId") Long userId,
-            @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId
+            @RequestHeader(value = "Last-Event-ID", required = false, defaultValue = "") String lastEventId,
+            HttpServletResponse response
     );
 
     @Operation(
