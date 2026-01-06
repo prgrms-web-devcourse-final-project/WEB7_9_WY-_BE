@@ -11,6 +11,7 @@ import back.kalender.domain.schedule.entity.QSchedule;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,8 +38,11 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
             PartyType partyType,
             TransportType transportType,
             PartyStatus status,
-            Pageable pageable
+            Pageable pageable,
+            Long currentUserId
     ) {
+        QPartyMember member = QPartyMember.partyMember;
+
         BooleanBuilder builder = new BooleanBuilder();
 
         // scheduleId가 null이 아닌 경우에만 필터 적용
@@ -54,6 +58,22 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         }
         if (transportType != null) {
             builder.and(party.transportType.eq(transportType));
+        }
+
+        if (currentUserId != null) {
+            builder.and(party.leaderId.ne(currentUserId));
+
+            builder.and(JPAExpressions
+                    .selectOne()
+                    .from(member)
+                    .where(
+                            member.partyId.eq(party.id),
+                            member.userId.eq(currentUserId),
+                            member.leftAt.isNotNull()
+                                    .or(member.kickedAt.isNotNull())
+                    )
+                    .notExists()
+            );
         }
 
         List<Party> content = queryFactory

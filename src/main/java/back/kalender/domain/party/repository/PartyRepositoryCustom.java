@@ -18,7 +18,8 @@ public interface PartyRepositoryCustom {
             PartyType partyType,
             TransportType transportType,
             PartyStatus status,
-            Pageable pageable
+            Pageable pageable,
+            Long currentUserId
     );
 
     Page<CompletedPartyWithType> findCompletedPartiesByUserId(
