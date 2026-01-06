@@ -61,8 +61,6 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         }
 
         if (currentUserId != null) {
-            builder.and(party.leaderId.ne(currentUserId));
-
             builder.and(JPAExpressions
                     .selectOne()
                     .from(member)
