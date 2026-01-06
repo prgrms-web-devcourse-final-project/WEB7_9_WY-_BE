@@ -165,14 +165,50 @@ public class PartyService {
     public CommonPartyResponse getMyJoinedParties(Pageable pageable, Long currentUserId) {
         log.debug("[참여중 파티 조회] userId={}, page={}", currentUserId, pageable.getPageNumber());
 
-        Page<PartyApplication> applicationPage = partyApplicationRepository
-                .findByApplicantIdAndStatusWithActiveParties(
-                        currentUserId,
-                        ApplicationStatus.APPROVED,
-                        pageable
-                );
+        Page<PartyMember> memberPage = partyMemberRepository
+                .findActivePartiesByUserId(currentUserId, pageable);
 
-        return buildCommonPartyResponseFromApplications(applicationPage, currentUserId, "JOINED");
+        if (memberPage.isEmpty()) {
+            return createEmptyResponse(pageable);
+        }
+
+        // 파티 ID 추출
+        List<Long> partyIds = memberPage.getContent().stream()
+                .map(PartyMember::getPartyId)
+                .toList();
+
+        // 파티 정보 조회
+        Map<Long, Party> partyMap = getPartyMap(partyIds);
+
+        // 활성 파티만 필터링 (RECRUITING 또는 CLOSED 상태)
+        List<Party> parties = memberPage.getContent().stream()
+                .map(member -> partyMap.get(member.getPartyId()))
+                .filter(Objects::nonNull)
+                .filter(party -> party.getStatus() == PartyStatus.RECRUITING
+                        || party.getStatus() == PartyStatus.CLOSED)
+                .toList();
+
+        if (parties.isEmpty()) {
+            return createEmptyResponse(pageable);
+        }
+
+        // Application 정보 조회 (applicationId, applicationStatus 표시용)
+        List<Long> filteredPartyIds = parties.stream().map(Party::getId).toList();
+        List<PartyApplication> applications = partyApplicationRepository
+                .findByApplicantId(currentUserId).stream()
+                .filter(app -> filteredPartyIds.contains(app.getPartyId()))
+                .toList();
+
+        Map<Long, PartyApplication> applicationMap = applications.stream()
+                .collect(Collectors.toMap(PartyApplication::getPartyId, app -> app));
+
+        Map<Long, String> participationTypeMap = parties.stream()
+                .collect(Collectors.toMap(Party::getId, party -> "JOINED"));
+
+        // 실제 조회된 파티 기준으로 Page 재구성
+        Page<Party> partyPage = new PageImpl<>(parties, pageable, memberPage.getTotalElements());
+
+        return buildCommonPartyResponse(partyPage, currentUserId, participationTypeMap, applicationMap);
     }
 
     public CommonPartyResponse getMyCompletedParties(Pageable pageable, Long currentUserId) {
