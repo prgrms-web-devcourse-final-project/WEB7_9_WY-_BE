@@ -82,5 +82,7 @@ jobs:
             export JWT_SECRET="${{ secrets.JWT_SECRET }}"
             export MAIL_USERNAME="${{ secrets.MAIL_USERNAME }}"
             export MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}"
+            export TOSS_PAYMENT_SECRET_KEY="${{ secrets.TOSS_PAYMENT_SECRET_KEY }}"
+            export TOSS_PAYMENT_CLIENT_KEY="${{ secrets.TOSS_PAYMENT_CLIENT_KEY }}"
             export SPRING_PROFILES_ACTIVE=prod
             ./deploy.sh
