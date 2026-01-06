@@ -14,6 +14,10 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByUserIdAndReservationIdAndIdempotencyKey(Long userId, Long reservationId, String idempotencyKey);
 
     Optional<Payment> findByUserIdAndReservationId(Long userId, Long reservationId);
+    
+    // 같은 userId와 reservationId로 생성된 모든 Payment 조회 (예약당 결제 하나만 보장용)
+    @Query("SELECT p FROM Payment p WHERE p.userId = :userId AND p.reservationId = :reservationId ORDER BY p.id DESC")
+    java.util.List<Payment> findAllByUserIdAndReservationId(@Param("userId") Long userId, @Param("reservationId") Long reservationId);
 
     Optional<Payment> findByPaymentKey(String paymentKey);
 
@@ -24,9 +28,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     // 조건부 UPDATE: PROCESSING → APPROVED
     @Modifying
-    @Query("UPDATE Payment p SET p.status = 'APPROVED', p.paymentKey = :paymentKey, p.approvedAt = :approvedAt " +
+    @Query("UPDATE Payment p SET p.status = 'APPROVED', p.paymentKey = :paymentKey, p.orderId = :orderId, p.approvedAt = :approvedAt " +
            "WHERE p.id = :id AND p.status = 'PROCESSING'")
-    int updateStatusToApproved(@Param("id") Long id, @Param("paymentKey") String paymentKey, @Param("approvedAt") LocalDateTime approvedAt);
+    int updateStatusToApproved(@Param("id") Long id, @Param("paymentKey") String paymentKey, @Param("orderId") String orderId, @Param("approvedAt") LocalDateTime approvedAt);
 
     // 조건부 UPDATE: APPROVED → CANCELED
     @Modifying
