@@ -34,7 +34,10 @@ public interface PartyMemberRepository extends JpaRepository<PartyMember, Long> 
             @Param("userId") Long userId
     );
 
-    @Query("SELECT pm FROM PartyMember pm WHERE pm.userId = :userId AND pm.leftAt IS NULL")
+    @Query("SELECT pm FROM PartyMember pm " +
+            "WHERE pm.userId = :userId " +
+            "AND pm.leftAt IS NULL " +
+            "AND pm.kickedAt IS NULL")
     List<PartyMember> findByUserId(@Param("userId") Long userId);
 
     @Query("SELECT CASE WHEN COUNT(pm) > 0 THEN true ELSE false END " +
