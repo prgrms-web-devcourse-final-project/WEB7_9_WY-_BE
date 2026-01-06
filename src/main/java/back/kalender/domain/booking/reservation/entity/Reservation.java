@@ -3,7 +3,6 @@ package back.kalender.domain.booking.reservation.entity;
 import back.kalender.global.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.cglib.core.Local;
 
 import java.time.LocalDateTime;
 
@@ -110,6 +109,14 @@ public class Reservation extends BaseEntity {
     public void expire() {
         this.status = ReservationStatus.EXPIRED;
         this.remainingSeconds = 0L;
+    }
+
+    // 결제 완료 처리
+    public void toPaid() {
+        this.status = ReservationStatus.PAID;
+        this.confirmedAt = LocalDateTime.now();
+        this.expiresAt = null;  // 만료 시간 제거
+        this.remainingSeconds = null;  // 남은 시간 제거
     }
 
     // --- 검증 메서드 ---
