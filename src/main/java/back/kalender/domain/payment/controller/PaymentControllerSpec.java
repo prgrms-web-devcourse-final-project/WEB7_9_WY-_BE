@@ -164,9 +164,15 @@ public interface PaymentControllerSpec {
                     
                     **주의사항:**
                     - `Idempotency-Key` 헤더가 필수입니다 (UUID 권장)
+                    - `orderId`는 클라이언트에서 결제창을 띄울 때 사용한 값과 정확히 일치해야 합니다
                     - 결제 상태가 `CREATED`여야 합니다
                     - 결제 승인 성공 시 예매된 좌석이 자동으로 SOLD 상태로 변경됩니다
                     - 동일한 `Idempotency-Key`로 재요청 시 기존 승인 결과를 반환합니다
+                    
+                    **orderId 규칙:**
+                    - 토스페이먼츠 결제창에서 사용한 orderId를 그대로 전달해야 합니다
+                    - 결제 성공 페이지의 URL 쿼리 파라미터에서 `orderId` 값을 가져와 사용하세요
+                    - orderId가 일치하지 않으면 403 Forbidden 에러가 발생합니다
                     
                     **결제 플로우:**
                     1. 결제 상태를 `PROCESSING`으로 변경
@@ -228,6 +234,18 @@ public interface PaymentControllerSpec {
                                                     """
                                     ),
                                     @ExampleObject(
+                                            name = "orderId 누락",
+                                            value = """
+                                                    {
+                                                      "error": {
+                                                        "code": "001",
+                                                        "status": "400",
+                                                        "message": "잘못된 요청입니다."
+                                                      }
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
                                             name = "주문 ID 불일치",
                                             value = """
                                                     {
@@ -254,6 +272,19 @@ public interface PaymentControllerSpec {
                                         "status": "401",
                                         "message": "로그인이 필요합니다."
                                       }
+                                    }
+                                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "허용되지 않은 요청 (orderId 불일치)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                                    {
+                                      "code": "FORBIDDEN_REQUEST",
+                                      "message": "허용되지 않은 요청입니다."
                                     }
                                     """)
                     )

@@ -40,6 +40,9 @@ public class Payment extends BaseEntity {
     @Column(unique = true, nullable = true)
     private String paymentKey;
 
+    @Column(nullable = true)
+    private String orderId; // 토스페이먼츠 주문 ID (결제창에서 사용한 orderId)
+
     @Column(nullable = false)
     private Integer amount;
 
@@ -76,6 +79,11 @@ public class Payment extends BaseEntity {
         this.currency = currency;
         this.method = method;
         this.status = PaymentStatus.CREATED;
+    }
+
+    // orderId 설정 메서드
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
     }
 }
 
