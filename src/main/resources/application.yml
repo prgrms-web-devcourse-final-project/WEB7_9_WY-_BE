@@ -96,3 +96,12 @@ aws:
     region: ap-northeast-2
     profile-prefix: profile/
     presign-expire-minutes: 10
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,metrics
+  endpoint:
+    health:
+      show-details: always

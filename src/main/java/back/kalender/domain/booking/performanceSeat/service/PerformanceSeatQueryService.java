@@ -1,6 +1,8 @@
 package back.kalender.domain.booking.performanceSeat.service;
 
-import back.kalender.domain.booking.performanceSeat.dto.PerformanceSeatResponse;
+import back.kalender.domain.booking.performanceSeat.dto.BlockSummaryResponse;
+import back.kalender.domain.booking.performanceSeat.dto.SeatDetailResponse;
+import back.kalender.domain.booking.performanceSeat.dto.SubBlockSummaryResponse;
 import back.kalender.domain.booking.performanceSeat.repository.PerformanceSeatRepository;
 import back.kalender.domain.booking.waitingRoom.service.QueueAccessService;
 import lombok.RequiredArgsConstructor;
@@ -17,20 +19,38 @@ public class PerformanceSeatQueryService {
     private final PerformanceSeatRepository performanceSeatRepository;
     private final QueueAccessService queueAccessService;
 
-//    @Cacheable(
-//            cacheNames = "seatLayout",
-//            key = "#scheduleId"
-//    )
     @Transactional(readOnly = true)
-    public List<PerformanceSeatResponse> getSeatsByScheduleId(
-        Long scheduleId,
-        String bookingSessionId
+    public List<BlockSummaryResponse> getBlockSummaries(
+            Long scheduleId,
+            String bookingSessionId
     ) {
-    queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
+        queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
 
-    return performanceSeatRepository.findAllByScheduleId(scheduleId)
-            .stream()
-            .map(PerformanceSeatResponse::from)
-            .toList();
+        return performanceSeatRepository.findBlockSummaries(scheduleId);
     }
+
+    @Transactional(readOnly = true)
+    public List<SubBlockSummaryResponse> getSubBlockSummaries(
+            Long scheduleId,
+            String block,
+            String bookingSessionId
+    ) {
+        queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
+
+        return performanceSeatRepository.findSubBlockSummaries(scheduleId, block);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SeatDetailResponse> getSeatDetails(
+            Long scheduleId,
+            String block,
+            String subBlock,
+            String bookingSessionId
+    ) {
+        queueAccessService.checkSeatAccess(scheduleId, bookingSessionId);
+
+        return performanceSeatRepository.findSeatDetails(scheduleId, block, subBlock);
+    }
+
+
 }
