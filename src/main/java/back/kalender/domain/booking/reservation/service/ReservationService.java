@@ -39,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -619,17 +618,21 @@ public class ReservationService {
             recordSeatChangeEvent(scheduleId, seatId, SeatStatus.SOLD, null);
         }
 
-        // 예매 세션 삭제
+        // 4. Reservation 상태를 PAID로 변경
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        
+        reservation.toPaid();
+        reservationRepository.save(reservation);
 
+        // 5. 예매 세션 삭제
         bookingSessionService.expire(
                 reservation.getBookingSessionId(),
                 reservation.getUserId(),
                 reservation.getPerformanceScheduleId()
         );
 
-        log.info("[Reservation] 좌석 SOLD 처리 완료 - reservationId={}, seatCount={}",
+        log.info("[Reservation] 좌석 SOLD 처리 완료 및 예매 상태 PAID로 변경 - reservationId={}, seatCount={}",
                 reservationId, seatIds.size());
 
     }
