@@ -1,5 +1,6 @@
 package back.kalender.domain.booking.waitingRoom.service;
 
+import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.domain.booking.session.service.BookingSessionService;
 import back.kalender.domain.performance.schedule.service.ScheduleQueryService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class ActiveSweepScheduler {
     private final RedisTemplate<String, String> redisTemplate;
     private final ScheduleQueryService scheduleQueryService;
     private final BookingSessionService bookingSessionService;
+    private final ReservationService reservationService;
 
     @Scheduled(fixedDelay = 5000)
     public void sweep() {
@@ -50,20 +52,27 @@ public class ActiveSweepScheduler {
         Long removed = redisTemplate.opsForZSet()
                 .removeRangeByScore(activeKey, 0, cutoff);
 
-        // BookingSessionService에 위임
-        int deletedCount = 0;
         for (String sessionId : expiredSessions) {
             try {
-                boolean deleted = bookingSessionService.deleteBookingSessionBySessionId(sessionId);
-                if (deleted) {
-                    deletedCount++;
+                String userIdStr = redisTemplate.opsForValue()
+                        .get("booking:session:user:" + sessionId);
+
+                if (userIdStr != null) {
+                    Long userId = Long.parseLong(userIdStr);
+
+                    // 예매 취소
+                    reservationService.cancelActiveReservationIfExists(userId, scheduleId);
                 }
+
+                // BookingSession 삭제
+                bookingSessionService.deleteBookingSessionBySessionId(sessionId);
+
             } catch (Exception e) {
-                log.error("[ActiveSweep] BookingSession 삭제 실패 - sessionId={}",
-                        sessionId, e);
+                log.error("[ActiveSweep] 세션 정리 실패 - sessionId={}", sessionId, e);
             }
         }
-        log.info("[ActiveSweep] 정리 완료 - scheduleId={}, activeRemoved={}, sessionDeleted={}",
-                scheduleId, removed, deletedCount);
+
+        log.info("[ActiveSweep] 정리 완료 - scheduleId={}, activeRemoved={}, ", scheduleId, removed);
+
     }
 }

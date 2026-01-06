@@ -37,4 +37,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("now") LocalDateTime now,
             Pageable pageable
     );
+
+    // 사용자 + 회차 + 상태로 예매 조회
+    List<Reservation> findByUserIdAndPerformanceScheduleIdAndStatusIn(Long userId, Long scheduleId, List<ReservationStatus> reservationStatuses);
 }
