@@ -17,10 +17,33 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
 import java.util.Optional;
 
 @Tag(name = "스케쥴/캘린더 API", description = "아티스트의 일정 조회 및 필터링 기능 제공")
 public interface ScheduleControllerSpec {
+
+    @Operation(
+            summary = "비회원용 아티스트 일정 조회 (공개)",
+            description = """
+                    로그인하지 않은 사용자가 특정 아티스트들의 일정을 조회할 때 사용합니다.
+                    
+                    * **용도:** 메인 페이지나 둘러보기 페이지에서 아티스트를 선택해서 일정을 볼 때 사용
+                    * **artistIds:** 조회하고 싶은 아티스트 ID들을 배열 형태로 전달 (예: `?artistIds=1&artistIds=2`)
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(schema = @Schema(implementation = FollowingSchedulesListResponse.class)))
+    })
+    @GetMapping("/by-artists")
+    ResponseEntity<FollowingSchedulesListResponse> getSchedulesByArtists(
+            @Parameter(description = "조회할 년도", example = "2025") @RequestParam int year,
+            @Parameter(description = "조회할 월", example = "12") @RequestParam int month,
+            @Parameter(description = "특정 아티스트 단일 필터링 (선택 사항)") @RequestParam(required = false) Long artistId,
+            @Parameter(description = "조회할 아티스트 ID 목록 (필수)", example = "[1, 2, 3]") @RequestParam List<Long> artistIds
+    );
+
     @Operation(
             summary = "캘린더 화면 통합 데이터 조회",
             description = "특정 년/월의 전체 일정(혹은 특정 아티스트 필터링)과 다가오는 일정을 한 번에 반환합니다. " +
@@ -97,6 +120,7 @@ public interface ScheduleControllerSpec {
             @RequestParam int month,
             @Parameter(description = "특정 아티스트만 보고 싶을 때 ID 전달 (없으면 전체 팔로우 아티스트)")
             @RequestParam(required = false) Long artistId,
+            @Parameter(hidden = true)
             @AuthenticationPrincipal(expression = "userId") Long userId
     );
 
@@ -144,6 +168,7 @@ public interface ScheduleControllerSpec {
     })
     @GetMapping("/partyList")
     public ResponseEntity<EventsListResponse> getEventListsSchedules(
+            @Parameter(hidden = true)
             @AuthenticationPrincipal(expression = "userId") Long userId
     );
 
@@ -177,7 +202,10 @@ public interface ScheduleControllerSpec {
     })
     @PostMapping("/{scheduleId}/alarm")
     public ResponseEntity<Void> toggleScheduleAlarm(
+            @Parameter(hidden = true)
             @AuthenticationPrincipal(expression = "userId") Long userId,
             @PathVariable Long scheduleId
     );
+
+
 }
