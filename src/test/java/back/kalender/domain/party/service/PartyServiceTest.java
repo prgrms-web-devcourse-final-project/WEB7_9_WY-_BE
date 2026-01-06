@@ -858,17 +858,23 @@ class PartyServiceTest {
             Long currentUserId = 2L;
             Pageable pageable = PageRequest.of(0, 20);
 
+            PartyMember member = PartyMember.createMember(1L, currentUserId);
+            Page<PartyMember> memberPage = new PageImpl<>(
+                    List.of(member), pageable, 1);
+
             PartyApplication application = PartyApplication.create(1L, currentUserId, 1L);
             application.approve();
-            Page<PartyApplication> applicationPage = new PageImpl<>(
-                    List.of(application), pageable, 1);
 
-            given(partyApplicationRepository.findByApplicantIdAndStatusWithActiveParties(
-                    currentUserId, ApplicationStatus.APPROVED, pageable))
-                    .willReturn(applicationPage);
+            given(partyMemberRepository.findActivePartiesByUserId(currentUserId, pageable))
+                    .willReturn(memberPage);
             given(partyRepository.findAllById(anyList())).willReturn(List.of(testParty));
+            given(partyApplicationRepository.findByApplicantId(currentUserId))
+                    .willReturn(List.of(application));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(List.of(1L));
             given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
             given(scheduleRepository.findAllById(anyList())).willReturn(List.of(testSchedule));
+
             
             CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
 
@@ -879,6 +885,171 @@ class PartyServiceTest {
             CommonPartyResponse.PartyItem item = response.parties().get(0);
             assertThat(item.participationType()).isEqualTo("JOINED");
             assertThat(item.isApplied()).isTrue();
+            assertThat(item.applicationStatus()).isEqualTo(ApplicationStatus.APPROVED);
+        }
+
+        @Test
+        @DisplayName("성공: 강퇴된 파티는 목록에 표시되지 않는다")
+        void getMyJoinedParties_ExcludesKickedParties() {
+            
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            Page<PartyMember> memberPage = new PageImpl<>(
+                    List.of(), pageable, 0);
+
+            given(partyMemberRepository.findActivePartiesByUserId(currentUserId, pageable))
+                    .willReturn(memberPage);
+
+            
+            CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).isEmpty();
+            assertThat(response.totalElements()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("성공: 탈퇴한 파티는 목록에 표시되지 않는다")
+        void getMyJoinedParties_ExcludesLeftParties() {
+            
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            Page<PartyMember> memberPage = new PageImpl<>(
+                    List.of(), pageable, 0);
+
+            given(partyMemberRepository.findActivePartiesByUserId(currentUserId, pageable))
+                    .willReturn(memberPage);
+
+            
+            CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).isEmpty();
+            assertThat(response.totalElements()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("성공: COMPLETED 상태 파티는 목록에 표시되지 않는다")
+        void getMyJoinedParties_ExcludesCompletedParties() {
+            
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            PartyMember member = PartyMember.createMember(1L, currentUserId);
+            Page<PartyMember> memberPage = new PageImpl<>(
+                    List.of(member), pageable, 1);
+
+            Party completedParty = Party.builder()
+                    .scheduleId(1L)
+                    .leaderId(1L)
+                    .partyType(PartyType.LEAVE)
+                    .partyName("완료된 파티")
+                    .description("테스트 파티")
+                    .departureLocation("서울역")
+                    .arrivalLocation("부산역")
+                    .transportType(TransportType.SUBWAY)
+                    .maxMembers(5)
+                    .preferredGender(Gender.ANY)
+                    .preferredAge(PreferredAge.ANY)
+                    .build();
+
+            
+            completedParty.changeStatus(PartyStatus.COMPLETED);
+
+            given(partyMemberRepository.findActivePartiesByUserId(currentUserId, pageable))
+                    .willReturn(memberPage);
+            given(partyRepository.findAllById(anyList())).willReturn(List.of(completedParty));
+
+            
+            CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).isEmpty();  
+        }
+
+        @Test
+        @DisplayName("성공: RECRUITING과 CLOSED 상태 파티만 표시된다")
+        void getMyJoinedParties_OnlyActiveParties() throws Exception {
+            
+            Long currentUserId = 2L;
+            Pageable pageable = PageRequest.of(0, 20);
+
+            PartyMember member1 = PartyMember.createMember(1L, currentUserId);
+            PartyMember member2 = PartyMember.createMember(2L, currentUserId);
+            Page<PartyMember> memberPage = new PageImpl<>(
+                    List.of(member1, member2), pageable, 2);
+
+            Party recruitingParty = Party.builder()
+                    .scheduleId(1L)
+                    .leaderId(1L)
+                    .partyType(PartyType.LEAVE)
+                    .partyName("모집중 파티")
+                    .description("모집중")
+                    .departureLocation("서울역")
+                    .arrivalLocation("부산역")
+                    .transportType(TransportType.SUBWAY)
+                    .maxMembers(5)
+                    .preferredGender(Gender.ANY)
+                    .preferredAge(PreferredAge.ANY)
+                    .build();
+            setId(recruitingParty, 1L);
+
+            Party closedParty = Party.builder()
+                    .scheduleId(2L)
+                    .leaderId(1L)
+                    .partyType(PartyType.LEAVE)
+                    .partyName("모집마감 파티")
+                    .description("마감됨")
+                    .departureLocation("서울역")
+                    .arrivalLocation("부산역")
+                    .transportType(TransportType.SUBWAY)
+                    .maxMembers(5)
+                    .preferredGender(Gender.ANY)
+                    .preferredAge(PreferredAge.ANY)
+                    .build();
+            setId(closedParty, 2L);
+            closedParty.changeStatus(PartyStatus.CLOSED);
+
+            
+            Schedule schedule2 = Schedule.builder()
+                    .title("두 번째 이벤트")
+                    .location("다른 장소")
+                    .scheduleTime(LocalDateTime.now().plusDays(7))
+                    .build();
+            setId(schedule2, 2L);
+
+            PartyApplication app1 = PartyApplication.create(1L, currentUserId, 1L);
+            app1.approve();
+            PartyApplication app2 = PartyApplication.create(2L, currentUserId, 1L);
+            app2.approve();
+
+            given(partyMemberRepository.findActivePartiesByUserId(currentUserId, pageable))
+                    .willReturn(memberPage);
+            given(partyRepository.findAllById(anyList()))
+                    .willReturn(List.of(recruitingParty, closedParty));
+            given(partyApplicationRepository.findByApplicantId(currentUserId))
+                    .willReturn(List.of(app1, app2));
+            given(partyApplicationRepository.findAppliedPartyIds(anyList(), eq(currentUserId)))
+                    .willReturn(List.of(1L, 2L));
+            given(userRepository.findAllById(anyList())).willReturn(List.of(testUser));
+            
+            given(scheduleRepository.findAllById(anyList()))
+                    .willReturn(List.of(testSchedule, schedule2));
+
+            
+            CommonPartyResponse response = partyService.getMyJoinedParties(pageable, currentUserId);
+
+            
+            assertThat(response).isNotNull();
+            assertThat(response.parties()).hasSize(2);
+            assertThat(response.parties())
+                    .extracting(CommonPartyResponse.PartyItem::participationType)
+                    .containsOnly("JOINED");
         }
     }
 
