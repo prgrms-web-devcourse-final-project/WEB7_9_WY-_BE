@@ -99,6 +99,17 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_AMOUNT_MISMATCH);
         }
         
+        // 1. 예약당 결제는 하나만 존재해야 함 - reservationId로 먼저 확인
+        java.util.List<Payment> existingPayments = paymentRepository.findAllByUserIdAndReservationId(userId, request.reservationId());
+        if (!existingPayments.isEmpty()) {
+            // 이미 결제가 있으면 무조건 기존 것 반환 (예약당 결제 하나만 보장)
+            Payment existingPayment = existingPayments.get(0); // 최신 것 (ORDER BY id DESC)
+            log.info("[Payment] 예약당 결제 하나만 보장: 기존 결제 반환 - paymentId: {}, reservationId: {}, status: {}, idempotencyKey: {}",
+                    existingPayment.getId(), request.reservationId(), existingPayment.getStatus(), idempotencyKey);
+            return PaymentMapper.toCreateResponse(existingPayment);
+        }
+        
+        // 2. reservationId로 없으면 idempotencyKey로 멱등성 체크
         return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.reservationId(), idempotencyKey)
                 .map(existingPayment -> {
                     log.info("[Payment] 멱등성: 기존 결제 반환 - paymentId: {}, userId: {}, reservationId: {}, idempotencyKey: {}",
@@ -118,6 +129,15 @@ public class PaymentService {
                         // 동시 생성 경쟁 시 재조회하여 멱등성 보장
                         log.warn("[Payment] 유니크 충돌 발생, 재조회 - userId: {}, reservationId: {}, idempotencyKey: {}",
                                 userId, request.reservationId(), idempotencyKey);
+                        // reservationId로 먼저 확인 (예약당 결제 하나만 보장)
+                        java.util.List<Payment> paymentsAfterConflict = paymentRepository.findAllByUserIdAndReservationId(userId, request.reservationId());
+                        if (!paymentsAfterConflict.isEmpty()) {
+                            Payment existing = paymentsAfterConflict.get(0);
+                            log.info("[Payment] 유니크 충돌 후 reservationId로 기존 결제 발견 - paymentId: {}, status: {}",
+                                    existing.getId(), existing.getStatus());
+                            return PaymentMapper.toCreateResponse(existing);
+                        }
+                        // reservationId로 없으면 idempotencyKey로 재조회
                         return paymentRepository.findByUserIdAndReservationIdAndIdempotencyKey(userId, request.reservationId(), idempotencyKey)
                                 .map(existingPayment -> {
                                     log.info("[Payment] 멱등성: 재조회 후 기존 결제 반환 - paymentId: {}", existingPayment.getId());
@@ -148,8 +168,18 @@ public class PaymentService {
 
     @Transactional
     public PaymentConfirmResponse confirm(PaymentConfirmRequest request, Long userId, String idempotencyKey) {
-        Payment payment = paymentRepository.findByUserIdAndReservationId(userId, request.reservationId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.PAYMENT_NOT_FOUND));
+        // 예약당 결제 하나만 보장 - List 조회로 여러 개가 있어도 처리 가능
+        java.util.List<Payment> payments = paymentRepository.findAllByUserIdAndReservationId(userId, request.reservationId());
+        if (payments.isEmpty()) {
+            throw new ServiceException(ErrorCode.PAYMENT_NOT_FOUND);
+        }
+        
+        // 최신 Payment 선택 (ORDER BY id DESC로 정렬되어 있음)
+        Payment payment = payments.get(0);
+        if (payments.size() > 1) {
+            log.warn("[Payment] 같은 reservationId로 여러 Payment 존재, 최신 것 사용 - reservationId: {}, totalCount: {}, selectedPaymentId: {}",
+                    request.reservationId(), payments.size(), payment.getId());
+        }
 
         // Reservation 조회 및 금액 검증 (클라이언트가 보낸 amount 무시, Reservation의 totalAmount 사용)
         Reservation reservation = reservationRepository.findById(request.reservationId())
@@ -264,12 +294,13 @@ public class PaymentService {
             throw new ServiceException(ErrorCode.PAYMENT_CANNOT_CONFIRM);
         }
 
-        // 게이트웨이 호출 (토스페이먼츠는 orderId를 String으로 요구하므로 변환, Payment에 저장된 금액 사용)
+        // 게이트웨이 호출 (클라이언트에서 사용한 orderId를 그대로 사용, Payment에 저장된 금액 사용)
+        // 토스페이먼츠는 결제창에서 사용한 orderId와 승인 API의 orderId가 정확히 일치해야 함
         PaymentGatewayConfirmResponse gatewayResponse;
         try {
             gatewayResponse = paymentGateway.confirm(
                 request.paymentKey(),
-                String.valueOf(request.reservationId()),
+                request.orderId(),
                 payment.getAmount()
             );
         } catch (Exception e) {
@@ -622,4 +653,5 @@ public class PaymentService {
         payload.put("reservationId", reservation.getId());
         return payload;
     }
+
 }

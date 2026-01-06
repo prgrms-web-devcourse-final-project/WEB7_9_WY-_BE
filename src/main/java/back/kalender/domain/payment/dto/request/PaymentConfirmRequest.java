@@ -13,6 +13,10 @@ public record PaymentConfirmRequest(
 
         @Schema(description = "예매 ID", example = "123", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "reservationId is required")
-        Long reservationId
+        Long reservationId,
+
+        @Schema(description = "토스페이먼츠 주문 ID (결제창에서 사용한 orderId와 동일해야 함)", example = "ORDER-7-1767663573655", requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "orderId is required")
+        String orderId
 ) {
 }
