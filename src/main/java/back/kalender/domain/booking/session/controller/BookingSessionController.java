@@ -1,5 +1,6 @@
 package back.kalender.domain.booking.session.controller;
 
+import back.kalender.domain.booking.reservation.service.ReservationService;
 import back.kalender.domain.booking.session.dto.request.BookingSessionCreateRequest;
 import back.kalender.domain.booking.session.dto.response.BookingSessionCreateResponse;
 import back.kalender.domain.booking.session.service.BookingSessionService;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class BookingSessionController implements BookingSessionControllerSpec {
     private final BookingSessionService bookingSessionService;
-
+    private final ReservationService reservationService;
 
     @PostMapping("/create")
     @Override
@@ -49,9 +50,13 @@ public class BookingSessionController implements BookingSessionControllerSpec {
     @Override
     public ResponseEntity<Void> leave(
             @PathVariable Long scheduleId,
-            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId
+            @RequestHeader("X-BOOKING-SESSION-ID") String bookingSessionId,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        Long userId = userDetails.getUserId();
+        reservationService.cancelActiveReservationIfExists(userId, scheduleId);
         bookingSessionService.leaveActive(scheduleId, bookingSessionId);
-        return ResponseEntity.ok().build();
+
+        return ResponseEntity.noContent().build();
     }
 }

@@ -191,9 +191,18 @@ class BookingSessionServiceTest {
                     .isEqualTo(ErrorCode.DEVICE_ID_MISMATCH);
         }
 
+        /**
+         * ✅ 수정: 기존 세션 발견 시 무조건 삭제 후 재생성 테스트
+         *
+         * 변경 이유:
+         * - 기존: Active 확인 → 있으면 재사용, 없으면 삭제
+         * - 변경: 무조건 삭제 후 재생성 (브라우저 닫기 = 예매 포기 정책)
+         *
+         * @see BookingSessionService#checkExistingSession
+         */
         @Test
-        @DisplayName("성공: 기존 세션 재사용 (동일 기기)")
-        void createWithWaitingToken_ReuseExistingSession() {
+        @DisplayName("성공: 기존 세션 발견 시 무조건 삭제 후 새로 생성")
+        void createWithWaitingToken_AlwaysDeleteAndRecreate() {
             // given
             String existingSessionId = "existing-session-123";
 
@@ -209,11 +218,19 @@ class BookingSessionServiceTest {
 
             // 기존 세션 존재
             String mappingKey = "booking:session:" + USER_ID + ":" + SCHEDULE_ID;
-            given(valueOps.get(mappingKey)).willReturn(existingSessionId);
+            given(valueOps.get(mappingKey))
+                    .willReturn(existingSessionId) // 첫 번째 조회
+                    .willReturn(null); // 삭제 후 두 번째 조회
 
-            // 기존 세션의 deviceId 확인
-            String sessionDeviceKey = "booking:session:device:" + existingSessionId;
-            given(valueOps.get(sessionDeviceKey)).willReturn(DEVICE_ID);
+            // deleteBookingSessionBySessionId 호출 시 필요한 mock
+            given(valueOps.get("booking:session:" + existingSessionId))
+                    .willReturn(SCHEDULE_ID.toString());
+            given(valueOps.get("booking:session:user:" + existingSessionId))
+                    .willReturn(USER_ID.toString());
+
+            // Active 추가 (새 세션)
+            given(zSetOps.add(anyString(), anyString(), anyDouble()))
+                    .willReturn(true);
 
             // when
             String result = bookingSessionService.createWithWaitingToken(
@@ -221,51 +238,25 @@ class BookingSessionServiceTest {
             );
 
             // then
-            assertThat(result).isEqualTo(existingSessionId);
+            assertThat(result).isNotEqualTo(existingSessionId); // 새 세션 생성됨!
 
-            // 새 세션 생성 안 함
-            verify(valueOps, never()).set(
-                    startsWith("booking:session:"),
-                    anyString(),
-                    anyLong(),
-                    any(TimeUnit.class)
+            // 기존 세션 삭제 확인
+            verify(redisTemplate, atLeastOnce()).delete(
+                    "booking:session:" + existingSessionId
             );
 
-            // Active 추가 안 함 (이미 있으므로)
-            verify(zSetOps, never()).add(anyString(), anyString(), anyDouble());
+            // Active에서 제거 확인
+            verify(zSetOps).remove("active:" + SCHEDULE_ID, existingSessionId);
+
+            // 새 세션 생성 확인
+            verify(valueOps, atLeastOnce()).set(
+                    startsWith("booking:session:"),
+                    anyString(),
+                    any(Duration.class)
+            );
 
             // waitingToken 소비
             verify(redisTemplate).delete("waiting:" + WAITING_TOKEN);
-        }
-
-        @Test
-        @DisplayName("실패: 다른 기기로 이미 세션 생성됨")
-        void createWithWaitingToken_Fail_DeviceAlreadyUsed() {
-            // given
-            String existingSessionId = "existing-session-123";
-            String otherDeviceId = "device-other";
-
-            String waitingKey = "waiting:" + WAITING_TOKEN;
-            given(valueOps.get(waitingKey))
-                    .willReturn(QSID + ":" + SCHEDULE_ID);
-
-            String qsidKey = "qsid:" + QSID;
-            given(valueOps.get(qsidKey))
-                    .willReturn(DEVICE_ID + ":" + SCHEDULE_ID);
-
-            String mappingKey = "booking:session:" + USER_ID + ":" + SCHEDULE_ID;
-            given(valueOps.get(mappingKey)).willReturn(existingSessionId);
-
-            String sessionDeviceKey = "booking:session:device:" + existingSessionId;
-            given(valueOps.get(sessionDeviceKey)).willReturn(otherDeviceId); // 다른 기기!
-
-            // when & then
-            assertThatThrownBy(() -> bookingSessionService.createWithWaitingToken(
-                    USER_ID, SCHEDULE_ID, WAITING_TOKEN, DEVICE_ID
-            ))
-                    .isInstanceOf(ServiceException.class)
-                    .extracting("errorCode")
-                    .isEqualTo(ErrorCode.DEVICE_ALREADY_USED);
         }
     }
 
@@ -273,7 +264,6 @@ class BookingSessionServiceTest {
     @DisplayName("ping 테스트")
     class PingTest {
         private static final String BOOKING_SESSION_ID = "bs_abc123";
-
 
         @Test
         @DisplayName("성공: Active score 갱신")
@@ -347,86 +337,87 @@ class BookingSessionServiceTest {
         }
     }
 
-        @Nested
-        @DisplayName("validateExists 테스트")
-        class ValidateExistsTest {
+    @Nested
+    @DisplayName("validateExists 테스트")
+    class ValidateExistsTest {
 
-            @Test
-            @DisplayName("실패: 세션 키가 없으면 BOOKING_SESSION_EXPIRED")
-            void validateExists_expired() {
-                // given
-                String sessionId = "sid";
-                String key = "booking:session:" + sessionId;
-                given(valueOps.get(key)).willReturn(null);
+        @Test
+        @DisplayName("실패: 세션 키가 없으면 BOOKING_SESSION_EXPIRED")
+        void validateExists_expired() {
+            // given
+            String sessionId = "sid";
+            String key = "booking:session:" + sessionId;
+            given(valueOps.get(key)).willReturn(null);
 
-                // when & then
-                assertThatThrownBy(() -> bookingSessionService.validateExists(sessionId))
-                        .isInstanceOf(ServiceException.class)
-                        .extracting("errorCode")
-                        .isEqualTo(ErrorCode.BOOKING_SESSION_EXPIRED);
-            }
-
-            @Test
-            @DisplayName("성공: 세션 키가 있으면 통과")
-            void validateExists_success() {
-                // given
-                String sessionId = "sid";
-                String key = "booking:session:" + sessionId;
-                given(valueOps.get(key)).willReturn(SCHEDULE_ID.toString());
-
-                // when & then
-                assertThatCode(() -> bookingSessionService.validateExists(sessionId))
-                        .doesNotThrowAnyException();
-            }
+            // when & then
+            assertThatThrownBy(() -> bookingSessionService.validateExists(sessionId))
+                    .isInstanceOf(ServiceException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.BOOKING_SESSION_EXPIRED);
         }
 
-        @Nested
-        @DisplayName("validateForSchedule 테스트")
-        class ValidateForScheduleTest {
+        @Test
+        @DisplayName("성공: 세션 키가 있으면 통과")
+        void validateExists_success() {
+            // given
+            String sessionId = "sid";
+            String key = "booking:session:" + sessionId;
+            given(valueOps.get(key)).willReturn(SCHEDULE_ID.toString());
 
-            @Test
-            @DisplayName("실패: 세션이 없으면 BOOKING_SESSION_EXPIRED")
-            void validateForSchedule_expired() {
-                // given
-                String sessionId = "sid";
-                String key = "booking:session:" + sessionId;
-                given(valueOps.get(key)).willReturn(null);
-
-                // when & then
-                assertThatThrownBy(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
-                        .isInstanceOf(ServiceException.class)
-                        .extracting("errorCode")
-                        .isEqualTo(ErrorCode.BOOKING_SESSION_EXPIRED);
-            }
-
-            @Test
-            @DisplayName("실패: scheduleId가 다르면 INVALID_BOOKING_SESSION")
-            void validateForSchedule_mismatch() {
-                // given
-                String sessionId = "sid";
-                String key = "booking:session:" + sessionId;
-                given(valueOps.get(key)).willReturn("999");
-
-                // when & then
-                assertThatThrownBy(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
-                        .isInstanceOf(ServiceException.class)
-                        .extracting("errorCode")
-                        .isEqualTo(ErrorCode.INVALID_BOOKING_SESSION);
-            }
-
-            @Test
-            @DisplayName("성공: scheduleId가 일치하면 통과")
-            void validateForSchedule_success() {
-                // given
-                String sessionId = "sid";
-                String key = "booking:session:" + sessionId;
-                given(valueOps.get(key)).willReturn(SCHEDULE_ID.toString());
-
-                // when & then
-                assertThatCode(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
-                        .doesNotThrowAnyException();
-            }
+            // when & then
+            assertThatCode(() -> bookingSessionService.validateExists(sessionId))
+                    .doesNotThrowAnyException();
         }
+    }
+
+    @Nested
+    @DisplayName("validateForSchedule 테스트")
+    class ValidateForScheduleTest {
+
+        @Test
+        @DisplayName("실패: 세션이 없으면 BOOKING_SESSION_EXPIRED")
+        void validateForSchedule_expired() {
+            // given
+            String sessionId = "sid";
+            String key = "booking:session:" + sessionId;
+            given(valueOps.get(key)).willReturn(null);
+
+            // when & then
+            assertThatThrownBy(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.BOOKING_SESSION_EXPIRED);
+        }
+
+        @Test
+        @DisplayName("실패: scheduleId가 다르면 INVALID_BOOKING_SESSION")
+        void validateForSchedule_mismatch() {
+            // given
+            String sessionId = "sid";
+            String key = "booking:session:" + sessionId;
+            given(valueOps.get(key)).willReturn("999");
+
+            // when & then
+            assertThatThrownBy(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
+                    .isInstanceOf(ServiceException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.INVALID_BOOKING_SESSION);
+        }
+
+        @Test
+        @DisplayName("성공: scheduleId가 일치하면 통과")
+        void validateForSchedule_success() {
+            // given
+            String sessionId = "sid";
+            String key = "booking:session:" + sessionId;
+            given(valueOps.get(key)).willReturn(SCHEDULE_ID.toString());
+
+            // when & then
+            assertThatCode(() -> bookingSessionService.validateForSchedule(sessionId, SCHEDULE_ID))
+                    .doesNotThrowAnyException();
+        }
+    }
+
     @Nested
     @DisplayName("expire 테스트")
     class ExpireTest {
@@ -539,108 +530,4 @@ class BookingSessionServiceTest {
             verify(redisTemplate, times(3)).delete(anyString());
         }
     }
-
-    @Nested
-    @DisplayName("checkExistingSession 테스트 (Active 기반)")
-    class CheckExistingSessionTest {
-
-        @Test
-        @DisplayName("성공: Active에 있는 세션 재사용")
-        void checkExistingSession_ActiveSession_Reuse() {
-            // given
-            String existingSessionId = "bs_existing";
-            Long userId = 1L;
-            Long scheduleId = 10L;
-            String deviceId = "device-123";
-
-            // mapping 조회
-            given(valueOps.get("booking:session:" + userId + ":" + scheduleId))
-                    .willReturn(existingSessionId);
-
-            // Active 확인 (있음)
-            given(zSetOps.score("active:" + scheduleId, existingSessionId))
-                    .willReturn(1000.0);
-
-            // deviceId 확인
-            given(valueOps.get("booking:session:device:" + existingSessionId))
-                    .willReturn(deviceId);
-
-            // when
-            // createWithWaitingToken 내부에서 checkExistingSession 호출
-            String waitingToken = "wt_test";
-            String qsid = "qsid_test";
-
-            given(valueOps.get("waiting:" + waitingToken))
-                    .willReturn(qsid + ":" + scheduleId);
-            given(valueOps.get("qsid:" + qsid))
-                    .willReturn(deviceId + ":" + scheduleId);
-
-            String result = bookingSessionService.createWithWaitingToken(
-                    userId, scheduleId, waitingToken, deviceId
-            );
-
-            // then
-            assertThat(result).isEqualTo(existingSessionId);
-
-            // 새 세션 생성 안 함
-            verify(valueOps, never()).set(
-                    startsWith("booking:session:"),
-                    anyString(),
-                    any(Duration.class)
-            );
-        }
-
-        @Test
-        @DisplayName("성공: Active에 없는 세션 삭제 후 새로 생성")
-        void checkExistingSession_InactiveSession_DeleteAndCreate() {
-            // given
-            String oldSessionId = "bs_old";
-            Long userId = 1L;
-            Long scheduleId = 10L;
-            String deviceId = "device-123";
-
-            // mapping 조회 (기존 세션 발견)
-            given(valueOps.get("booking:session:" + userId + ":" + scheduleId))
-                    .willReturn(oldSessionId);
-
-            // Active 확인 (없음!)
-            given(zSetOps.score("active:" + scheduleId, oldSessionId))
-                    .willReturn(null);
-
-            // deleteBookingSessionBySessionId 호출 시 필요한 mock
-            given(valueOps.get("booking:session:" + oldSessionId))
-                    .willReturn(scheduleId.toString());
-            given(valueOps.get("booking:session:user:" + oldSessionId))
-                    .willReturn(userId.toString());
-
-            // createWithWaitingToken 관련 mock
-            String waitingToken = "wt_test";
-            String qsid = "qsid_test";
-            given(valueOps.get("waiting:" + waitingToken))
-                    .willReturn(qsid + ":" + scheduleId);
-            given(valueOps.get("qsid:" + qsid))
-                    .willReturn(deviceId + ":" + scheduleId);
-
-            // when
-            String result = bookingSessionService.createWithWaitingToken(
-                    userId, scheduleId, waitingToken, deviceId
-            );
-
-            // then
-            assertThat(result).isNotEqualTo(oldSessionId); // 새 세션 생성됨
-
-            // 기존 세션 삭제됨
-            verify(redisTemplate, atLeastOnce()).delete(
-                    "booking:session:" + oldSessionId
-            );
-
-            // 새 세션 생성됨
-            verify(valueOps, atLeastOnce()).set(
-                    startsWith("booking:session:"),
-                    anyString(),
-                    any(Duration.class)
-            );
-        }
-    }
 }
-
