@@ -5,6 +5,9 @@ import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.repository.EmitterRepository;
 import back.kalender.domain.notification.repository.NotificationRepository;
 import back.kalender.domain.notification.response.NotificationResponse;
+import back.kalender.domain.party.entity.PartyApplication;
+import back.kalender.domain.party.enums.ApplicationStatus;
+import back.kalender.domain.party.repository.PartyApplicationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,19 +17,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -39,6 +43,9 @@ class NotificationServiceTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private PartyApplicationRepository partyApplicationRepository;
 
     @Test
     @DisplayName("알림 구독 성공 (LastEventId 없음)")
@@ -135,5 +142,43 @@ class NotificationServiceTest {
         notificationService.readAllNotifications(userId);
 
         verify(notificationRepository).markAllAsRead(userId);
+    }
+
+    @Test
+    @DisplayName("APPLY 타입 알림 조회 시 신청 상태(applicationStatus)가 포함되어야 한다")
+    void getNotifications_ShouldIncludeApplicationStatus() {
+        Long userId = 1L;
+        Long applicationId = 100L;
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Notification applyNotification = new Notification(
+                userId,
+                NotificationType.APPLY,
+                "신청 알림",
+                "파티 신청했습니다",
+                10L,
+                applicationId
+        );
+
+        ReflectionTestUtils.setField(applyNotification, "createdAt", LocalDateTime.now());
+
+        PartyApplication mockApplication = mock(PartyApplication.class);
+        given(mockApplication.getStatus()).willReturn(ApplicationStatus.APPROVED);
+
+        given(notificationRepository.findAllByUserIdOrderByCreatedAtDesc(eq(userId), any(Pageable.class)))
+                .willReturn(new PageImpl<>(List.of(applyNotification)));
+
+        given(partyApplicationRepository.findById(applicationId))
+                .willReturn(Optional.of(mockApplication));
+
+        Page<NotificationResponse> result = notificationService.getNotifications(userId, pageable);
+
+        NotificationResponse response = result.getContent().get(0);
+
+        System.out.println("조회된 알림 타입: " + response.notificationType());
+        System.out.println("조회된 신청 상태: " + response.applicationStatus());
+
+        assertThat(response.notificationType()).isEqualTo(NotificationType.APPLY);
+        assertThat(response.applicationStatus()).isEqualTo("APPROVED");
     }
 }
