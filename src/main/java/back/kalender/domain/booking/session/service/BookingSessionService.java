@@ -44,6 +44,11 @@ public class BookingSessionService {
         // 3. waitingToken 소비
         redisTemplate.delete("waiting:" + waitingToken);
 
+        redisTemplate.opsForHash().delete("admitted:" + scheduleId, qsid);
+        redisTemplate.delete("qsid:" + qsid);
+        redisTemplate.delete("device:" + scheduleId + ":" + deviceId);
+
+
         // 4. 중복 세션 확인
         String existingSession = checkExistingSession(userId, scheduleId, deviceId);
 
