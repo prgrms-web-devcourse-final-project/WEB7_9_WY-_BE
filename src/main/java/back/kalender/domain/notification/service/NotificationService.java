@@ -5,6 +5,7 @@ import back.kalender.domain.notification.enums.NotificationType;
 import back.kalender.domain.notification.repository.EmitterRepository;
 import back.kalender.domain.notification.repository.NotificationRepository;
 import back.kalender.domain.notification.response.NotificationResponse;
+import back.kalender.domain.party.repository.PartyApplicationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ public class NotificationService {
 
     private final EmitterRepository emitterRepository;
     private final NotificationRepository notificationRepository;
+    private final PartyApplicationRepository partyApplicationRepository;
     private static final Long DEFAULT_TIMEOUT = 60L * 1000 * 60;
 
     // lastEventId 기준으로 유실된 데이터가 있는지 확인 (클라이언트가 마지막으로 수신한 이벤트 ID)
@@ -68,8 +70,19 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Page<NotificationResponse> getNotifications(Long userId, Pageable pageable) {
-        return notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable)
-                .map(NotificationResponse::from);
+        Page<Notification> notificationPage = notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId, pageable);
+
+        return notificationPage.map(notification -> {
+            String status = null;
+
+            if (notification.getNotificationType() == NotificationType.APPLY && notification.getApplicationId() != null) {
+                status = partyApplicationRepository.findById(notification.getApplicationId())
+                        .map(app -> app.getStatus().name())
+                        .orElse(null);
+            }
+
+            return NotificationResponse.from(notification, status);
+        });
     }
 
     @Transactional

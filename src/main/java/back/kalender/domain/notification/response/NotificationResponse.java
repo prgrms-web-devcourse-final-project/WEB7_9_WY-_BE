@@ -29,9 +29,16 @@ public record NotificationResponse(
     Long partyId,
 
     @Schema(description = "신청서 ID", example = "5")
-    Long applicationId
+    Long applicationId,
+
+    @Schema(description = "신청 상태 (APPLY 타입일 경우 필수)", example = "PENDING")
+    String applicationStatus
 ) {
     public static NotificationResponse from(Notification notification) {
+        return from(notification, null);
+    }
+
+    public static NotificationResponse from(Notification notification, String applicationStatus) {
         return new NotificationResponse(
                 notification.getId(),
                 notification.getNotificationType(),
@@ -40,7 +47,8 @@ public record NotificationResponse(
                 notification.getIsRead(),
                 notification.getCreatedAt().plusHours(9),
                 notification.getPartyId(),
-                notification.getApplicationId()
+                notification.getApplicationId(),
+                applicationStatus
         );
     }
 }
