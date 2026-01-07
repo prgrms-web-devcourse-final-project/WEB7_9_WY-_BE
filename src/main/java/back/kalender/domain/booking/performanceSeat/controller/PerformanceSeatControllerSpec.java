@@ -20,6 +20,15 @@ public interface PerformanceSeatControllerSpec {
         description = """
         대기열을 통과한 사용자(active)만 좌석 정보를 조회할 수 있습니다.
 
+                **중요: Redis 기반 실시간 상태 반영**
+                        - SOLD: Redis seat:sold 세트에서 조회 (결제 완료된 좌석)
+                        - HOLD: Redis seat:hold:owner 키 존재 여부로 판단 (다른 사용자가 선점 중)
+                        - AVAILABLE: Redis에 없고 DB가 AVAILABLE인 좌석
+                
+                        **Redis 우선 원칙**
+                        - Redis 상태 > DB 상태 (Redis가 Source of Truth)
+                        - DB 업데이트 지연이 있어도 Redis는 즉시 반영됨
+                        
         ⚠️ 이 API는 프론트엔드에서 폴링 방식으로 자동 호출됩니다.
         (사용자 직접 호출 아님)
         """

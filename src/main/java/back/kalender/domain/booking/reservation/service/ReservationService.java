@@ -206,7 +206,7 @@ public class ReservationService {
         return reservationMapper.toUpdateDeliveryInfoResponse(updatedReservation);
     }
 
-    // 예매 취소
+    // 마이페이지 - 예매 취소
     @Transactional
     public CancelReservationResponse cancelReservation(
             Long reservationId,
@@ -383,7 +383,7 @@ public class ReservationService {
         );
     }
 
-    // 예매내역 조회
+    // 마이페이지 - 예매내역 조회
     public MyReservationListResponse getMyReservations(Long userId, Pageable pageable) {
         // 1. 완료된 예매만 조회
         List<ReservationStatus> completedStatuses = List.of(
@@ -639,7 +639,7 @@ public class ReservationService {
 
     /**
      * 활성 예매 취소 (leaveBookingSession 전용)
-     * - PENDING/HOLD 상태의 예매를 찾아서 취소
+     * - PENDING/HOLD 상태의 예매를 찾아서 포기 처리 = ABANDONED
      * - 좌석 해제 포함
      */
     @Transactional
@@ -661,7 +661,7 @@ public class ReservationService {
         Reservation reservation = activeReservations.get(0);
         Long reservationId = reservation.getId();
 
-        log.info("[LeaveSession] 활성 예매 취소 시작 - reservationId={}, userId={}, scheduleId={}",
+        log.info("[LeaveSession] 활성 예매 포기 처리 시작 - reservationId={}, userId={}, scheduleId={}",
                 reservationId, userId, scheduleId);
 
         // HOLD된 좌석 조회
@@ -669,8 +669,8 @@ public class ReservationService {
                 reservationSeatRepository.findByReservationId(reservationId);
 
         if (reservationSeats.isEmpty()) {
-            log.info("[LeaveSession] 좌석 없음, 예매만 취소 - reservationId={}", reservationId);
-            reservation.cancel();
+            log.info("[LeaveSession] 좌석 없음, 예매만 포기 처리 - reservationId={}", reservationId);
+            reservation.abandon();
             reservationRepository.save(reservation);
             return;
         }
@@ -695,7 +695,7 @@ public class ReservationService {
         reservationSeatRepository.deleteByReservationId(reservationId);
 
         // 예매 취소
-        reservation.cancel(); // status = CANCELLED
+        reservation.abandon();
         reservationRepository.save(reservation);
 
         for (Long seatId : performanceSeatIds) {
@@ -704,7 +704,7 @@ public class ReservationService {
             );
         }
 
-        log.info("[LeaveSession] 활성 예매 취소 완료 - reservationId={}, seatCount={}",
+        log.info("[LeaveSession] 활성 예매 포기 처리 완료 - reservationId={}, seatCount={}",
                 reservationId, performanceSeatIds.size());
     }
 }

@@ -111,6 +111,13 @@ public class Reservation extends BaseEntity {
         this.remainingSeconds = 0L;
     }
 
+    // 브라우저 닫기, Active sweep 등으로 인한 포기/중단 - 마이페이지에 표시 안 됨
+    public void abandon() {
+        this.status = ReservationStatus.ABANDONED;
+        this.expiresAt = null;
+        this.remainingSeconds = null;
+    }
+
     // 결제 완료 처리
     public void toPaid() {
         this.status = ReservationStatus.PAID;
