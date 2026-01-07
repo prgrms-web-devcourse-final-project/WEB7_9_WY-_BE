@@ -13,7 +13,7 @@ import java.util.List;
 
 @Component
 @Profile({"prod", "dev"})
-@Order(0)
+@Order(1)
 @RequiredArgsConstructor
 @Slf4j
 public class ArtistBaseInitData {

@@ -16,7 +16,7 @@ import java.util.List;
 
 @Component
 @Profile({"prod", "dev"})
-@Order(2)
+@Order(3)
 @RequiredArgsConstructor
 public class ArtistFollowBaseInitData {
 

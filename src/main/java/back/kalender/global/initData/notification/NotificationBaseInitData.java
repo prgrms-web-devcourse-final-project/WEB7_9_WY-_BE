@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 
 @Component
 @Profile({"prod", "dev"})
-@Order(9)
+@Order(10)
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationBaseInitData implements ApplicationRunner {

@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 
 @Component
 @Profile({"prod", "dev"})
-@Order(1)
+@Order(2)
 @RequiredArgsConstructor
 @Slf4j
 public class ScheduleBaseInitData implements ApplicationRunner {
