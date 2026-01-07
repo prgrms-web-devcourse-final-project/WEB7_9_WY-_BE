@@ -177,10 +177,7 @@ public class ChatService {
         try {
             String title = "파티에서 강퇴되었습니다";
 
-            String content = String.format("\"%s\" 파티에서 강퇴되었습니다. 참여자들을 평가해주세요.", party.getPartyName());
-
-            // TODO: 클릭 시 이동할 URL (평가 페이지 등)
-            String url = "/reviews/party/" + party.getId();
+            String content = String.format("\"%s\" 파티에서 강퇴되었습니다.", party.getPartyName());
 
             notificationService.send(
                     targetMember.getId(),       // 수신자: 강퇴 당한 사람
