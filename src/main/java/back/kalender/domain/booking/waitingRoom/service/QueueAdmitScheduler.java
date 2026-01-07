@@ -20,7 +20,7 @@ public class QueueAdmitScheduler {
         List<Long> openScheduleIds = scheduleService.getOpenScheduleIds();
 
         for (Long scheduleId : openScheduleIds) {
-            int admitted = queueService.admitIfCapacity(scheduleId, 4);
+            int admitted = queueService.admitIfCapacity(scheduleId, 50);
         }
     }
 }

@@ -47,7 +47,7 @@ public class QueueService {
         }
 
         // Active 용량 체크
-        if (hasActiveCapacity(scheduleId, 4)) {
+        if (hasActiveCapacity(scheduleId, 50)) {
             log.info("[Queue] Active 여유 있음 → 즉시 admit - scheduleId={}", scheduleId);
             return joinAndAdmitImmediately(scheduleId, deviceId);
         }
