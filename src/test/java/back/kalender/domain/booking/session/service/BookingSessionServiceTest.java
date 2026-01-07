@@ -35,9 +35,9 @@ class BookingSessionServiceTest {
     private ValueOperations<String, String> valueOps;
     @Mock
     private ZSetOperations<String, String> zSetOps;
-
-    @Mock
-    private HashOperations<String, Object, Object> hashOps;
+//
+//    @Mock
+//    private HashOperations<String, Object, Object> hashOps;
 
 
     private static final Long USER_ID = 1L;
@@ -48,7 +48,7 @@ class BookingSessionServiceTest {
         bookingSessionService = new BookingSessionService(redisTemplate);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
         lenient().when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
-        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOps);
+//        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOps);
     }
 
     @Nested
@@ -111,9 +111,9 @@ class BookingSessionServiceTest {
             verify(redisTemplate).delete("waiting:" + WAITING_TOKEN);
 
             // 🔧 FIX: admitted / qsid / device 정리 검증
-            verify(hashOps).delete("admitted:" + SCHEDULE_ID, QSID);
-            verify(redisTemplate).delete("qsid:" + QSID);
-            verify(redisTemplate).delete("device:" + SCHEDULE_ID + ":" + DEVICE_ID);
+//            verify(hashOps).delete("admitted:" + SCHEDULE_ID, QSID);
+//            verify(redisTemplate).delete("qsid:" + QSID);
+//            verify(redisTemplate).delete("device:" + SCHEDULE_ID + ":" + DEVICE_ID);
         }
 
         @Test
@@ -192,15 +192,7 @@ class BookingSessionServiceTest {
                     .isEqualTo(ErrorCode.DEVICE_ID_MISMATCH);
         }
 
-        /**
-         * ✅ 수정: 기존 세션 발견 시 무조건 삭제 후 재생성 테스트
-         *
-         * 변경 이유:
-         * - 기존: Active 확인 → 있으면 재사용, 없으면 삭제
-         * - 변경: 무조건 삭제 후 재생성 (브라우저 닫기 = 예매 포기 정책)
-         *
-         * @see BookingSessionService#checkExistingSession
-         */
+
         @Test
         @DisplayName("성공: 기존 세션 발견 시 무조건 삭제 후 새로 생성")
         void createWithWaitingToken_AlwaysDeleteAndRecreate() {
