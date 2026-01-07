@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -35,6 +36,10 @@ class BookingSessionServiceTest {
     @Mock
     private ZSetOperations<String, String> zSetOps;
 
+    @Mock
+    private HashOperations<String, Object, Object> hashOps;
+
+
     private static final Long USER_ID = 1L;
     private static final Long SCHEDULE_ID = 10L;
 
@@ -43,6 +48,7 @@ class BookingSessionServiceTest {
         bookingSessionService = new BookingSessionService(redisTemplate);
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOps);
         lenient().when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
+        lenient().when(redisTemplate.opsForHash()).thenReturn(hashOps);
     }
 
     @Nested
@@ -57,21 +63,15 @@ class BookingSessionServiceTest {
         @DisplayName("성공: 신규 BookingSession 생성 + Active 추가")
         void createWithWaitingToken_Success() {
             // given
-            // 1. waitingToken 검증
-            String waitingKey = "waiting:" + WAITING_TOKEN;
-            given(valueOps.get(waitingKey))
+            given(valueOps.get("waiting:" + WAITING_TOKEN))
                     .willReturn(QSID + ":" + SCHEDULE_ID);
 
-            // 2. qsid로 deviceId 검증
-            String qsidKey = "qsid:" + QSID;
-            given(valueOps.get(qsidKey))
+            given(valueOps.get("qsid:" + QSID))
                     .willReturn(DEVICE_ID + ":" + SCHEDULE_ID);
 
-            // 3. 기존 세션 없음
-            String mappingKey = "booking:session:" + USER_ID + ":" + SCHEDULE_ID;
-            given(valueOps.get(mappingKey)).willReturn(null);
+            given(valueOps.get("booking:session:" + USER_ID + ":" + SCHEDULE_ID))
+                    .willReturn(null);
 
-            // 4. Active 추가 (ZSet)
             given(zSetOps.add(anyString(), anyString(), anyDouble()))
                     .willReturn(true);
 
@@ -83,36 +83,37 @@ class BookingSessionServiceTest {
             // then
             assertThat(bookingSessionId).isNotBlank();
 
-            // 1. 세션 데이터 저장
             verify(valueOps).set(
                     eq("booking:session:" + bookingSessionId),
                     eq(SCHEDULE_ID.toString()),
                     any(Duration.class)
             );
 
-            // 2. deviceId 매핑 저장
             verify(valueOps).set(
                     eq("booking:session:device:" + bookingSessionId),
                     eq(DEVICE_ID),
                     any(Duration.class)
             );
 
-            // 3. userId:scheduleId 매핑 저장
             verify(valueOps).set(
                     eq("booking:session:" + USER_ID + ":" + SCHEDULE_ID),
                     eq(bookingSessionId),
                     any(Duration.class)
             );
 
-            // 4. Active 추가
             verify(zSetOps).add(
                     eq("active:" + SCHEDULE_ID),
                     eq(bookingSessionId),
                     anyDouble()
             );
 
-            // 5. waitingToken 소비
+            // waitingToken 소비
             verify(redisTemplate).delete("waiting:" + WAITING_TOKEN);
+
+            // 🔧 FIX: admitted / qsid / device 정리 검증
+            verify(hashOps).delete("admitted:" + SCHEDULE_ID, QSID);
+            verify(redisTemplate).delete("qsid:" + QSID);
+            verify(redisTemplate).delete("device:" + SCHEDULE_ID + ":" + DEVICE_ID);
         }
 
         @Test

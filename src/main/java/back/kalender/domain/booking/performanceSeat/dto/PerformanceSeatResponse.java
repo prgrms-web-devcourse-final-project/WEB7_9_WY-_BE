@@ -1,6 +1,7 @@
 package back.kalender.domain.booking.performanceSeat.dto;
 
 import back.kalender.domain.booking.performanceSeat.entity.PerformanceSeat;
+import back.kalender.domain.booking.performanceSeat.entity.SeatStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -20,7 +21,9 @@ public class PerformanceSeatResponse {
 
     private Long priceGradeId;
 
-    public static PerformanceSeatResponse from(PerformanceSeat seat) {
+    private String status;
+
+    public static PerformanceSeatResponse from(PerformanceSeat seat, SeatStatus status) {
         return new PerformanceSeatResponse(
                 seat.getId(),
                 seat.getFloor(),
@@ -28,7 +31,8 @@ public class PerformanceSeatResponse {
                 seat.getSubBlock(),
                 seat.getRowNumber(),
                 seat.getSeatNumber(),
-                seat.getPriceGradeId()
+                seat.getPriceGradeId(),
+                status.name()
         );
     }
 }

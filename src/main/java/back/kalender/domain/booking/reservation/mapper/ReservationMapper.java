@@ -355,11 +355,10 @@ public class ReservationMapper {
 
     // 결제 내역 변환 (상세)
     private ReservationDetailResponse.PaymentInfo toPaymentInfo(Reservation reservation) {
-        // TODO: 결제 API 연동 후 실제 결제 수단, 결제일시 채우기
         return new ReservationDetailResponse.PaymentInfo(
                 reservation.getTotalAmount(),
-                "토스페이",  // TODO: 실제 결제 수단
-                reservation.getCreatedAt(),  // TODO: 실제 결제일시
+                "토스페이먼츠",
+                reservation.getCreatedAt(),
                 "결제 API 연동 후 추가 예정"
         );
     }
@@ -380,8 +379,10 @@ public class ReservationMapper {
     // 상태 표시명 반환
     private String getStatusDisplay(ReservationStatus status) {
         return switch (status) {
-            case PAID -> "예매완료(토스페이)";  // TODO: 실제 결제 수단 반영
+            case PAID -> "예매완료(토스페이먼츠)";
             case CANCELLED -> "취소완료";
+            case PENDING -> "대기중";
+            case HOLD -> "좌석선택중";
             default -> status.name();
         };
     }

@@ -14,23 +14,6 @@ import java.util.Optional;
 
 public interface PerformanceSeatRepository extends JpaRepository<PerformanceSeat, Long> {
 
-    @Query("""
-select new back.kalender.domain.booking.performanceSeat.dto.PerformanceSeatResponse(
-    p.id,
-    p.floor,
-    p.block,
-    p.subBlock,
-    p.rowNumber,
-    p.seatNumber,
-    p.priceGradeId
-)
-from PerformanceSeat p
-where p.scheduleId = :scheduleId
-""")
-    List<PerformanceSeatResponse> findSeatResponses(
-            @Param("scheduleId") Long scheduleId
-    );
-
     List<PerformanceSeat> findAllByScheduleId(Long scheduleId);
 
     Optional<PerformanceSeat> findByIdAndScheduleId(Long id, Long scheduleId);
