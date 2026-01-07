@@ -3,6 +3,7 @@ package back.kalender.domain.party.repository;
 import back.kalender.domain.party.dto.query.NotificationTarget;
 import back.kalender.domain.party.entity.Party;
 import back.kalender.domain.party.entity.QParty;
+import back.kalender.domain.party.entity.QPartyApplication;  // 추가
 import back.kalender.domain.party.entity.QPartyMember;
 import back.kalender.domain.party.enums.PartyStatus;
 import back.kalender.domain.party.enums.PartyType;
@@ -42,10 +43,10 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
             Long currentUserId
     ) {
         QPartyMember member = QPartyMember.partyMember;
+        QPartyApplication application = QPartyApplication.partyApplication;  // 추가
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // scheduleId가 null이 아닌 경우에만 필터 적용
         if (scheduleId != null) {
             builder.and(party.scheduleId.eq(scheduleId));
         }
@@ -60,15 +61,14 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
             builder.and(party.transportType.eq(transportType));
         }
 
+        // 내가 신청한 파티 제외
         if (currentUserId != null) {
             builder.and(JPAExpressions
                     .selectOne()
-                    .from(member)
+                    .from(application)
                     .where(
-                            member.partyId.eq(party.id),
-                            member.userId.eq(currentUserId),
-                            member.leftAt.isNotNull()
-                                    .or(member.kickedAt.isNotNull())
+                            application.partyId.eq(party.id),
+                            application.applicantId.eq(currentUserId)
                     )
                     .notExists()
             );
@@ -90,7 +90,7 @@ public class PartyRepositoryImpl implements PartyRepositoryCustom {
         return new PageImpl<>(content, pageable, total);
     }
 
-    @Override
+@Override
     public Page<CompletedPartyWithType> findCompletedPartiesByUserId(
             Long userId,
             List<Long> joinedPartyIds,

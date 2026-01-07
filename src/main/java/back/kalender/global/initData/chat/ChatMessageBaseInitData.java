@@ -21,7 +21,7 @@ import java.util.List;
 
 @Component
 @Profile({"prod", "dev"})
-@Order(8)
+@Order(9)
 @RequiredArgsConstructor
 @Slf4j
 public class ChatMessageBaseInitData implements ApplicationRunner {
@@ -36,6 +36,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         long totalMessages = chatMessageRepository.count();
         long totalParties = partyRepository.count();
 
+        // 파티당 평균 메시지 수가 2개 이상이면 이미 초기화되었다고 판단
         if (totalParties > 0 && totalMessages / totalParties > 2) {
             log.info("ChatMessage base data already initialized");
             return;
@@ -53,21 +54,27 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         }
 
         int messageCount = 0;
+        int skippedPartyCount = 0;
 
         for (Party party : parties) {
             // COMPLETED와 CANCELLED 상태의 파티는 채팅방이 보이지 않으므로 스킵
             if (party.getStatus() == PartyStatus.COMPLETED || party.getStatus() == PartyStatus.CANCELLED) {
+                skippedPartyCount++;
                 continue;
             }
 
-            List<PartyMember> members = partyMemberRepository.findActiveMembers(party.getId());
+            // 활성 멤버만 가져오기 (leftAt과 kickedAt이 null인 멤버)
+            List<PartyMember> activeMembers = partyMemberRepository.findActiveMembers(party.getId());
 
-            if (members.isEmpty()) {
+            if (activeMembers.isEmpty()) {
+                log.warn("No active members found for party {}", party.getId());
                 continue;
             }
 
+            // 파티 상태에 따라 적절한 환영 메시지 생성
             int msgCount = getMessageCountByStatus(party.getStatus());
 
+            // 리더의 환영 메시지
             chatMessageRepository.save(
                     ChatMessage.createChatMessage(
                             party.getId(),
@@ -77,10 +84,12 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
             );
             messageCount++;
 
+            // 파티 상태에 맞는 샘플 메시지들
             List<String> sampleMessages = getSampleMessagesByStatus(party.getStatus());
 
+            // 랜덤하게 활성 멤버들이 채팅 메시지 작성
             for (int i = 0; i < msgCount; i++) {
-                PartyMember randomMember = members.get((int)(Math.random() * members.size()));
+                PartyMember randomMember = activeMembers.get((int)(Math.random() * activeMembers.size()));
                 String message = sampleMessages.get((int)(Math.random() * sampleMessages.size()));
 
                 chatMessageRepository.save(
@@ -96,19 +105,27 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
 
         log.info("=".repeat(60));
         log.info("ChatMessage base data initialized: {} chat messages", messageCount);
-        log.info("(Only RECRUITING and CLOSED parties have chat messages)");
-        log.info("(JOIN messages were created in PartyBaseInitData and PartyApplicationBaseInitData)");
+        log.info("Active parties (RECRUITING + CLOSED): {}", parties.size() - skippedPartyCount);
+        log.info("Skipped parties (COMPLETED + CANCELLED): {}", skippedPartyCount);
+        log.info("Note: JOIN messages were created in PartyBaseInitData and PartyApplicationBaseInitData");
+        log.info("Note: LEAVE/KICK messages are created when users leave or are kicked");
         log.info("=".repeat(60));
     }
 
+    /**
+     * 파티 상태에 따라 생성할 메시지 개수 결정
+     */
     private int getMessageCountByStatus(PartyStatus status) {
         return switch (status) {
-            case RECRUITING -> 5 + (int)(Math.random() * 8);
-            case CLOSED -> 8 + (int)(Math.random() * 7);
-            default -> 0;
+            case RECRUITING -> 5 + (int)(Math.random() * 8); // 5~12개
+            case CLOSED -> 8 + (int)(Math.random() * 7);     // 8~14개
+            default -> 0; // COMPLETED, CANCELLED는 이미 스킵됨
         };
     }
 
+    /**
+     * 파티 상태에 따른 환영 메시지
+     */
     private String getWelcomeMessage(PartyStatus status) {
         return switch (status) {
             case RECRUITING -> "파티에 오신 것을 환영합니다! 같이 즐거운 시간 보내요 😊";
@@ -117,9 +134,13 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         };
     }
 
+    /**
+     * 파티 상태에 따른 샘플 메시지 목록
+     */
     private List<String> getSampleMessagesByStatus(PartyStatus status) {
         List<String> messages = new ArrayList<>();
 
+        // 모든 상태에 공통으로 적용되는 메시지
         List<String> commonMessages = List.of(
                 "안녕하세요! 잘 부탁드립니다 ^^",
                 "반가워요~",
@@ -133,6 +154,7 @@ public class ChatMessageBaseInitData implements ApplicationRunner {
         );
         messages.addAll(commonMessages);
 
+        // 파티 상태별 특화 메시지
         switch (status) {
             case RECRUITING -> messages.addAll(List.of(
                     "아직 자리 있나요?",
