@@ -10,7 +10,8 @@ public enum ReservationStatus {
     HOLD("홀드 상태"),
     PAID("결제 완료"),
     EXPIRED("만료됨"),
-    CANCELLED("취소됨");
+    CANCELLED("취소됨"),
+    ABANDONED("포기/중단됨");    // 브라우저 닫기, Active sweep 등
 
     private final String description;
 
@@ -37,6 +38,10 @@ public enum ReservationStatus {
         return this == CANCELLED;
     }
 
+    public boolean isAbandoned() {
+        return this == ABANDONED;
+    }
+
     public boolean canConfirm() {
         return this == HOLD;
     }
@@ -47,5 +52,14 @@ public enum ReservationStatus {
 
     public static List<ReservationStatus> activeStatuses() {
         return List.of(PENDING, HOLD);
+    }
+
+    /**
+     * 마이페이지 "예매 내역"에 표시할 상태들
+     * - PAID: 결제 완료 (정상)
+     * - CANCELLED: 사용자가 명시적으로 취소한 건만
+     */
+    public static List<ReservationStatus> visibleStatuses() {
+        return List.of(PAID, CANCELLED);
     }
 }
