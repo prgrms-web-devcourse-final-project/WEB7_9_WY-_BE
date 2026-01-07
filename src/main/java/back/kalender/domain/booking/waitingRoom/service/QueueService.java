@@ -47,7 +47,7 @@ public class QueueService {
         }
 
         // Active 용량 체크
-        if (hasActiveCapacity(scheduleId, 50)) {
+        if (hasActiveCapacity(scheduleId, 1)) {
             log.info("[Queue] Active 여유 있음 → 즉시 admit - scheduleId={}", scheduleId);
             return joinAndAdmitImmediately(scheduleId, deviceId);
         }
@@ -62,7 +62,16 @@ public class QueueService {
 
         Object tokenObj = redis.opsForHash().get(aKey, qsid);
         if (tokenObj != null) {
-            return new QueueStatusResponse("ADMITTED", null, tokenObj.toString());
+            String token = tokenObj.toString();
+
+            // waitingToken이 실제로 살아있는지 확인
+            if (Boolean.FALSE.equals(redis.hasKey("waiting:" + token))) {
+                // 토큰이 없으면 (만료/소비됨) => admitted는 유령이므로 청소
+                redis.opsForHash().delete(aKey, qsid);
+                return new QueueStatusResponse("NOT_IN_QUEUE", null, null);
+            }
+
+            return new QueueStatusResponse("ADMITTED", null, token);
         }
 
         Long rank0 = redis.opsForZSet().rank(queueKey(scheduleId), qsid);
@@ -72,6 +81,7 @@ public class QueueService {
 
         return new QueueStatusResponse("WAITING", rank0 + 1, null);
     }
+
 
     public String issueWaitingToken(Long scheduleId, String qsid) {
         String token = "wt_" + UUID.randomUUID().toString().replace("-", "");
@@ -121,22 +131,59 @@ public class QueueService {
     }
 
     public void waitingPing(Long scheduleId, String qsid) {
-        String waitingKey = "waiting:" + qsid;
+        if (qsid == null || qsid.isBlank()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
-        if (!redis.hasKey(waitingKey)) {
+        // 1) qsid 원본 키 확인
+        String qsidKey = "qsid:" + qsid;
+        String qsidValue = redis.opsForValue().get(qsidKey);
+
+        if (qsidValue == null) {
             throw new ServiceException(ErrorCode.QSID_EXPIRED);
         }
 
-        // TTL 연장
-        redis.expire(waitingKey, 20, TimeUnit.SECONDS);
+        // qsidValue = "deviceId:scheduleId"
+        String[] parts = qsidValue.split(":", 2);
+        String deviceId = parts[0];
+        Long storedScheduleId = Long.parseLong(parts[1]);
 
-        // queue ZSET score 갱신 (선택)
-        redis.opsForZSet().add(
-                "queue:" + scheduleId,
-                qsid,
-                System.currentTimeMillis()
-        );
+        if (!storedScheduleId.equals(scheduleId)) {
+            throw new ServiceException(ErrorCode.SCHEDULE_MISMATCH);
+        }
+
+        // 2) WAITING 상태인지 확인
+        String qKey = queueKey(scheduleId);
+        boolean isWaiting = redis.opsForZSet().score(qKey, qsid) != null;
+
+        if (!isWaiting) {
+            // admitted면 원래 클라가 ping 멈춰야 정상. 서버는 무시.
+            Object tokenObj = redis.opsForHash().get(admittedKey(scheduleId), qsid);
+            if (tokenObj != null) {
+                return;
+            }
+            throw new ServiceException(ErrorCode.QSID_EXPIRED);
+        }
+
+        // 3) 새로고침/재접속 감지: hbKey가 없으면 "끊겼다 돌아옴" → 맨 뒤로
+        String hbKey = "waiting:hb:" + scheduleId + ":" + qsid;
+
+        if (Boolean.FALSE.equals(redis.hasKey(hbKey))) {
+            // 여기서만 score 갱신(맨 뒤로 이동)
+            redis.opsForZSet().add(qKey, qsid, System.currentTimeMillis());
+        }
+
+        // 4) TTL 연장: qsid + device
+        redis.expire(qsidKey, JOIN_TTL);
+
+        String deviceKey = "device:" + scheduleId + ":" + deviceId;
+        redis.expire(deviceKey, JOIN_TTL);
+
+        // 5) hbKey 갱신(새로고침 감지용)
+        redis.opsForValue().set(hbKey, "1", 15, TimeUnit.SECONDS);
     }
+
+
 
     private boolean hasActiveCapacity(Long scheduleId, int maxActive) {
         Long activeCnt = redis.opsForZSet().size(activeKey(scheduleId));
@@ -218,6 +265,9 @@ public class QueueService {
 
         Long rank0 = redis.opsForZSet().rank(qKey, newQsid);
         Long position = rank0 == null ? null : rank0 + 1;
+
+        String hbKey = "waiting:hb:" + scheduleId + ":" + newQsid;
+        redis.opsForValue().set(hbKey, "1", 15, TimeUnit.SECONDS);
 
         return new QueueJoinResponse("WAITING", position, newQsid, null);
     }
