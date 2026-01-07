@@ -35,62 +35,78 @@ public class BookingSessionService {
             String waitingToken,
             String deviceId
     ) {
-        // 1. waitingToken 검증
-        String qsid = validateWaitingToken(waitingToken, scheduleId);
+        // (1) 중복 요청 방지 락 (waitingToken 단위)
+        String lockKey = "waiting:lock:" + waitingToken;
+        Boolean locked = redisTemplate.opsForValue()
+                .setIfAbsent(lockKey, "1", 10, TimeUnit.SECONDS);
 
-        // 2. deviceId 검증 (대기열 진입 기기 = 예매 기기)
-        validateDevice(qsid, deviceId);
+        if (!Boolean.TRUE.equals(locked)) {
+            // ErrorCode 없으면 임시로 INVALID_INPUT_VALUE 같은 걸로 막아도 됨
+            throw new ServiceException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
-        // 3. waitingToken 소비
-        redisTemplate.delete("waiting:" + waitingToken);
+        try {
+            // 1) waitingToken 검증 (아직 delete 하지 말 것)
+            String qsid = validateWaitingToken(waitingToken, scheduleId);
 
-//        redisTemplate.opsForHash().delete("admitted:" + scheduleId, qsid);
-//        redisTemplate.delete("qsid:" + qsid);
-//        redisTemplate.delete("device:" + scheduleId + ":" + deviceId);
+            // 2) deviceId 검증
+            validateDevice(qsid, deviceId);
 
+            // 3) 기존 세션 확인/삭제
+            checkExistingSession(userId, scheduleId, deviceId);
 
-        // 4. 중복 세션 확인
-        String existingSession = checkExistingSession(userId, scheduleId, deviceId);
+            // 4) BookingSession 생성
+            String bookingSessionId = UUID.randomUUID().toString();
 
-        // 5. BookingSession 생성
-        String bookingSessionId = UUID.randomUUID().toString();
+            redisTemplate.opsForValue().set(
+                    BOOKING_SESSION_KEY_PREFIX + bookingSessionId,
+                    scheduleId.toString(),
+                    BOOKING_SESSION_TTL
+            );
 
-        redisTemplate.opsForValue().set(
-                BOOKING_SESSION_KEY_PREFIX + bookingSessionId,
-                scheduleId.toString(),
-                BOOKING_SESSION_TTL
-        );
+            redisTemplate.opsForValue().set(
+                    BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId,
+                    deviceId,
+                    BOOKING_SESSION_TTL
+            );
 
-        redisTemplate.opsForValue().set(
-                BOOKING_SESSION_DEVICE_PREFIX + bookingSessionId,
-                deviceId,
-                BOOKING_SESSION_TTL
-        );
+            redisTemplate.opsForValue().set(
+                    BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId,
+                    bookingSessionId,
+                    BOOKING_SESSION_TTL
+            );
 
-        redisTemplate.opsForValue().set(
-                BOOKING_SESSION_KEY_PREFIX + userId + ":" + scheduleId,
-                bookingSessionId,
-                BOOKING_SESSION_TTL
-        );
+            redisTemplate.opsForValue().set(
+                    BOOKING_SESSION_USER_PREFIX + bookingSessionId,
+                    userId.toString(),
+                    BOOKING_SESSION_TTL
+            );
 
-        // 역매핑: sessionId → userId
-        redisTemplate.opsForValue().set(
-                BOOKING_SESSION_USER_PREFIX + bookingSessionId,
-                userId.toString(),
-                BOOKING_SESSION_TTL
-        );
+            // 5) Active 추가
+            redisTemplate.opsForZSet().add(
+                    "active:" + scheduleId,
+                    bookingSessionId,
+                    System.currentTimeMillis()
+            );
 
-        // 6. Active 추가
-        redisTemplate.opsForZSet().add(
-                "active:" + scheduleId,
-                bookingSessionId,
-                System.currentTimeMillis()
-        );
+            // 6) 여기서 Queue 종료(정리) - 성공했으니 마지막에 삭제
+            // waitingToken 소비
+            redisTemplate.delete("waiting:" + waitingToken);
 
-        log.info("[BookingSession] 생성 + Active 진입 - userId={}, scheduleId={}, sessionId={}",
-                userId, scheduleId, bookingSessionId);
+            // admitted / qsid / device 매핑 삭제
+            redisTemplate.opsForHash().delete("admitted:" + scheduleId, qsid);
+            redisTemplate.delete("qsid:" + qsid);
+            redisTemplate.delete("device:" + scheduleId + ":" + deviceId);
 
-        return bookingSessionId;
+            log.info("[BookingSession] 생성 + Active 진입 - userId={}, scheduleId={}, sessionId={}",
+                    userId, scheduleId, bookingSessionId);
+
+            return bookingSessionId;
+
+        } finally {
+            // 락 해제(안전 단순 버전)
+            redisTemplate.delete(lockKey);
+        }
     }
 
     /**
