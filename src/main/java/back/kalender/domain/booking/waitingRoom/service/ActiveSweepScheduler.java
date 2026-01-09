@@ -22,9 +22,9 @@ public class ActiveSweepScheduler {
     private final BookingSessionService bookingSessionService;
     private final ReservationService reservationService;
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = 1000)
     public void sweep() {
-        long cutoff = System.currentTimeMillis() - 60_000;
+        long cutoff = System.currentTimeMillis() - 30_000;
 
         for (Long scheduleId : scheduleQueryService.getOpenScheduleIds()) {
             try{
