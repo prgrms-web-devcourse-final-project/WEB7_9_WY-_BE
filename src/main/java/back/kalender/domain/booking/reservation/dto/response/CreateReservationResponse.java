@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 
-@Schema(description = "예매 세션 생성 응답")
+@Schema(description = "예매 생성 응답")
 public record CreateReservationResponse(
         @Schema(description = "예매 ID", example = "123")
         Long reservationId,
